@@ -33,10 +33,11 @@ IT service desk application — CPE334 Lab 1 project foundation (React + TypeScr
    ```bash
    cd client
    npm install
+   cp .env.example .env
    npm run dev
    ```
 
-   The UI runs on http://localhost:5173.
+   The UI runs on http://localhost:5173 and calls the API at `VITE_API_URL` (default `http://localhost:4000/api`).
 
 ## Tests
 
