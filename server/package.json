@@ -1,6 +1,7 @@
 {
-  "name": "server",
+  "name": "toktickit-server",
   "version": "0.0.0",
+  "type": "module",
   "private": true,
   "description": "TokTickIT API server (CPE334 Lab 1 foundation)",
   "scripts": {
