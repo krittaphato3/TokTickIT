@@ -1,0 +1,31 @@
+{
+  "name": "toktickit-server",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "description": "TokTickIT API server (CPE334 Lab 1 foundation)",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.1.2",
+    "@types/supertest": "^7.2.1",
+    "prisma": "^6.19.3",
+    "supertest": "^7.2.2",
+    "tsx": "^4.23.9",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  }
+}

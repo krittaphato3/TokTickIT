@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Environment files (never commit real credentials)
+.env
+.env.*
+!.env.example
+
+# Build output
+dist/
+build/
+
+# Test artifacts
+coverage/
+*.tsbuildinfo
+
+# Logs
+*.log
+logs/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
