@@ -3,3 +3,10 @@ body {
   min-height: 100svh;
   background-color: #f8f9fa;
 }
+
+/* Foundation tidying: reserved space so status content (Issues 2/4)
+   never jumps the layout when it appears. */
+.tt-status {
+  min-height: 2.75rem;
+  margin-top: 1.5rem;
+}

@@ -19,9 +19,6 @@ function App() {
 
   return (
     <main className="container py-5" style={{ maxWidth: 640 }}>
-      <nav className="navbar bg-primary-subtle rounded mb-4">
-        <span className="navbar-brand mb-0 h1">TokTickIT</span>
-      </nav>
       <h1 className="h3 mb-4">
         TokTickIT <span className="text-success">IT Service Desk</span>
       </h1>
@@ -37,7 +34,7 @@ function App() {
       </button>
 
       {/* Status area: loading / Online + categories / Offline message land in Issues 2 and 4. */}
-      <div aria-live="polite" role="status" />
+      <div aria-live="polite" role="status" className="tt-status" />
     </main>
   );
 }
