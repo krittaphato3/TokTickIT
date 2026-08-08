@@ -37,7 +37,29 @@ IT service desk application — CPE334 Lab 1 project foundation (React + TypeScr
    npm run dev
    ```
 
-   The UI runs on http://localhost:5173 and calls the API at `VITE_API_URL` (default `http://localhost:4000/api`).
+   The UI runs on http://localhost:5173 and calls the API at `VITE_API_URL` (default `http://localhost:4000`).
+
+## Database (Prisma + PostgreSQL)
+
+The schema lives in `server/prisma/schema.prisma`. Run migrations and seed the reference data:
+
+```bash
+# Apply the latest migration (e.g. the Category table)
+cd server
+npm run prisma:migrate
+
+# Seed the four supported request categories (idempotent — safe to re-run)
+npm run prisma:seed
+```
+
+Equivalent convenience scripts are available from the repo root:
+
+```bash
+npm run db:migrate
+npm run db:seed
+```
+
+The seed inserts **Account and Access**, **Hardware**, **Software**, and **Network**, using an upsert keyed on the unique `name`, so re-running it never creates duplicates.
 
 ## Tests
 
