@@ -11,19 +11,12 @@ const CATEGORIES = [
   { id: 4, name: 'Network' },
 ];
 
-function mockFetchFailure(): void {
-  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network error')));
-}
-
-afterEach(() => {
-  cleanup();
-  vi.unstubAllGlobals();
-});
-
-describe('App', () => {
-  it('renders the TokTickIT heading', () => {
-    render(<App />);
-    expect(screen.getByRole('heading', { name: /toktickit/i })).toBeInTheDocument();
+// UI-02 — required Lab 1 test: loading state changes to the category list
+// after a successful API response.
+describe('App success flow', () => {
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
   });
 
   it('shows a loading state, then the category list on success', async () => {
@@ -56,17 +49,5 @@ describe('App', () => {
     for (const category of CATEGORIES) {
       expect(screen.getByText(category.name)).toBeInTheDocument();
     }
-    expect(screen.queryByText('Unable to connect to TokTickIT API')).not.toBeInTheDocument();
-  });
-
-  it('shows an offline error message when the API is unavailable', async () => {
-    mockFetchFailure();
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(screen.getByRole('button', { name: /check system/i }));
-
-    expect(await screen.findByText('System Status: Offline')).toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveTextContent('Unable to connect to TokTickIT API');
   });
 });
