@@ -14,7 +14,7 @@ Comment received from partner on my PR → my response:
 - napatsun: ถูกต้อง ครบถ้วนตาม issue1, ทำอันต่อไปได้
 
 Comment I gave partner on their PR → their response:
--
+- https://github.com/napatsun/TokTickIT/pull/7#pullrequestreview-4883594853
 
 ---
 
@@ -32,7 +32,7 @@ Comment received from partner on my PR → my response:
 - napatsun: เรียบร้อย ครบถ้วน ตาม issue2
 
 Comment I gave partner on their PR → their response:
--
+- https://github.com/napatsun/TokTickIT/pull/8#pullrequestreview-4896679127
 
 ---
 
@@ -50,4 +50,4 @@ Comment received from partner on my PR → my response:
 - napatsun: เรียบร้อยถูกต้อง ครบถ้วน ตาม issue3
 
 Comment I gave partner on their PR → their response:
--
+- 
