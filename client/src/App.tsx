@@ -7,13 +7,13 @@ type UiState = 'idle' | 'loading' | 'success' | 'error';
 
 function App() {
   const [state, setState] = useState<UiState>('idle');
-  const [categories] = useState<Category[]>([]);
-  void categories;
+  const [categories, setCategories] = useState<Category[]>([]);
 
   async function handleCheck() {
     setState('loading');
     try {
-      await checkSystem();
+      const result = await checkSystem();
+      setCategories(result.categories);
       setState('success');
     } catch {
       setState('error');
@@ -37,7 +37,19 @@ function App() {
       </button>
 
       <div aria-live="polite" role="status" className="tt-status">
-        {state === 'success' && <p className="mb-0">System Status: Online</p>}
+        {state === 'success' && (
+          <>
+            <p className="mb-0">System Status: Online</p>
+            <p className="mb-2 mt-3">Supported Request Categories:</p>
+            <ul className="list-group">
+              {categories.map((category) => (
+                <li key={category.id} className="list-group-item">
+                  {category.name}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
         {state === 'error' && (
           <>
             <p className="mb-0">System Status: Offline</p>
