@@ -23,3 +23,7 @@ logs/
 Thumbs.db
 .idea/
 .vscode/
+
+# Playwright artifacts
+test-results/
+playwright-report/
