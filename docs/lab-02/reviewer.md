@@ -22,15 +22,15 @@ Comment I gave partner on their PR → their response:
 Issue 2:
 
 Reviewer name / student ID / GitHub username:
-- Name: [Reviewer Name]
+- Name: napatsun
 - Student ID: [Student ID]
-- GitHub username: [GitHub Username]
+- GitHub username: napatsun
 
 PRs reviewed (links):
-- [Paste PR link here]
+- https://github.com/krittaphato3/TokTickIT/pull/21
 
 Comment received from partner on my PR → my response:
-- [Reviewer Name]: [Comment]
+- napatsun: [Comment]
 
 Comment I gave partner on their PR → their response:
 - [Your comment]
