@@ -17,7 +17,7 @@ The stakeholders (CPE 334 course) want a realistic first slice of the TokTickIT 
 ## 3. Scope
 
 ### IN SCOPE
-- **Create Ticket** — requester submits title, description, category, priority.
+- **Create Ticket** — requester submits title, description, category, priority, and optionally selects one or more related systems.
 - **My Tickets** — owned, paginated list with search, filters (category, priority), sorting, and pagination.
 - **Requester Ticket Detail** — read-only detail of an owned ticket, including attachment metadata.
 - **Attachment lifecycle** — upload, metadata listing, download, and soft-removal.
@@ -49,13 +49,14 @@ The stakeholders (CPE 334 course) want a realistic first slice of the TokTickIT 
 - **FR-14 — Ownership Enforcement.** All ticket and attachment endpoints resolve the active requester from the `X-Dev-Requester-Id` header and enforce ownership on every read, write, upload, download, and removal. Cross-requester access is denied with 403.
 - **FR-15 — Empty and Failure States.** The UI renders distinct states: initial load (skeleton), loading, empty list ("No tickets yet"), no-results ("No results match"), validation errors, submitting (busy), success, and failure (friendly message + retry). Form input is preserved on failure.
 - **FR-16 — Accessibility and Responsiveness.** The UI is keyboard-operable, labeled, non-color-dependent for errors/badges, and renders correctly at desktop (≥992px), tablet (768–991px), and mobile (<768px) with no horizontal scroll on mobile (see ui-spec.md).
+- **FR-17 — Related System Selection.** A requester can optionally associate one or more related systems with a ticket during creation. Available systems are fetched from `GET /api/related-systems`. The server validates that all provided IDs reference existing RelatedSystem records; invalid IDs are rejected with 400.
 
 ## 5. Business Rules
 
 - **BR-01 — Official Ticket Number (backend-generated, unique).** The `ticketNumber` is generated exclusively by the backend from a dedicated PostgreSQL sequence and carries a unique constraint. Clients may read it but never supply or modify it.
 - **BR-02 — Initial Status.** A new ticket always begins with Current Status `New` (`NEW`). There are no status transitions in this sprint.
 - **BR-03 — Dev Requester Selector Is Testing Only.** The Development Requester selector is a testing mechanism that simulates identity. It is **not** authentication, provides no security boundary in production semantics, and must be visibly labeled as such in the UI ("Testing only — not real authentication").
-- **BR-04 — Ticket Defaults.** If the client omits `priority`, the server stores `MEDIUM`. `description` is optional (defaults to empty/null). `status` is always `NEW`. `categoryId` is required and must reference an existing Category.
+- **BR-04 — Ticket Defaults.** If the client omits `priority`, the server stores `MEDIUM`. `description` is optional (defaults to empty/null). `status` is always `NEW`. `categoryId` is required and must reference an existing Category. `relatedSystemIds` is optional (defaults to empty array `[]`).
 - **BR-05 — Requester Switching.** The active Development Requester is resolved per request from the `X-Dev-Requester-Id` header. Switching requester in the selector clears the current list context (search, filters, sort, pagination) and reloads only the new requester's tickets. The selection may be persisted client-side (localStorage) for convenience; the server keeps no session state.
 - **BR-06 — Ownership.** Every ticket/attachment operation is scoped to the requester identified by the header. A requester can never list, view, upload to, download from, or remove attachments of another requester's tickets. Violations return 403.
 - **BR-07 — Search Semantics.** Search is a trimmed, case-insensitive substring match (ILIKE) applied to title OR description. An empty search term is ignored. Search and filters combine with AND.
@@ -70,13 +71,14 @@ The stakeholders (CPE 334 course) want a realistic first slice of the TokTickIT 
 - **BR-16 — Empty States.** A requester with zero tickets sees "No tickets yet" with a call-to-action to create a ticket. A requester whose search/filters match nothing sees "No results match your filters" with a "Clear filters" action. The two states are visually and textually distinct.
 - **BR-17 — Lab 3 Authentication Transition.** The current `Requester` model and `X-Dev-Requester-Id` header are strictly for Lab 2 testing. The database schema is designed to accommodate Lab 3 by adding `passwordHash` and `role` columns directly to the `Requester` table via a future Prisma migration, without altering the core Ticket/Attachment relationships or requiring a schema rewrite.
 - **BR-18 — Safe Filename and Storage Behavior.** To prevent path traversal and filename collisions, the server must never use the user-supplied `fileName` for disk storage. The server must generate a cryptographically secure random identifier (e.g., using `crypto.randomUUID()`) for the `storedName` on disk, while retaining the original `fileName` in the database strictly for the `Content-Disposition` download header.
+- **BR-19 — Related System Validation.** If the client provides `relatedSystemIds`, each ID must reference an existing RelatedSystem. Invalid or non-existent IDs return 400 with a field-level error on `relatedSystemIds`. An empty array `[]` is valid (no related systems). Omitting the field entirely is also valid (treated as no related systems).
 
 ## 6. UI Specification Summary
 
 Full component-level specification: [`ui-spec.md`](./ui-spec.md). Summary:
 
 - **App shell:** Sticky top navbar with brand, primary navigation (New Ticket, My Tickets) with active-state indication, and the Development Requester selector at the top right labeled "Testing only — not real authentication".
-- **Screens:** (1) My Tickets — search box, category/priority filters, sort control, clear-filters action, responsive list (table on desktop, cards on mobile), pagination; (2) Create Ticket — form with title, category, priority, description, attachment picker; (3) Ticket Detail — read-only ticket information and attachment management.
+- **Screens:** (1) My Tickets — search box, category/priority/related-systems filters, sort control, clear-filters action, responsive list (table on desktop, cards on mobile), pagination; (2) Create Ticket — form with title, category, priority, related systems (multi-select), description, attachment picker; (3) Ticket Detail — read-only ticket information and attachment management.
 - **States:** initial, loading (skeleton), validation (inline, field-level), submitting (busy button), success, failure (inline alert + retry).
 - **Responsive rules:** Desktop ≥992px multi-column table + two-column form; Tablet 768–991px two-column; Mobile <768px stacked, touch targets ≥44px, no horizontal scroll.
 - **Accessibility:** visible labels, `aria-describedby` for inline validation, visible focus ring, errors and badges never rely on color alone, keyboard-operable controls.
@@ -91,6 +93,8 @@ Full component-level specification: [`ui-spec.md`](./ui-spec.md). Summary:
 | `Ticket` | `id` (Int PK), `ticketNumber` (String, unique), `title`, `description` (nullable), `status` (enum, default `NEW`), `priority` (enum, default `MEDIUM`), `requesterId` (FK → Requester), `categoryId` (FK → Category), `createdAt`, `updatedAt` | Core ticket record. |
 | `Category` | existing Lab 1 model (id, name unique, createdAt) | Reused unchanged; four seeded categories. |
 | `Attachment` | `id` (Int PK), `ticketId` (FK → Ticket, `onDelete: Cascade`), `fileName` (original), `storedName` (server-generated), `mimeType`, `sizeBytes` (Int), `uploadedAt`, `removedAt` (nullable) | Soft-removal lifecycle. |
+| `RelatedSystem` | `id` (Int PK), `name` (String, unique), `createdAt` | Seeded reference data (6+ entries). |
+| `TicketRelatedSystem` | `ticketId` (FK → Ticket), `systemId` (FK → RelatedSystem) | Composite PK; join table for Ticket N—M RelatedSystem. |
 
 ### Enums
 
@@ -102,6 +106,7 @@ Full component-level specification: [`ui-spec.md`](./ui-spec.md). Summary:
 - `Requester 1—N Ticket` (a requester owns many tickets; a ticket has exactly one requester).
 - `Category 1—N Ticket` (a ticket has exactly one category).
 - `Ticket 1—N Attachment` (a ticket has many attachments).
+- `Ticket N—M RelatedSystem` (a ticket can be associated with multiple related systems via the `TicketRelatedSystem` join table; a related system can appear on many tickets).
 
 ### Indexes
 
@@ -109,6 +114,8 @@ Full component-level specification: [`ui-spec.md`](./ui-spec.md). Summary:
 - `Ticket (requesterId, createdAt DESC)` — composite; serves the primary owned-list query with default sort.
 - `Ticket.categoryId`, `Ticket.priority` — filtered lookups.
 - `Attachment.ticketId` — attachment listing per ticket.
+- `TicketRelatedSystem (ticketId)` — related-system listing per ticket.
+- `TicketRelatedSystem (systemId)` — reverse lookup.
 
 ### Justified database design decision — soft removal via `removedAt`
 
@@ -120,8 +127,8 @@ A second design decision: the externally visible identifier is the generated `ti
 
 Full contract with request/response examples, validation, and error tables: [`api-spec.md`](./api-spec.md). Summary:
 
-- **Identity:** all `/api/tickets*` endpoints require the `X-Dev-Requester-Id` header (Development Requester id). Missing → 400; unknown → 401; inactive → 403. `/api/health`, `/api/categories`, and `/api/requesters` are header-free.
-- **Create:** `POST /api/tickets` — body `{ title, description?, categoryId, priority? }` → 201 with the full ticket (ticketNumber generated, status `NEW`, priority defaulted to `MEDIUM`).
+- **Identity:** all `/api/tickets*` endpoints require the `X-Dev-Requester-Id` header (Development Requester id). Missing → 400; unknown → 401; inactive → 403. `/api/health`, `/api/categories`, `/api/requesters`, and `/api/related-systems` are header-free.
+- **Create:** `POST /api/tickets` — body `{ title, description?, categoryId, priority?, relatedSystemIds? }` → 201 with the full ticket (ticketNumber generated, status `NEW`, priority defaulted to `MEDIUM`, relatedSystems included).
 - **List:** `GET /api/tickets?page=&pageSize=&search=&categoryId=&priority=&sortBy=&sortDir=` → 200 with `{ data, meta }`; pagination metadata always present; only the active requester's tickets are ever returned.
 - **Detail:** `GET /api/tickets/:ticketNumber` → 200 with ticket + `requester` + active `attachments` metadata; 404 not found; 403 not owned.
 - **Attachments:** `POST /api/tickets/:ticketNumber/attachments` (multipart, field `file`) → 201 metadata (413 size / 415 type / 400 limit); `GET /api/tickets/:ticketNumber/attachments/:attachmentId/download` → 200 stream (404 if removed); `DELETE /api/tickets/:ticketNumber/attachments/:attachmentId` → 200 with `removedAt` set (soft removal).
@@ -152,6 +159,7 @@ Each criterion is stated in Given-When-Then form. All ACs are machine-verifiable
 - **AC-19 — Responsive behavior.** Given viewport widths of ≥992px, 768–991px, and <768px, then the ticket list renders as a multi-column table (desktop), a two-column layout (tablet), and stacked cards (mobile) with no horizontal scroll and touch targets ≥ 44px on mobile.
 - **AC-20 — Accessibility.** Given the UI is exercised with a keyboard and a screen reader, then all form fields have visible labels and `aria-describedby` error wiring, focus is visibly indicated, validation errors and badges convey meaning without color alone, and all interactive controls are keyboard-operable.
 - **AC-21 — Dev identity edge cases.** Given a request to any `/api/tickets*` endpoint, then a missing `X-Dev-Requester-Id` header returns 400, an unknown requester id returns 401, and an inactive requester id returns 403, each with a clear error message.
+- **AC-22 — Related system selection.** Given a requester creating a ticket with valid `relatedSystemIds` referencing existing RelatedSystem records, then the created ticket includes those related systems in its detail response; given invalid IDs, the server returns 400 with a field-level error; given an empty array or omitted field, the ticket has no associated related systems.
 
 ## 10. Definition of Done
 
@@ -162,7 +170,7 @@ The sprint is done when **all** of the following hold:
 - [ ] The API enforces ownership on every ticket/attachment operation (no test can leak another requester's data).
 - [ ] All planned tests in tests.md are green: server unit + API (Vitest/Supertest), client UI (Vitest + Testing Library), and E2E (Playwright), including responsive checks.
 - [ ] `cd server && npm run build` and `cd client && npm run build` complete without errors; `npm run lint` is clean.
-- [ ] Seed is idempotent: 4 categories (from Lab 1) and 4 active Development Requesters can be re-seeded without duplicates.
+- [ ] Seed is idempotent: 4 categories (from Lab 1), 7 Related Systems, 4 active Development Requesters, and 1 inactive Development Requester can be re-seeded without duplicates.
 - [ ] Attachment limits verified: 5/ticket, 5 MB/file, 4-type MIME allowlist; 413/415/400 paths return the documented shapes.
 - [ ] Manual pass at three breakpoints (desktop/tablet/mobile) confirms ui-spec.md responsive rules, including no horizontal scroll on mobile.
 - [ ] All four documents (specification, api-spec, ui-spec, tests) are updated to reflect final behavior and their Final Results sections are filled in.
@@ -184,4 +192,5 @@ The sprint is done when **all** of the following hold:
 | D-11 | Categories are reused unchanged from Lab 1; requesters are new seeded data. | Avoids churn on an existing, working model; keeps the four-course-defined categories authoritative. |
 | D-12 | Timestamps are stored in UTC and rendered in the requester's local timezone. | Standard practice; keeps stored data unambiguous. |
 | D-13 | The Development Requester selection may persist in localStorage; switching always resets list context. | Good UX while preserving per-requester data isolation in the UI; the server never persists the "current" requester. |
-| D-14 | `/api/health`, `/api/categories`, `/api/requesters` are header-free. | They expose no requester-owned data; keeps the existing Lab 1 health/categories contract unchanged. |
+| D-14 | `/api/health`, `/api/categories`, `/api/requesters`, `/api/related-systems` are header-free. | They expose no requester-owned data; keeps the existing Lab 1 health/categories contract unchanged. |
+| D-15 | Related Systems are a seeded lookup table; tickets optionally reference one or more via a many-to-many join. | Real service desks track affected systems; the lookup table is simple to seed, query, and extend; many-to-many allows a ticket to span multiple systems. |

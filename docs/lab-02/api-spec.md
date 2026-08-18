@@ -22,7 +22,7 @@ X-Dev-Requester-Id: <integer>
 | Unknown requester id | 401 | `Unknown development requester` |
 | Inactive requester id | 403 | `Requester account is inactive` |
 
-Header-free endpoints (public, no requester-owned data): `GET /api/health`, `GET /api/categories`, `GET /api/requesters`.
+Header-free endpoints (public, no requester-owned data): `GET /api/health`, `GET /api/categories`, `GET /api/requesters`, `GET /api/related-systems`.
 
 ### 1.2 Error envelope
 
@@ -94,6 +94,8 @@ Existing Lab 1 endpoint. Returns `200` with the four seeded categories ordered b
 
 Returns the **active** Development Requesters (testing identities), ordered by id. Inactive requesters are excluded (they are not selectable in the UI).
 
+> **Seed note:** The database is seeded with 4 active requesters (Alpha–Delta) and 1 inactive requester (Epsilon, `isActive: false`). The inactive requester is excluded from this response but is used to test the inactive-requester 403 path (§1.1).
+
 `200`:
 
 ```json
@@ -102,6 +104,24 @@ Returns the **active** Development Requesters (testing identities), ordered by i
   { "id": 2, "name": "Dev User Beta",  "email": "beta@toktickit.test" },
   { "id": 3, "name": "Dev User Gamma", "email": "gamma@toktickit.test" },
   { "id": 4, "name": "Dev User Delta", "email": "delta@toktickit.test" }
+]
+```
+
+### 2.4 `GET /api/related-systems`
+
+Returns all seeded Related Systems, ordered by id. This is a public endpoint (no header required).
+
+`200`:
+
+```json
+[
+  { "id": 1, "name": "Email Server" },
+  { "id": 2, "name": "VPN Gateway" },
+  { "id": 3, "name": "Printer" },
+  { "id": 4, "name": "Database Server" },
+  { "id": 5, "name": "File Server" },
+  { "id": 6, "name": "Active Directory" },
+  { "id": 7, "name": "Web Application" }
 ]
 ```
 
@@ -120,7 +140,8 @@ Returns the **active** Development Requesters (testing identities), ordered by i
   "title": "Laptop will not boot after update",
   "description": "Screen stays black after the latest OS update.",
   "categoryId": 2,
-  "priority": "HIGH"
+  "priority": "HIGH",
+  "relatedSystemIds": [1, 3]
 }
 ```
 
@@ -130,6 +151,7 @@ Returns the **active** Development Requesters (testing identities), ordered by i
 | `description` | no | string | ≤ 4000 characters |
 | `categoryId` | yes | integer | must reference an existing Category |
 | `priority` | no | enum | `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`; defaults to `MEDIUM` |
+| `relatedSystemIds` | no | integer[] | each ID must reference an existing RelatedSystem; empty array or omitted = no related systems |
 
 **`201 Created`** — the created ticket (server assigns `ticketNumber`, `status: NEW`, `createdAt`, `updatedAt`):
 
@@ -142,6 +164,10 @@ Returns the **active** Development Requesters (testing identities), ordered by i
   "status": "NEW",
   "priority": "HIGH",
   "category": { "id": 2, "name": "Hardware" },
+  "relatedSystems": [
+    { "id": 1, "name": "Email Server" },
+    { "id": 3, "name": "Printer" }
+  ],
   "createdAt": "2026-08-18T09:30:00.000Z",
   "updatedAt": "2026-08-18T09:30:00.000Z"
 }
@@ -157,6 +183,7 @@ Returns the **active** Development Requesters (testing identities), ordered by i
 | Empty/oversized title, missing category, description > 4000 chars | 400 | `Validation failed` + `details` |
 | `categoryId` does not exist | 400 | `Validation failed` → `{ field: "categoryId", message: "Category does not exist" }` |
 | Invalid `priority` | 400 | `Validation failed` → `{ field: "priority", message: "Priority must be one of LOW, MEDIUM, HIGH, CRITICAL" }` |
+| `relatedSystemIds` contains invalid IDs | 400 | `Validation failed` → `{ field: "relatedSystemIds", message: "One or more related system IDs do not exist" }` |
 | Malformed JSON body | 400 | `Invalid JSON body` |
 | Unexpected server error | 500 | generic message |
 
@@ -193,6 +220,10 @@ Semantics (BR-07 … BR-10): all criteria combine with **AND**; `priority` sorts
       "status": "NEW",
       "priority": "HIGH",
       "category": { "id": 2, "name": "Hardware" },
+      "relatedSystems": [
+        { "id": 1, "name": "Email Server" },
+        { "id": 3, "name": "Printer" }
+      ],
       "createdAt": "2026-08-18T09:30:00.000Z",
       "updatedAt": "2026-08-18T09:30:00.000Z"
     }
@@ -240,6 +271,10 @@ Empty result sets return `data: []` and `totalItems: 0` (see empty-state handlin
   "priority": "HIGH",
   "category": { "id": 2, "name": "Hardware" },
   "requester": { "id": 1, "name": "Dev User Alpha", "email": "alpha@toktickit.test" },
+  "relatedSystems": [
+    { "id": 1, "name": "Email Server" },
+    { "id": 3, "name": "Printer" }
+  ],
   "attachments": [
     {
       "id": 3,

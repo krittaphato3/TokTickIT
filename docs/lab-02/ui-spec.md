@@ -109,7 +109,7 @@ Breakpoints follow Bootstrap 5 (and match AC-19):
 
 | Range | Layout rules |
 |---|---|
-| **Desktop ≥ 992px** | Ticket list = multi-column table (6 columns, see §10); Create form = two-column grid (category + priority side by side); navbar shows all items inline. |
+| **Desktop ≥ 992px** | Ticket list = multi-column table (7 columns, see §10); Create form = two-column grid (category + priority side by side, related systems full-width below); navbar shows all items inline. |
 | **Tablet 768–991px** | Two-column layout retained for the form; list table kept but with reduced column set (Ticket #, Title, Priority, Status, Created — category moves into title row as a chip). |
 | **Mobile < 768px** | Everything stacks vertically. Ticket list becomes **cards** (§10). Form fields stack full-width. Touch targets ≥ 44×44px. **No horizontal scroll** anywhere. Pagination collapses to Prev / Next + "Page X of Y". |
 
@@ -139,11 +139,11 @@ The Dev Requester selector stays visible at all breakpoints (compact on mobile).
 
 **Toolbar (above the list):**
 - Search box with magnifier icon and a clear (×) button when non-empty. Debounced (300ms); submits `search` on change.
-- Filters: Category select (All Categories + 4 seeded), Priority select (All Priorities + 4). Selecting either immediately re-requests with `categoryId` / `priority`.
+- Filters: Category select (All Categories + 4 seeded), Priority select (All Priorities + 4), Related Systems multi-select (7 seeded). Selecting Category or Priority immediately re-requests with `categoryId` / `priority`. Related Systems filter combines with AND (tickets matching all selected systems).
 - Sort control: options map to API params — "Newest first" (`createdAt desc`), "Oldest first" (`createdAt asc`), "Title A–Z" (`title asc`), "Title Z–A" (`title desc`), "Priority: high first" (`priority desc`), "Priority: low first" (`priority asc`).
 - **Clear filters** (secondary, appears only when search/filters/sort differ from defaults): resets search, filters, and sort to defaults.
 
-**Desktop/tablet table columns:** Ticket # (monospace link) · Title · Category (chip) · Priority (badge) · Status (badge) · Created (local date + time). Sortable headers: Title, Priority, Created (cycle asc/desc on click). Rows are links to the detail view; hover row highlight (pale green).
+**Desktop/tablet table columns:** Ticket # (monospace link) · Title · Category (chip) · Priority (badge) · Status (badge) · Related Systems (chips) · Created (local date + time). Sortable headers: Title, Priority, Created (cycle asc/desc on click). Rows are links to the detail view; hover row highlight (pale green).
 
 **Mobile cards:** each ticket = card with ticket number + title, badges row (Priority · Status · Category chip), and Created date. Tap anywhere opens detail. No horizontal scroll.
 
@@ -172,7 +172,7 @@ Badges are pill-shaped, always carry their **text label** (non-color indicator):
 ## 12. Ticket detail (read-only layout)
 
 - **Header:** ticket number (monospace) + Status badge + Priority badge; page title = ticket title.
-- **Metadata definition list** (read-only fields, §2 styling): Category, Priority, Status, Created, Updated, Requested by (requester name).
+- **Metadata definition list** (read-only fields, §2 styling): Category, Priority, Status, Created, Updated, Requested by (requester name), Related Systems (chips, or "None" in muted text).
 - **Description:** read-only block on warm ivory (`--tok-field-readonly-warm`) with the same border treatment; "No description provided" muted text when empty.
 - **Attachments section:** "Attachments (n)" + "Add attachment" (picker, §5). Each active attachment = chip row: icon, file name (download link), size, upload date, "Remove" (destructive, with inline confirm: "Remove this attachment?" → Confirm/Cancel). Removed attachments render grayed + strikethrough + "Removed" badge and are not downloadable.
 - **Navigation:** "Back to My Tickets" (tertiary).
