@@ -7,8 +7,74 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Status {
+  NEW
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
 model Category {
   id        Int      @id @default(autoincrement())
   name      String   @unique
   createdAt DateTime @default(now())
+  tickets   Ticket[]
+}
+
+model Requester {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  tickets   Ticket[]
+}
+
+model Ticket {
+  id            Int      @id @default(autoincrement())
+  ticketNumber  String   @unique @db.VarChar(20)
+  title         String   @db.VarChar(120)
+  description   String?  @db.Text
+  status        Status   @default(NEW)
+  priority      Priority @default(MEDIUM)
+  requesterId   Int
+  categoryId    Int
+  systemId      Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  requester  Requester  @relation(fields: [requesterId], references: [id], onDelete: Restrict)
+  category   Category   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  system     RelatedSystem? @relation(fields: [systemId], references: [id], onDelete: Restrict)
+  attachments Attachment[]
+
+  @@index([requesterId, createdAt(sort: Desc)])
+  @@index([categoryId])
+  @@index([priority])
+}
+
+model Attachment {
+  id         Int      @id @default(autoincrement())
+  ticketId   Int
+  fileName   String
+  storedName String   @unique
+  mimeType   String
+  sizeBytes  Int
+  uploadedAt DateTime @default(now())
+  removedAt  DateTime?
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+}
+
+model RelatedSystem {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  tickets   Ticket[]
 }

@@ -1,6 +1,7 @@
 -- Issue 2: Database Schema and Seed Data
 -- Adds Lab 2 models: Requester, Ticket (with Status/Priority enums),
--- Attachment, RelatedSystem, and TicketRelatedSystem join table.
+-- Attachment, RelatedSystem.
+-- Changes Ticket -> RelatedSystem from Many-to-Many to One-to-Many via systemId FK.
 -- Reuses the existing Category table from Lab 1 unchanged.
 
 CREATE TYPE "Status" AS ENUM ('NEW');
@@ -26,13 +27,15 @@ CREATE TABLE "Ticket" (
   "priority"     "Priority"   NOT NULL DEFAULT 'MEDIUM',
   "requesterId"  INT          NOT NULL,
   "categoryId"   INT          NOT NULL,
+  "systemId"     INT,
   "createdAt"    TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt"    TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   CONSTRAINT "Ticket_pkey" PRIMARY KEY ("id"),
   CONSTRAINT "Ticket_ticketNumber_key" UNIQUE ("ticketNumber"),
   CONSTRAINT "Ticket_requesterId_fkey" FOREIGN KEY ("requesterId") REFERENCES "Requester"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT "Ticket_categoryId_fkey"  FOREIGN KEY ("categoryId")  REFERENCES "Category"("id")  ON DELETE RESTRICT ON UPDATE CASCADE
+  CONSTRAINT "Ticket_categoryId_fkey"  FOREIGN KEY ("categoryId")  REFERENCES "Category"("id")  ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT "Ticket_systemId_fkey"    FOREIGN KEY ("systemId")    REFERENCES "RelatedSystem"("id") ON DELETE Restrict ON UPDATE CASCADE
 );
 
 CREATE TABLE "Attachment" (
@@ -59,22 +62,12 @@ CREATE TABLE "RelatedSystem" (
   CONSTRAINT "RelatedSystem_name_key" UNIQUE ("name")
 );
 
-CREATE TABLE "TicketRelatedSystem" (
-  "ticketId" INT NOT NULL,
-  "systemId" INT NOT NULL,
-
-  CONSTRAINT "TicketRelatedSystem_pkey" PRIMARY KEY ("ticketId","systemId"),
-  CONSTRAINT "TicketRelatedSystem_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES "Ticket"("id") ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT "TicketRelatedSystem_systemId_fkey" FOREIGN KEY ("systemId") REFERENCES "RelatedSystem"("id") ON DELETE CASCADE ON UPDATE CASCADE
-);
-
 -- Indexes for common query patterns
 CREATE INDEX "Ticket_requesterId_createdAt_idx" ON "Ticket"("requesterId", "createdAt" DESC);
 CREATE INDEX "Ticket_categoryId_idx"         ON "Ticket"("categoryId");
 CREATE INDEX "Ticket_priority_idx"            ON "Ticket"("priority");
+CREATE INDEX "Ticket_systemId_idx"            ON "Ticket"("systemId");
 CREATE INDEX "Attachment_ticketId_idx"        ON "Attachment"("ticketId");
-CREATE INDEX "TicketRelatedSystem_ticketId_idx"  ON "TicketRelatedSystem"("ticketId");
-CREATE INDEX "TicketRelatedSystem_systemId_idx"  ON "TicketRelatedSystem"("systemId");
 
 -- Ticket number sequence (shared globally)
 CREATE SEQUENCE "ticket_number_seq" START 1;
