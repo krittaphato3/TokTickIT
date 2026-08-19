@@ -55,6 +55,7 @@ model Ticket {
   @@index([requesterId, createdAt(sort: Desc)])
   @@index([categoryId])
   @@index([priority])
+  @@index([systemId])
 }
 
 model Attachment {

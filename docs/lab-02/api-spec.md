@@ -141,7 +141,7 @@ Returns all seeded Related Systems, ordered by id. This is a public endpoint (no
   "description": "Screen stays black after the latest OS update.",
   "categoryId": 2,
   "priority": "HIGH",
-  "relatedSystemIds": [1, 3]
+  "relatedSystemId": 3
 }
 ```
 
@@ -151,7 +151,7 @@ Returns all seeded Related Systems, ordered by id. This is a public endpoint (no
 | `description` | no | string | ≤ 4000 characters |
 | `categoryId` | yes | integer | must reference an existing Category |
 | `priority` | no | enum | `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`; defaults to `MEDIUM` |
-| `relatedSystemIds` | no | integer[] | each ID must reference an existing RelatedSystem; empty array or omitted = no related systems |
+| `relatedSystemId` | no | integer | must reference an existing RelatedSystem; omitted or null = no related system |
 
 **`201 Created`** — the created ticket (server assigns `ticketNumber`, `status: NEW`, `createdAt`, `updatedAt`):
 
@@ -164,10 +164,7 @@ Returns all seeded Related Systems, ordered by id. This is a public endpoint (no
   "status": "NEW",
   "priority": "HIGH",
   "category": { "id": 2, "name": "Hardware" },
-  "relatedSystems": [
-    { "id": 1, "name": "Email Server" },
-    { "id": 3, "name": "Printer" }
-  ],
+  "relatedSystem": { "id": 3, "name": "Printer" },
   "createdAt": "2026-08-18T09:30:00.000Z",
   "updatedAt": "2026-08-18T09:30:00.000Z"
 }
@@ -183,7 +180,7 @@ Returns all seeded Related Systems, ordered by id. This is a public endpoint (no
 | Empty/oversized title, missing category, description > 4000 chars | 400 | `Validation failed` + `details` |
 | `categoryId` does not exist | 400 | `Validation failed` → `{ field: "categoryId", message: "Category does not exist" }` |
 | Invalid `priority` | 400 | `Validation failed` → `{ field: "priority", message: "Priority must be one of LOW, MEDIUM, HIGH, CRITICAL" }` |
-| `relatedSystemIds` contains invalid IDs | 400 | `Validation failed` → `{ field: "relatedSystemIds", message: "One or more related system IDs do not exist" }` |
+| `relatedSystemId` is invalid | 400 | `Validation failed` → `{ field: "relatedSystemId", message: "Related system does not exist" }` |
 | Malformed JSON body | 400 | `Invalid JSON body` |
 | Unexpected server error | 500 | generic message |
 
@@ -220,10 +217,7 @@ Semantics (BR-07 … BR-10): all criteria combine with **AND**; `priority` sorts
       "status": "NEW",
       "priority": "HIGH",
       "category": { "id": 2, "name": "Hardware" },
-      "relatedSystems": [
-        { "id": 1, "name": "Email Server" },
-        { "id": 3, "name": "Printer" }
-      ],
+      "relatedSystem": { "id": 3, "name": "Printer" },
       "createdAt": "2026-08-18T09:30:00.000Z",
       "updatedAt": "2026-08-18T09:30:00.000Z"
     }
@@ -271,10 +265,7 @@ Empty result sets return `data: []` and `totalItems: 0` (see empty-state handlin
   "priority": "HIGH",
   "category": { "id": 2, "name": "Hardware" },
   "requester": { "id": 1, "name": "Dev User Alpha", "email": "alpha@toktickit.test" },
-  "relatedSystems": [
-    { "id": 1, "name": "Email Server" },
-    { "id": 3, "name": "Printer" }
-  ],
+  "relatedSystem": { "id": 3, "name": "Printer" },
   "attachments": [
     {
       "id": 3,

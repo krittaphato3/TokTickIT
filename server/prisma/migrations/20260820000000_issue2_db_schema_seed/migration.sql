@@ -18,6 +18,15 @@ CREATE TABLE "Requester" (
   CONSTRAINT "Requester_email_key" UNIQUE ("email")
 );
 
+CREATE TABLE "RelatedSystem" (
+  "id"        SERIAL       NOT NULL,
+  "name"      TEXT         NOT NULL,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT "RelatedSystem_pkey" PRIMARY KEY ("id"),
+  CONSTRAINT "RelatedSystem_name_key" UNIQUE ("name")
+);
+
 CREATE TABLE "Ticket" (
   "id"           SERIAL       NOT NULL,
   "ticketNumber" VARCHAR(20)  NOT NULL,
@@ -51,15 +60,6 @@ CREATE TABLE "Attachment" (
   CONSTRAINT "Attachment_pkey" PRIMARY KEY ("id"),
   CONSTRAINT "Attachment_ticketId_fkey" FOREIGN KEY ("ticketId") REFERENCES "Ticket"("id") ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT "Attachment_storedName_key" UNIQUE ("storedName")
-);
-
-CREATE TABLE "RelatedSystem" (
-  "id"        SERIAL       NOT NULL,
-  "name"      TEXT         NOT NULL,
-  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-  CONSTRAINT "RelatedSystem_pkey" PRIMARY KEY ("id"),
-  CONSTRAINT "RelatedSystem_name_key" UNIQUE ("name")
 );
 
 -- Indexes for common query patterns

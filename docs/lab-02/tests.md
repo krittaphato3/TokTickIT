@@ -52,9 +52,9 @@ Test files live under `server/tests/lab-02/` and `client/tests/lab-02/`. API and
 | API-20 | API | BR-13, AC-18 | Simulated DB failure on list endpoint (mock/stub) | 500 with generic message, no stack trace in body | `server/tests/lab-02/api/errors.test.ts` | Pending |
 | API-21 | API | FR-13, BR-05 | `GET /api/requesters` returns only active requesters ordered by id (5 seeded: 4 active + 1 inactive Epsilon excluded) | 200; 4 active returned; inactive excluded | `server/tests/lab-02/api/requesters.test.ts` | Pending |
 | API-22 | API | FR-17, AC-22 | `GET /api/related-systems` returns all 7 seeded systems ordered by id | 200; 7 systems returned | `server/tests/lab-02/api/relatedSystems.test.ts` | Pending |
-| API-23 | API | FR-17, BR-19, AC-22 | Create ticket with valid `relatedSystemIds`; response includes `relatedSystems` array | 201; relatedSystems matches provided IDs | `server/tests/lab-02/api/tickets.test.ts` | Pending |
-| API-24 | API | FR-17, BR-19, AC-22 | Create ticket with invalid `relatedSystemIds` (non-existent ID); create with empty array; create without the field | 400 field error for invalid; 201 with empty relatedSystems for `[]`; 201 with empty relatedSystems when omitted | `server/tests/lab-02/api/tickets.test.ts` | Pending |
-| API-25 | API | FR-17, AC-22 | Detail and list responses include `relatedSystems` array | relatedSystems present in both 200 responses; removed systems excluded from lists | `server/tests/lab-02/api/ticketDetail.test.ts` | Pending |
+| API-23 | API | FR-17, BR-19, AC-22 | Create ticket with a valid `relatedSystemId`; response includes `relatedSystem` | 201; relatedSystem matches the provided ID | `server/tests/lab-02/api/tickets.test.ts` | Pending |
+| API-24 | API | FR-17, BR-19, AC-22 | Create ticket with an invalid `relatedSystemId` (non-existent ID); create without the field | 400 field error for invalid; 201 with `relatedSystem: null` when omitted | `server/tests/lab-02/api/tickets.test.ts` | Pending |
+| API-25 | API | FR-17, AC-22 | Detail and list responses include `relatedSystem` | relatedSystem present in both 200 responses (null when unset) | `server/tests/lab-02/api/ticketDetail.test.ts` | Pending |
 
 ### 2.3 UI (client, component tests with mocked API)
 
@@ -71,7 +71,7 @@ Test files live under `server/tests/lab-02/` and `client/tests/lab-02/`. API and
 | UI-09 | UI | FR-12, AC-15 | Remove attachment flow with inline confirm; chip becomes Removed | Confirm dialog; after remove, chip grayed + "Removed" badge; download action gone | `client/tests/lab-02/ui/attachments.test.tsx` | Pending |
 | UI-10 | UI | BR-13, AC-18 | Create/list/download failure preserves input and offers retry | Inline alert + retry; form values intact after failure | `client/tests/lab-02/ui/ticketList.test.tsx` | Pending |
 | UI-11 | UI | FR-16, AC-20 | Accessibility: required asterisk, `aria-describedby` error wiring, visible focus on keyboard nav | Assertions on `aria-invalid`, `aria-describedby`, focus outline visibility, label associations | `client/tests/lab-02/ui/a11y.test.tsx` | Pending |
-| UI-12 | UI | FR-17, AC-22 | Related system multi-select renders seeded options; selection sends correct `relatedSystemIds` in create payload; detail shows chips | Options loaded from API; selected IDs sent in request; detail shows related system chips | `client/tests/lab-02/ui/createTicket.test.tsx` | Pending |
+| UI-12 | UI | FR-17, AC-22 | Related system select renders seeded options; selection sends correct `relatedSystemId` in create payload; detail shows the chip | Options loaded from API; selected ID sent in request; detail shows related system chip | `client/tests/lab-02/ui/createTicket.test.tsx` | Pending |
 
 ### 2.4 E2E (client, Playwright)
 
@@ -82,7 +82,7 @@ Test files live under `server/tests/lab-02/` and `client/tests/lab-02/`. API and
 | E2E-03 | E2E | FR-09/11/12, AC-12/15 | Upload a real file via the picker, download it, verify bytes, soft-remove, verify Removed | File downloadable byte-identical; chip transitions Active → Removed; download after remove fails | `client/tests/lab-02/e2e/attachments.spec.ts` | Pending |
 | E2E-04 | E2E | FR-16, AC-19 | Viewports 375px, 820px, 1280px on My Tickets + Create Ticket | Mobile: stacked cards, no horizontal scroll, touch targets ≥ 44px; tablet: two-column; desktop: table + two-column form | `client/tests/lab-02/e2e/responsive.spec.ts` | Pending |
 | E2E-05 | E2E | FR-13, AC-16 | End-to-end requester switching with real data for A and B | Switch reloads only B's tickets; new ticket created is owned by B | `client/tests/lab-02/e2e/ownership.spec.ts` | Pending |
-| E2E-06 | E2E | FR-17, AC-22 | Create ticket with related systems end-to-end; verify chips in detail | Related systems appear as chips in detail; create with invalid IDs shows error | `client/tests/lab-02/e2e/create-ticket.spec.ts` | Pending |
+| E2E-06 | E2E | FR-17, AC-22 | Create ticket with a related system end-to-end; verify the chip in detail | Related system appears as a chip in detail; create with an invalid ID shows error | `client/tests/lab-02/e2e/create-ticket.spec.ts` | Pending |
 
 ## 3. Acceptance-Criterion Traceability
 
@@ -139,7 +139,7 @@ Prerequisites (fresh database):
 docker compose up -d
 cd server && npm install
 cp .env.example .env
-npx prisma migrate dev   # applies the Lab 2 migration (Ticket/Requester/Attachment/RelatedSystem/TicketRelatedSystem tables)
+npx prisma migrate dev   # applies the Lab 2 migration (Ticket/Requester/Attachment/RelatedSystem tables; Ticket.systemId FK → RelatedSystem)
 npx prisma db seed       # idempotent: 4 categories + 7 Related Systems + 4 active + 1 inactive Development Requesters
 ```
 
