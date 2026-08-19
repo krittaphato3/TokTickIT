@@ -23,4 +23,17 @@ app.get('/api/categories', async (_req, res) => {
   }
 });
 
+app.get('/api/requesters', async (_req, res) => {
+  try {
+    const requesters = await getPrisma().requester.findMany({
+      where: { isActive: true },
+      orderBy: { id: 'asc' },
+      select: { id: true, name: true, email: true },
+    });
+    res.status(200).json(requesters);
+  } catch {
+    res.status(500).json({ error: 'Unable to load requesters from the database' });
+  }
+});
+
 export default app;
