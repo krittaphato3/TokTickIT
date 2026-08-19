@@ -42,6 +42,7 @@ Reviewer name / student ID / GitHub username:
 
 PRs reviewed (links):
 - https://github.com/krittaphato3/TokTickIT/pull/21
+- https://github.com/krittaphato3/TokTickIT/pull/23
 
 Comment received from partner on my PR → my response:
 - Alongkron1234: จาก ticket ที่ทำ จาก Many to Many น่าจะเป็น 1-Many นะ รบกวนเช็คอีกทีนะครับ
@@ -49,6 +50,10 @@ Comment received from partner on my PR → my response:
 - krittaphato3 (me): แก้แล้วนะครับ รบกวนช่วยตรวจสอบหน่อยนะครับ @Alongkron1234, @napatsun
 - napatsun (Approved): ผ่าน เเละครบถ้วนตาม issue นี้
 - Alongkron1234 (Approved): ตรวจสอบเรียบร้อยแล้วครบถ้วนดีครับ
+
+PR #23 (fix(db): correct Lab 2 migration FK ordering for One-to-Many) comment received → my response:
+- napatsun (Approved): รันผ่าน ครบถ้วน ถูกต้อง approve เดี๋ยว merge เลยนะ
+- krittaphato3 (me): ขอบคุณสำหรับ Review ครับ
 
 Comment I gave partner on their PR → their response:
 -
