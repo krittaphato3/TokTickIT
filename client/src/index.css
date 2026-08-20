@@ -1,7 +1,65 @@
+:root {
+  /* Zen Green tokens (ui-spec §1.1). */
+  --tt-primary: #006b3c;
+  --tt-secondary: #0b7a46;
+  --tt-primary-soft: #eaf6ef;
+  --tt-page-bg: #f5f7f6;
+  --tt-surface: #ffffff;
+  --tt-text: #1e2a25;
+  --tt-text-muted: #5c6b64;
+  --tt-border: #c9d4ce;
+  --tt-error: #b3261e;
+  --tt-warning: #b26a00;
+  --tt-success: #1e7a46;
+}
+
 body {
   margin: 0;
   min-height: 100svh;
-  background-color: #f8f9fa;
+  background-color: var(--tt-page-bg);
+}
+
+/* App shell (ui-spec §9): sticky top navbar, white surface, bottom border. */
+.tt-navbar {
+  background-color: var(--tt-surface);
+  border-bottom: 1px solid var(--tt-border);
+}
+.tt-navbar-inner {
+  padding-inline: 1rem;
+}
+.tt-brand {
+  color: var(--tt-primary);
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+.tt-brand-icon {
+  color: var(--tt-primary);
+}
+.tt-selector {
+  color: var(--tt-text-muted);
+}
+.tt-selector-label {
+  color: var(--tt-text-muted);
+  font-size: 0.8125rem;
+  margin: 0;
+}
+.tt-selector-select {
+  min-width: 12rem;
+  border-color: var(--tt-border);
+  color: var(--tt-text);
+}
+.tt-selector-caption {
+  color: var(--tt-text-muted);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+.tt-selector-status {
+  color: var(--tt-text-muted);
+  font-size: 0.875rem;
+}
+.tt-selector-error {
+  color: var(--tt-error);
+  font-size: 0.875rem;
 }
 
 /* Foundation tidying: reserved space so status content (Issues 2/4)

@@ -8,9 +8,25 @@ export interface Category {
   name: string;
 }
 
+export interface Requester {
+  id: number;
+  name: string;
+  email: string;
+}
+
 export interface SystemStatus {
   online: boolean;
   categories: Category[];
+}
+
+// Issue 3 — call the backend; if not ok, throw.
+// Throwing on failure lets the UI show a single Offline/error state.
+export async function getRequesters(): Promise<Requester[]> {
+  const response = await fetch(`${API_URL}/api/requesters`);
+  if (!response.ok) {
+    throw new Error(`Requesters request failed with status ${response.status}`);
+  }
+  return (await response.json()) as Requester[];
 }
 
 // Issue 2 + Issue 4 — call the backend:
