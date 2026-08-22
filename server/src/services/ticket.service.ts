@@ -18,6 +18,15 @@ export const MEDIUM_PRIORITY = 'MEDIUM';
 export const MAX_TITLE_LENGTH = 120;
 export const MAX_DESCRIPTION_LENGTH = 4000;
 
+// Formats the next value of the dedicated ticket_number_seq into the
+// labsheet ticket-number format: TTK-<current year>-<6 zero-padded digits>.
+export function buildTicketNumber(sequenceValue: bigint | number): string {
+  return `TTK-${new Date().getFullYear()}-${String(sequenceValue).padStart(
+    6,
+    '0',
+  )}`;
+}
+
 // Resolves the Development Requester from the X-Dev-Requester-Id header.
 // Missing/malformed -> 400; unknown id -> 401; inactive -> 403.
 export async function resolveRequester(
@@ -122,18 +131,22 @@ export async function createTicket(
     }
   }
 
-  // relatedSystemId — optional; null when omitted.
+  // relatedSystemId — required, must be an integer (labsheet 4.4 / 5.1 / 6;
+  // every ticket references an existing related system).
   const rawSystemId = data.relatedSystemId;
   let relatedSystemId: number | null = null;
-  if (rawSystemId !== undefined && rawSystemId !== null) {
-    if (typeof rawSystemId !== 'number' || !Number.isInteger(rawSystemId)) {
-      issues.push({
-        field: 'relatedSystemId',
-        message: 'Related system must be an integer',
-      });
-    } else {
-      relatedSystemId = rawSystemId;
-    }
+  if (rawSystemId === undefined || rawSystemId === null) {
+    issues.push({
+      field: 'relatedSystemId',
+      message: 'Related system is required',
+    });
+  } else if (typeof rawSystemId !== 'number' || !Number.isInteger(rawSystemId)) {
+    issues.push({
+      field: 'relatedSystemId',
+      message: 'Related system must be an integer',
+    });
+  } else {
+    relatedSystemId = rawSystemId;
   }
 
   if (issues.length > 0) {
@@ -150,26 +163,22 @@ export async function createTicket(
       ]);
     }
 
-    if (relatedSystemId !== null) {
-      const system = await tx.relatedSystem.findUnique({
-        where: { id: relatedSystemId },
-      });
-      if (!system) {
-        throw new HttpError(400, 'Validation failed', [
-          {
-            field: 'relatedSystemId',
-            message: 'Related system does not exist',
-          },
-        ]);
-      }
+    const system = await tx.relatedSystem.findUnique({
+      where: { id: relatedSystemId as number },
+    });
+    if (!system) {
+      throw new HttpError(400, 'Validation failed', [
+        {
+          field: 'relatedSystemId',
+          message: 'Related system does not exist',
+        },
+      ]);
     }
 
     const [{ nextval }] = await tx.$queryRaw<{ nextval: bigint }[]>`
       SELECT nextval('ticket_number_seq')
     `;
-    const ticketNumber = `TTK-${new Date().getFullYear()}-${String(
-      nextval,
-    ).padStart(6, '0')}`;
+    const ticketNumber = buildTicketNumber(nextval);
 
     const ticket = await tx.ticket.create({
       data: {
@@ -179,9 +188,9 @@ export async function createTicket(
         priority: priority as Priority,
         requesterId,
         categoryId: categoryId as number,
-        systemId: relatedSystemId,
+        relatedSystemId: relatedSystemId as number,
       },
-      include: { category: true, system: true },
+      include: { category: true, relatedSystem: true },
     });
 
     return {
@@ -192,8 +201,8 @@ export async function createTicket(
       status: ticket.status,
       priority: ticket.priority,
       category: { id: ticket.category.id, name: ticket.category.name },
-      relatedSystem: ticket.system
-        ? { id: ticket.system.id, name: ticket.system.name }
+      relatedSystem: ticket.relatedSystem
+        ? { id: ticket.relatedSystem.id, name: ticket.relatedSystem.name }
         : null,
       createdAt: ticket.createdAt,
       updatedAt: ticket.updatedAt,

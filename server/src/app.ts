@@ -38,6 +38,20 @@ app.get('/api/requesters', async (_req, res) => {
   }
 });
 
+app.get('/api/related-systems', async (_req, res) => {
+  try {
+    const systems = await getPrisma().relatedSystem.findMany({
+      orderBy: { id: 'asc' },
+      select: { id: true, name: true },
+    });
+    res.status(200).json(systems);
+  } catch {
+    res
+      .status(500)
+      .json({ error: 'Unable to load related systems from the database' });
+  }
+});
+
 app.use('/api/tickets', ticketsRouter);
 
 // Error-handling middleware — registered last as a 4-arg handler. Translates

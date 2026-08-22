@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
-import { app } from '../../../src/app.js';
-import { getPrisma } from '../../../src/prisma.js';
+import { app } from '../../src/app.js';
+import { getPrisma } from '../../src/prisma.js';
 
-// NOTE: these tests read from and write to PostgreSQL through Prisma, so the
+// API-01..API-06, API-23, API-24 — POST /api/tickets (create ticket).
+// These tests read from and write to PostgreSQL through Prisma, so the
 // database must be migrated and seeded first:
 //   docker compose up -d
 //   cd server && npx prisma migrate dev && npx prisma db seed
@@ -21,11 +22,12 @@ afterEach(async () => {
   createdTicketNumbers = [];
 });
 
-describe('POST /api/tickets — header validation', () => {
+describe('POST /api/tickets — header validation (API-01..03)', () => {
   it('API-01: returns 400 when X-Dev-Requester-Id is missing', async () => {
     const res = await request(app).post('/api/tickets').send({
       title: 'Laptop will not boot after update',
       categoryId: 1,
+      relatedSystemId: 1,
     });
 
     expect(res.status).toBe(400);
@@ -34,13 +36,30 @@ describe('POST /api/tickets — header validation', () => {
     });
   });
 
-  it('returns 400 when X-Dev-Requester-Id is malformed (non-integer)', async () => {
+  it('API-01: returns 400 when X-Dev-Requester-Id is malformed (non-integer)', async () => {
     const res = await request(app)
       .post('/api/tickets')
       .set('X-Dev-Requester-Id', 'abc')
       .send({
         title: 'Laptop will not boot after update',
         categoryId: 1,
+        relatedSystemId: 1,
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({
+      error: 'Missing or invalid X-Dev-Requester-Id header',
+    });
+  });
+
+  it('API-01: returns 400 for an out-of-range requester id (not 500)', async () => {
+    const res = await request(app)
+      .post('/api/tickets')
+      .set('X-Dev-Requester-Id', '123456789012345678901234567890')
+      .send({
+        title: 'Laptop will not boot after update',
+        categoryId: 1,
+        relatedSystemId: 1,
       });
 
     expect(res.status).toBe(400);
@@ -56,6 +75,7 @@ describe('POST /api/tickets — header validation', () => {
       .send({
         title: 'Laptop will not boot after update',
         categoryId: 1,
+        relatedSystemId: 1,
       });
 
     expect(res.status).toBe(401);
@@ -74,29 +94,15 @@ describe('POST /api/tickets — header validation', () => {
       .send({
         title: 'Laptop will not boot after update',
         categoryId: 1,
+        relatedSystemId: 1,
       });
 
     expect(res.status).toBe(403);
     expect(res.body).toEqual({ error: 'Requester account is inactive' });
   });
-
-  it('returns 400 for an out-of-range requester id (not 500)', async () => {
-    const res = await request(app)
-      .post('/api/tickets')
-      .set('X-Dev-Requester-Id', '123456789012345678901234567890')
-      .send({
-        title: 'Laptop will not boot after update',
-        categoryId: 1,
-      });
-
-    expect(res.status).toBe(400);
-    expect(res.body).toEqual({
-      error: 'Missing or invalid X-Dev-Requester-Id header',
-    });
-  });
 });
 
-describe('POST /api/tickets — happy path and defaults', () => {
+describe('POST /api/tickets — happy path and defaults (API-04)', () => {
   it('API-04: creates a ticket with 201, echoed fields, and ownership', async () => {
     const hardware = await prisma.category.findUnique({
       where: { name: 'Hardware' },
@@ -146,15 +152,18 @@ describe('POST /api/tickets — happy path and defaults', () => {
     });
     expect(created).not.toBeNull();
     expect(created!.requesterId).toBe(1);
-
-    createdTicketNumbers.push(res.body.ticketNumber);
+    expect(created!.relatedSystemId).toBe(printer!.id);
   });
 
-  it('AC-04: defaults to MEDIUM priority, NEW status, null description/relatedSystem', async () => {
+  it('AC-04: defaults to MEDIUM priority and NEW status with a related system', async () => {
     const hardware = await prisma.category.findUnique({
       where: { name: 'Hardware' },
     });
+    const printer = await prisma.relatedSystem.findUnique({
+      where: { name: 'Printer' },
+    });
     expect(hardware).not.toBeNull();
+    expect(printer).not.toBeNull();
 
     const res = await request(app)
       .post('/api/tickets')
@@ -162,31 +171,36 @@ describe('POST /api/tickets — happy path and defaults', () => {
       .send({
         title: 'Defaults ticket',
         categoryId: hardware!.id,
+        relatedSystemId: printer!.id,
       });
 
     expect(res.status).toBe(201);
-    // Track the number so afterEach cleans it up on later failure too.
     createdTicketNumbers.push(res.body.ticketNumber);
     expect(res.body.priority).toBe('MEDIUM');
     expect(res.body.status).toBe('NEW');
     expect(res.body.description).toBeNull();
-    expect(res.body.relatedSystem).toBeNull();
-
-    createdTicketNumbers.push(res.body.ticketNumber);
+    expect(res.body.relatedSystem).toEqual({
+      id: printer!.id,
+      name: 'Printer',
+    });
   });
 });
 
-describe('POST /api/tickets — validation failures (400)', () => {
+describe('POST /api/tickets — validation failures 400 (API-05, API-06, API-24)', () => {
   it('API-05: rejects a blank title', async () => {
     const hardware = await prisma.category.findUnique({
       where: { name: 'Hardware' },
     });
+    const printer = await prisma.relatedSystem.findUnique({
+      where: { name: 'Printer' },
+    });
     expect(hardware).not.toBeNull();
+    expect(printer).not.toBeNull();
 
     const res = await request(app)
       .post('/api/tickets')
       .set('X-Dev-Requester-Id', '1')
-      .send({ title: '   ', categoryId: hardware!.id });
+      .send({ title: '   ', categoryId: hardware!.id, relatedSystemId: printer!.id });
 
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('Validation failed');
@@ -200,7 +214,11 @@ describe('POST /api/tickets — validation failures (400)', () => {
     const hardware = await prisma.category.findUnique({
       where: { name: 'Hardware' },
     });
+    const printer = await prisma.relatedSystem.findUnique({
+      where: { name: 'Printer' },
+    });
     expect(hardware).not.toBeNull();
+    expect(printer).not.toBeNull();
 
     const res = await request(app)
       .post('/api/tickets')
@@ -208,6 +226,7 @@ describe('POST /api/tickets — validation failures (400)', () => {
       .send({
         title: 'x'.repeat(121),
         categoryId: hardware!.id,
+        relatedSystemId: printer!.id,
       });
 
     expect(res.status).toBe(400);
@@ -222,7 +241,11 @@ describe('POST /api/tickets — validation failures (400)', () => {
     const hardware = await prisma.category.findUnique({
       where: { name: 'Hardware' },
     });
+    const printer = await prisma.relatedSystem.findUnique({
+      where: { name: 'Printer' },
+    });
     expect(hardware).not.toBeNull();
+    expect(printer).not.toBeNull();
 
     const res = await request(app)
       .post('/api/tickets')
@@ -231,6 +254,7 @@ describe('POST /api/tickets — validation failures (400)', () => {
         title: 'Long description ticket',
         description: 'x'.repeat(4001),
         categoryId: hardware!.id,
+        relatedSystemId: printer!.id,
       });
 
     expect(res.status).toBe(400);
@@ -242,10 +266,15 @@ describe('POST /api/tickets — validation failures (400)', () => {
   });
 
   it('API-05: rejects a missing categoryId', async () => {
+    const printer = await prisma.relatedSystem.findUnique({
+      where: { name: 'Printer' },
+    });
+    expect(printer).not.toBeNull();
+
     const res = await request(app)
       .post('/api/tickets')
       .set('X-Dev-Requester-Id', '1')
-      .send({ title: 'No category ticket' });
+      .send({ title: 'No category ticket', relatedSystemId: printer!.id });
 
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('Validation failed');
@@ -255,11 +284,30 @@ describe('POST /api/tickets — validation failures (400)', () => {
     });
   });
 
+  it('API-24: rejects a missing relatedSystemId (required field)', async () => {
+    const hardware = await prisma.category.findUnique({
+      where: { name: 'Hardware' },
+    });
+    expect(hardware).not.toBeNull();
+
+    const res = await request(app)
+      .post('/api/tickets')
+      .set('X-Dev-Requester-Id', '1')
+      .send({ title: 'No related system ticket', categoryId: hardware!.id });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Validation failed');
+    expect(res.body.details).toContainEqual({
+      field: 'relatedSystemId',
+      message: 'Related system is required',
+    });
+  });
+
   it('API-06: rejects a nonexistent categoryId', async () => {
     const res = await request(app)
       .post('/api/tickets')
       .set('X-Dev-Requester-Id', '1')
-      .send({ title: 'Bad category ticket', categoryId: 999999 });
+      .send({ title: 'Bad category ticket', categoryId: 999999, relatedSystemId: 1 });
 
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('Validation failed');
@@ -281,6 +329,7 @@ describe('POST /api/tickets — validation failures (400)', () => {
       .send({
         title: 'Urgent ticket',
         categoryId: hardware!.id,
+        relatedSystemId: 1,
         priority: 'URGENT',
       });
 

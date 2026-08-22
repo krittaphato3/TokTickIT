@@ -16,6 +16,8 @@ Real authentication is **out of scope**. Every endpoint that touches requester-o
 X-Dev-Requester-Id: <integer>
 ```
 
+This mechanism is a placeholder for Lab 3 (BR-17): a later migration adds real credentials (`passwordHash`, `role`) to the `Requester` table without changing the Ticket/Attachment design or this API contract's resource shapes.
+
 | Header state | HTTP status | Error message |
 |---|---|---|
 | Missing or malformed (non-integer) | 400 | `Missing or invalid X-Dev-Requester-Id header` |
@@ -151,7 +153,7 @@ Returns all seeded Related Systems, ordered by id. This is a public endpoint (no
 | `description` | no | string | ≤ 4000 characters |
 | `categoryId` | yes | integer | must reference an existing Category |
 | `priority` | no | enum | `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`; defaults to `MEDIUM` |
-| `relatedSystemId` | no | integer | must reference an existing RelatedSystem; omitted or null = no related system |
+| `relatedSystemId` | yes | integer | must reference an existing RelatedSystem |
 
 **`201 Created`** — the created ticket (server assigns `ticketNumber`, `status: NEW`, `createdAt`, `updatedAt`):
 
@@ -177,8 +179,9 @@ Returns all seeded Related Systems, ordered by id. This is a public endpoint (no
 | Missing/invalid header | 400 | `Missing or invalid X-Dev-Requester-Id header` |
 | Unknown requester | 401 | `Unknown development requester` |
 | Inactive requester | 403 | `Requester account is inactive` |
-| Empty/oversized title, missing category, description > 4000 chars | 400 | `Validation failed` + `details` |
+| Empty/oversized title, missing category, missing related system, description > 4000 chars | 400 | `Validation failed` + `details` |
 | `categoryId` does not exist | 400 | `Validation failed` → `{ field: "categoryId", message: "Category does not exist" }` |
+| `relatedSystemId` missing (required) | 400 | `Validation failed` → `{ field: "relatedSystemId", message: "Related system is required" }` |
 | Invalid `priority` | 400 | `Validation failed` → `{ field: "priority", message: "Priority must be one of LOW, MEDIUM, HIGH, CRITICAL" }` |
 | `relatedSystemId` is invalid | 400 | `Validation failed` → `{ field: "relatedSystemId", message: "Related system does not exist" }` |
 | Malformed JSON body | 400 | `Invalid JSON body` |

@@ -17,7 +17,7 @@ The stakeholders (CPE 334 course) want a realistic first slice of the TokTickIT 
 ## 3. Scope
 
 ### IN SCOPE
-- **Create Ticket** — requester submits title, description, category, priority, and optionally selects a related system.
+- **Create Ticket** — requester submits title, description, category, priority, and a required related system.
 - **My Tickets** — owned, paginated list with search, filters (category, priority), sorting, and pagination.
 - **Requester Ticket Detail** — read-only detail of an owned ticket, including attachment metadata.
 - **Attachment lifecycle** — upload, metadata listing, download, and soft-removal.
@@ -33,7 +33,7 @@ The stakeholders (CPE 334 course) want a realistic first slice of the TokTickIT 
 
 ## 4. Functional Requirements
 
-- **FR-01 — Create Ticket.** A requester can create a ticket with a required title, optional description, required category, and a priority that defaults to `MEDIUM`. The backend assigns all server-controlled fields (see FR-02/FR-03).
+- **FR-01 — Create Ticket.** A requester can create a ticket with a required title, optional description, required category, a required related system (FR-17), and a priority that defaults to `MEDIUM`. The backend assigns all server-controlled fields (see FR-02/FR-03).
 - **FR-02 — Official Ticket Number.** The backend generates a unique, human-readable official ticket number in the format `TTK-<year>-<6-digit zero-padded sequence>` (e.g., `TTK-2026-000017`). The number is unique across all tickets and is never editable by the client.
 - **FR-03 — Initial Status.** Every newly created ticket has Current Status `New` (enum `NEW`). No other status is reachable this sprint.
 - **FR-04 — My Tickets List.** A requester can retrieve a paginated list containing **only their own tickets**, ordered by the requested sort, with search and filters applied.
@@ -49,21 +49,21 @@ The stakeholders (CPE 334 course) want a realistic first slice of the TokTickIT 
 - **FR-14 — Ownership Enforcement.** All ticket and attachment endpoints resolve the active requester from the `X-Dev-Requester-Id` header and enforce ownership on every read, write, upload, download, and removal. Cross-requester access is denied with 403.
 - **FR-15 — Empty and Failure States.** The UI renders distinct states: initial load (skeleton), loading, empty list ("No tickets yet"), no-results ("No results match"), validation errors, submitting (busy), success, and failure (friendly message + retry). Form input is preserved on failure.
 - **FR-16 — Accessibility and Responsiveness.** The UI is keyboard-operable, labeled, non-color-dependent for errors/badges, and renders correctly at desktop (≥992px), tablet (768–991px), and mobile (<768px) with no horizontal scroll on mobile (see ui-spec.md).
-- **FR-17 — Related System Selection.** A requester can optionally associate a related system with a ticket during creation. Available systems are fetched from `GET /api/related-systems`. The server validates that the provided ID references an existing RelatedSystem record; invalid IDs are rejected with 400.
+- **FR-17 — Related System Selection.** A requester must associate a related system with a ticket during creation. Available systems are fetched from `GET /api/related-systems`. The server validates that the provided ID references an existing RelatedSystem record; a missing or invalid ID is rejected with 400.
 
 ## 5. Business Rules
 
 - **BR-01 — Official Ticket Number (backend-generated, unique).** The `ticketNumber` is generated exclusively by the backend from a dedicated PostgreSQL sequence and carries a unique constraint. Clients may read it but never supply or modify it.
 - **BR-02 — Initial Status.** A new ticket always begins with Current Status `New` (`NEW`). There are no status transitions in this sprint.
 - **BR-03 — Dev Requester Selector Is Testing Only.** The Development Requester selector is a testing mechanism that simulates identity. It is **not** authentication, provides no security boundary in production semantics, and must be visibly labeled as such in the UI ("Testing only — not real authentication").
-- **BR-04 — Ticket Defaults.** If the client omits `priority`, the server stores `MEDIUM`. `description` is optional (defaults to empty/null). `status` is always `NEW`. `categoryId` is required and must reference an existing Category. `relatedSystemId` is optional (defaults to null).
+- **BR-04 — Ticket Defaults.** If the client omits `priority`, the server stores `MEDIUM`. `description` is optional (defaults to empty/null). `status` is always `NEW`. `categoryId` is required and must reference an existing Category. `relatedSystemId` is required and must reference an existing RelatedSystem (BR-19).
 - **BR-05 — Requester Switching.** The active Development Requester is resolved per request from the `X-Dev-Requester-Id` header. Switching requester in the selector clears the current list context (search, filters, sort, pagination) and reloads only the new requester's tickets. The selection may be persisted client-side (localStorage) for convenience; the server keeps no session state.
 - **BR-06 — Ownership.** Every ticket/attachment operation is scoped to the requester identified by the header. A requester can never list, view, upload to, download from, or remove attachments of another requester's tickets. Violations return 403.
 - **BR-07 — Search Semantics.** Search is a trimmed, case-insensitive substring match (ILIKE) applied to title OR description. An empty search term is ignored. Search and filters combine with AND.
 - **BR-08 — Filter Semantics.** Filters are exact matches on `categoryId` and `priority` and combine with AND. Invalid or non-existent filter values return 400.
 - **BR-09 — Sort Semantics.** `sortBy` is limited to `createdAt`, `updatedAt`, `title`, `priority`; `sortDir` to `asc`/`desc`. Priority ordering uses rank (Critical 4 > High 3 > Medium 2 > Low 1). Invalid values return 400. Default: `sortBy=createdAt&sortDir=desc`.
 - **BR-10 — Pagination Semantics.** `page` ≥ 1 (default 1), `pageSize` 1–50 (default 10). The response always includes pagination metadata (`page`, `pageSize`, `totalItems`, `totalPages`, `hasNextPage`, `hasPrevPage`). Out-of-range values return 400.
-- **BR-11 — Validation Rules.** Title: required, trimmed, 1–120 characters. Description: optional, ≤ 4000 characters. Category: required, must exist. Priority: must be one of `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`. The client validates with the same rules before submitting; the server re-validates authoritatively. Field-level errors are returned inline (UI) and in a `details` array (API).
+- **BR-11 — Validation Rules.** Title: required, trimmed, 1–120 characters. Description: optional, ≤ 4000 characters. Category: required, must exist. Related system: required, must exist. Priority: must be one of `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`. The client validates with the same rules before submitting; the server re-validates authoritatively. Field-level errors are returned inline (UI) and in a `details` array (API).
 - **BR-12 — Duplicate-Submission Prevention.** A single submit action must create at most one ticket. The client disables the submit button and ignores repeat submissions while a submission is in flight. The server does **not** deduplicate by content (two identical tickets are two tickets); duplicate prevention is a client guarantee verified by test.
 - **BR-13 — Failure Behavior.** On any API failure: the server returns a generic, safe error message (no stack traces, no internal detail); the client shows a friendly inline error, preserves the user's input, and offers retry. Loading indicators are shown for all async operations.
 - **BR-14 — Attachment Rules.** Max 5 **active** attachments per ticket; max 5 MB per file; MIME allowlist enforced (413 for size, 415 for type). Files are stored server-side on local disk; only metadata is stored in the database and returned by the API. Soft removal sets `removedAt`; removed attachments are excluded from metadata lists and downloads return 404.
@@ -71,14 +71,14 @@ The stakeholders (CPE 334 course) want a realistic first slice of the TokTickIT 
 - **BR-16 — Empty States.** A requester with zero tickets sees "No tickets yet" with a call-to-action to create a ticket. A requester whose search/filters match nothing sees "No results match your filters" with a "Clear filters" action. The two states are visually and textually distinct.
 - **BR-17 — Lab 3 Authentication Transition.** The current `Requester` model and `X-Dev-Requester-Id` header are strictly for Lab 2 testing. The database schema is designed to accommodate Lab 3 by adding `passwordHash` and `role` columns directly to the `Requester` table via a future Prisma migration, without altering the core Ticket/Attachment relationships or requiring a schema rewrite.
 - **BR-18 — Safe Filename and Storage Behavior.** To prevent path traversal and filename collisions, the server must never use the user-supplied `fileName` for disk storage. The server must generate a cryptographically secure random identifier (e.g., using `crypto.randomUUID()`) for the `storedName` on disk, while retaining the original `fileName` in the database strictly for the `Content-Disposition` download header.
-- **BR-19 — Related System Validation.** If the client provides `relatedSystemId`, it must reference an existing RelatedSystem. An invalid or non-existent ID is rejected with 400 with a field-level error on `relatedSystemId`. Omitting the field entirely is valid (no related system).
+- **BR-19 — Related System Validation.** `relatedSystemId` is required and must reference an existing RelatedSystem. A missing or invalid ID is rejected with 400 with a field-level error on `relatedSystemId`.
 
 ## 6. UI Specification Summary
 
 Full component-level specification: [`ui-spec.md`](./ui-spec.md). Summary:
 
 - **App shell:** Sticky top navbar with brand, primary navigation (New Ticket, My Tickets) with active-state indication, and the Development Requester selector at the top right labeled "Testing only — not real authentication".
-- **Screens:** (1) My Tickets — search box, category/priority/related-systems filters, sort control, clear-filters action, responsive list (table on desktop, cards on mobile), pagination; (2) Create Ticket — form with title, category, priority, related systems (multi-select), description, attachment picker; (3) Ticket Detail — read-only ticket information and attachment management.
+- **Screens:** (1) My Tickets — search box, category/priority/related-systems filters, sort control, clear-filters action, responsive list (table on desktop, cards on mobile), pagination; (2) Create Ticket — form with title, required category, priority, required related-system single select, description, attachment picker; (3) Ticket Detail — read-only ticket information and attachment management.
 - **States:** initial, loading (skeleton), validation (inline, field-level), submitting (busy button), success, failure (inline alert + retry).
 - **Responsive rules:** Desktop ≥992px multi-column table + two-column form; Tablet 768–991px two-column; Mobile <768px stacked, touch targets ≥44px, no horizontal scroll.
 - **Accessibility:** visible labels, `aria-describedby` for inline validation, visible focus ring, errors and badges never rely on color alone, keyboard-operable controls.
@@ -90,7 +90,7 @@ Full component-level specification: [`ui-spec.md`](./ui-spec.md). Summary:
 | Model | Key fields | Notes |
 |---|---|---|
 | `Requester` | `id` (Int PK), `name`, `email` (unique), `isActive` (Boolean, default true), `createdAt` | Seeded Development Requester identities. Not a User/auth model. |
-| `Ticket` | `id` (Int PK), `ticketNumber` (String, unique), `title`, `description` (nullable), `status` (enum, default `NEW`), `priority` (enum, default `MEDIUM`), `requesterId` (FK → Requester), `categoryId` (FK → Category), `systemId` (FK → RelatedSystem, nullable), `createdAt`, `updatedAt` | Core ticket record. |
+| `Ticket` | `id` (Int PK), `ticketNumber` (String, unique), `title`, `description` (nullable), `status` (enum, default `NEW`), `priority` (enum, default `MEDIUM`), `requesterId` (FK → Requester), `categoryId` (FK → Category), `relatedSystemId` (FK → RelatedSystem, required), `createdAt`, `updatedAt` | Core ticket record. |
 | `Category` | existing Lab 1 model (id, name unique, createdAt) | Reused unchanged; four seeded categories. |
 | `Attachment` | `id` (Int PK), `ticketId` (FK → Ticket, `onDelete: Cascade`), `fileName` (original), `storedName` (server-generated), `mimeType`, `sizeBytes` (Int), `uploadedAt`, `removedAt` (nullable) | Soft-removal lifecycle. |
 | `RelatedSystem` | `id` (Int PK), `name` (String, unique), `createdAt` | Seeded reference data (6+ entries). |
@@ -105,13 +105,13 @@ Full component-level specification: [`ui-spec.md`](./ui-spec.md). Summary:
 - `Requester 1—N Ticket` (a requester owns many tickets; a ticket has exactly one requester).
 - `Category 1—N Ticket` (a ticket has exactly one category).
 - `Ticket 1—N Attachment` (a ticket has many attachments).
-- `RelatedSystem 1—N Ticket` (a ticket may be associated with at most one related system via the nullable `Ticket.systemId` FK; a related system can appear on many tickets).
+- `RelatedSystem 1—N Ticket` (a ticket is associated with exactly one related system via the required `Ticket.relatedSystemId` FK; a related system can appear on many tickets).
 
 ### Indexes
 
 - `Ticket.ticketNumber` — unique (lookup by official number).
 - `Ticket (requesterId, createdAt DESC)` — composite; serves the primary owned-list query with default sort.
-- `Ticket.categoryId`, `Ticket.priority`, `Ticket.systemId` — filtered lookups.
+- `Ticket.categoryId`, `Ticket.priority`, `Ticket.relatedSystemId` — filtered lookups.
 - `Attachment.ticketId` — attachment listing per ticket.
 
 ### Justified database design decision — soft removal via `removedAt`
@@ -125,7 +125,7 @@ A second design decision: the externally visible identifier is the generated `ti
 Full contract with request/response examples, validation, and error tables: [`api-spec.md`](./api-spec.md). Summary:
 
 - **Identity:** all `/api/tickets*` endpoints require the `X-Dev-Requester-Id` header (Development Requester id). Missing → 400; unknown → 401; inactive → 403. `/api/health`, `/api/categories`, `/api/requesters`, and `/api/related-systems` are header-free.
-- **Create:** `POST /api/tickets` — body `{ title, description?, categoryId, priority?, relatedSystemId? }` → 201 with the full ticket (ticketNumber generated, status `NEW`, priority defaulted to `MEDIUM`, relatedSystem included).
+- **Create:** `POST /api/tickets` — body `{ title, description?, categoryId, priority?, relatedSystemId }` → 201 with the full ticket (ticketNumber generated, status `NEW`, priority defaulted to `MEDIUM`, relatedSystem included).
 - **List:** `GET /api/tickets?page=&pageSize=&search=&categoryId=&priority=&sortBy=&sortDir=` → 200 with `{ data, meta }`; pagination metadata always present; only the active requester's tickets are ever returned.
 - **Detail:** `GET /api/tickets/:ticketNumber` → 200 with ticket + `requester` + active `attachments` metadata; 404 not found; 403 not owned.
 - **Attachments:** `POST /api/tickets/:ticketNumber/attachments` (multipart, field `file`) → 201 metadata (413 size / 415 type / 400 limit); `GET /api/tickets/:ticketNumber/attachments/:attachmentId/download` → 200 stream (404 if removed); `DELETE /api/tickets/:ticketNumber/attachments/:attachmentId` → 200 with `removedAt` set (soft removal).
@@ -135,7 +135,7 @@ Full contract with request/response examples, validation, and error tables: [`ap
 
 Each criterion is stated in Given-When-Then form. All ACs are machine-verifiable; traceability to planned tests is in [`tests.md`](./tests.md).
 
-- **AC-01 — Create ticket (happy path).** Given a requester is selected in the Development Requester selector, when they submit a valid ticket (title, category, priority), then a 201 response returns a ticket with a generated `ticketNumber` matching `TTK-<year>-<6 digits>`, status `New`, the chosen priority, and the ticket appears in their My Tickets list.
+- **AC-01 — Create ticket (happy path).** Given a requester is selected in the Development Requester selector, when they submit a valid ticket (title, category, related system, priority), then a 201 response returns a ticket with a generated `ticketNumber` matching `TTK-<year>-<6 digits>`, status `New`, the chosen priority, and the ticket appears in their My Tickets list.
 - **AC-02 — Required-field validation.** Given the Create Ticket form, when the requester submits with an empty title or no category, then the form shows field-level inline errors next to each invalid field, no API request is sent, and the form remains editable.
 - **AC-03 — Length validation.** Given the Create Ticket form, when the requester enters a title longer than 120 characters or a description longer than 4000 characters, then both the client and server reject the input with a clear field-level error.
 - **AC-04 — Defaults.** Given a valid ticket submission without a priority, when the ticket is created, then its priority is `Medium` and its status is `New`.
@@ -156,14 +156,14 @@ Each criterion is stated in Given-When-Then form. All ACs are machine-verifiable
 - **AC-19 — Responsive behavior.** Given viewport widths of ≥992px, 768–991px, and <768px, then the ticket list renders as a multi-column table (desktop), a two-column layout (tablet), and stacked cards (mobile) with no horizontal scroll and touch targets ≥ 44px on mobile.
 - **AC-20 — Accessibility.** Given the UI is exercised with a keyboard and a screen reader, then all form fields have visible labels and `aria-describedby` error wiring, focus is visibly indicated, validation errors and badges convey meaning without color alone, and all interactive controls are keyboard-operable.
 - **AC-21 — Dev identity edge cases.** Given a request to any `/api/tickets*` endpoint, then a missing `X-Dev-Requester-Id` header returns 400, an unknown requester id returns 401, and an inactive requester id returns 403, each with a clear error message.
-- **AC-22 — Related system selection.** Given a requester creating a ticket with a valid `relatedSystemId` referencing an existing RelatedSystem record, then the created ticket includes that related system in its detail response; given an invalid ID, the server returns 400 with a field-level error; given an omitted field, the ticket has no related system.
+- **AC-22 — Related system selection.** Given a requester creating a ticket with a valid `relatedSystemId` referencing an existing RelatedSystem record, then the created ticket includes that related system in its detail response; given a missing or invalid ID, the server returns 400 with a field-level error.
 
 ## 10. Definition of Done
 
 The sprint is done when **all** of the following hold:
 
-- [ ] All FR-01 through FR-16 are implemented and demonstrable end-to-end.
-- [ ] All AC-01 through AC-21 pass; every AC has at least one passing automated test (see tests.md traceability matrix).
+- [ ] All FR-01 through FR-17 are implemented and demonstrable end-to-end.
+- [ ] All AC-01 through AC-22 pass; every AC has at least one passing automated test (see tests.md traceability matrix).
 - [ ] The API enforces ownership on every ticket/attachment operation (no test can leak another requester's data).
 - [ ] All planned tests in tests.md are green: server unit + API (Vitest/Supertest), client UI (Vitest + Testing Library), and E2E (Playwright), including responsive checks.
 - [ ] `cd server && npm run build` and `cd client && npm run build` complete without errors; `npm run lint` is clean.
@@ -190,4 +190,4 @@ The sprint is done when **all** of the following hold:
 | D-12 | Timestamps are stored in UTC and rendered in the requester's local timezone. | Standard practice; keeps stored data unambiguous. |
 | D-13 | The Development Requester selection may persist in localStorage; switching always resets list context. | Good UX while preserving per-requester data isolation in the UI; the server never persists the "current" requester. |
 | D-14 | `/api/health`, `/api/categories`, `/api/requesters`, `/api/related-systems` are header-free. | They expose no requester-owned data; keeps the existing Lab 1 health/categories contract unchanged. |
-| D-15 | Related Systems are a seeded lookup table; tickets optionally reference one via a nullable one-to-many FK. | Real service desks track affected systems; the lookup table is simple to seed and query; one-to-many keeps the common "ticket affects a single system" case simple while allowing a system to appear on many tickets. |
+| D-15 | Related Systems are a seeded lookup table; every ticket references exactly one via a required one-to-many FK (labsheet 4.4 / 5.1 / 6). | Real service desks track affected systems; the lookup table is simple to seed and query; one-to-many keeps the common "ticket affects a single system" case simple while allowing a system to appear on many tickets. |
