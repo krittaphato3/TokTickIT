@@ -1,6 +1,6 @@
 # CPE 334 Lab 2 — TokTickIT Requester Ticketing MVP: Test Plan
 
-- **Status:** Draft v1.0 — all results **Pending** until implementation
+- **Status:** Draft v1.0 — Issue #13 rows (**UT-01, API-01..06, API-21, API-22, API-23, API-24**) are **Pass**; all other rows remain **Pending** until their owning issue is implemented.
 - **Companion documents:** [`specification.md`](./specification.md), [`api-spec.md`](./api-spec.md), [`ui-spec.md`](./ui-spec.md)
 
 ---
@@ -22,7 +22,7 @@ Test files live under `server/tests/lab-02/` and `client/tests/lab-02/`. API and
 
 | Test ID | Type | Requirement/AC | What It Tests | Expected Result | Automated Test File | Final Status |
 |---|---|---|---|---|---|---|
-| UT-01 | Unit | FR-02, BR-01, AC-01 | Ticket-number generator emits `TTK-<year>-<6 zero-padded digits>` | Format matches regex; consecutive calls increment the sequence; values unique | `server/tests/lab-02/unit/ticketNumber.test.ts` | Pending |
+| UT-01 | Unit | FR-02, BR-01, AC-01 | Ticket-number generator emits `TTK-<year>-<6 zero-padded digits>` | Format matches regex; consecutive calls increment the sequence; values unique | `server/tests/lab-02/unit/ticketNumber.test.ts` | Pass |
 | UT-02 | Unit | FR-07, BR-09, AC-10 | Priority-rank map used by the sort comparator (LOW 1 → CRITICAL 4) | Comparator orders Critical > High > Medium > Low | `server/tests/lab-02/unit/priorityRank.test.ts` | Pending |
 | UT-03 | Unit | FR-05, BR-07, AC-08 | Search-term normalization (trim, case-insensitive substring predicate) | "  NETWORK " matches "network" in title/description; empty term matches all | `server/tests/lab-02/unit/search.test.ts` | Pending |
 
@@ -30,31 +30,31 @@ Test files live under `server/tests/lab-02/` and `client/tests/lab-02/`. API and
 
 | Test ID | Type | Requirement/AC | What It Tests | Expected Result | Automated Test File | Final Status |
 |---|---|---|---|---|---|---|
-| API-01 | API | BR-06, AC-21 | `POST /api/tickets` without `X-Dev-Requester-Id` | 400 + error envelope | `server/tests/lab-02/api/tickets.test.ts` | Pending |
-| API-02 | API | BR-06, AC-21 | Header with unknown requester id | 401 `Unknown development requester` | `server/tests/lab-02/api/tickets.test.ts` | Pending |
-| API-03 | API | BR-15, AC-21 | Header with an inactive requester id (seeded Epsilon) | 403 `Requester account is inactive` | `server/tests/lab-02/api/tickets.test.ts` | Pending |
-| API-04 | API | FR-01/02/03, AC-01/04 | Create valid ticket with explicit priority | 201; `ticketNumber` format; `status NEW`; priority echoed | `server/tests/lab-02/api/tickets.test.ts` | Pending |
-| API-05 | API | FR-01, AC-02/03 | Create with empty title, title > 120 chars, description > 4000 chars, missing categoryId | 400 `Validation failed` + `details` entries per field | `server/tests/lab-02/api/tickets.test.ts` | Pending |
-| API-06 | API | FR-01, BR-11 | Create with nonexistent categoryId and invalid priority | 400 with field-specific messages | `server/tests/lab-02/api/tickets.test.ts` | Pending |
-| API-07 | API | FR-04/14, AC-06 | List returns only the active requester's tickets (two requesters seeded with data) | `data` contains only requester A tickets; `totalItems` counts only A's | `server/tests/lab-02/api/tickets.test.ts` | Pending |
-| API-08 | API | FR-05, AC-08 | `search` matches case-insensitively across title and description; empty search returns all | Subset matched; page resets to 1 | `server/tests/lab-02/api/tickets.test.ts` | Pending |
-| API-09 | API | FR-06, AC-09 | `categoryId` + `priority` filters combine with AND | Only tickets matching both returned | `server/tests/lab-02/api/tickets.test.ts` | Pending |
-| API-10 | API | FR-07, AC-10 | Sort by `title asc` and `priority desc`; invalid `sortBy`/`sortDir` | Correct ordering incl. priority rank; 400 on invalid values | `server/tests/lab-02/api/tickets.test.ts` | Pending |
-| API-11 | API | FR-04, AC-11 | Pagination: 25 tickets, page 2 of default 10; `page=0`; `pageSize=51`; `categoryId` filter that doesn't exist | Correct slice + `meta` totals; 400 on invalid page/pageSize/filter | `server/tests/lab-02/api/tickets.test.ts` | Pending |
-| API-12 | API | FR-08/14, AC-07 | Detail by ticketNumber: owned → 200 with requester + attachments; other-owner → 403; nonexistent → 404; malformed number → 400 | Documented status codes and messages; no data leak on 403 | `server/tests/lab-02/api/ticketDetail.test.ts` | Pending |
-| API-13 | API | FR-09, AC-12 | Upload a valid 1 KB PNG to an owned ticket | 201 metadata; file stored; metadata matches | `server/tests/lab-02/api/attachments.test.ts` | Pending |
-| API-14 | API | FR-09, AC-13 | Upload a file > 5 MB | 413; no metadata persisted | `server/tests/lab-02/api/attachments.test.ts` | Pending |
-| API-15 | API | FR-09, AC-13 | Upload a disallowed type (e.g., `.exe`) | 415; no metadata persisted | `server/tests/lab-02/api/attachments.test.ts` | Pending |
-| API-16 | API | FR-09, AC-14 | Upload a 6th attachment to a ticket with 5 active | 400 limit-reached message | `server/tests/lab-02/api/attachments.test.ts` | Pending |
-| API-17 | API | FR-12, AC-15 | Soft-remove an attachment, then attempt download and re-remove | 200 with `removedAt` set; download 404 `Attachment has been removed`; re-remove 404; DB row persists with `removedAt` | `server/tests/lab-02/api/attachments.test.ts` | Pending |
-| API-18 | API | FR-11/14, AC-12/07 | Download returns byte-identical stream with correct `Content-Type`/`Content-Disposition`; requester B downloading A's attachment | 200 + headers + identical bytes; 403 for B | `server/tests/lab-02/api/attachments.test.ts` | Pending |
-| API-19 | API | FR-10, AC-15 | Detail response excludes removed attachments | `attachments` lists active only; `removedAt` not null entries absent | `server/tests/lab-02/api/ticketDetail.test.ts` | Pending |
-| API-20 | API | BR-13, AC-18 | Simulated DB failure on list endpoint (mock/stub) | 500 with generic message, no stack trace in body | `server/tests/lab-02/api/errors.test.ts` | Pending |
-| API-21 | API | FR-13, BR-05 | `GET /api/requesters` returns only active requesters ordered by id (5 seeded: 4 active + 1 inactive Epsilon excluded) | 200; 4 active returned; inactive excluded | `server/tests/lab-02/api/requesters.test.ts` | Pending |
-| API-22 | API | FR-17, AC-22 | `GET /api/related-systems` returns all 7 seeded systems ordered by id | 200; 7 systems returned | `server/tests/lab-02/api/relatedSystems.test.ts` | Pending |
-| API-23 | API | FR-17, BR-19, AC-22 | Create ticket with a valid `relatedSystemId`; response includes `relatedSystem` | 201; relatedSystem matches the provided ID | `server/tests/lab-02/api/tickets.test.ts` | Pending |
-| API-24 | API | FR-17, BR-19, AC-22 | Create ticket with an invalid `relatedSystemId` (non-existent ID); create without the field | 400 field error for invalid; 201 with `relatedSystem: null` when omitted | `server/tests/lab-02/api/tickets.test.ts` | Pending |
-| API-25 | API | FR-17, AC-22 | Detail and list responses include `relatedSystem` | relatedSystem present in both 200 responses (null when unset) | `server/tests/lab-02/api/ticketDetail.test.ts` | Pending |
+| API-01 | API | BR-06, AC-21 | `POST /api/tickets` without `X-Dev-Requester-Id` | 400 + error envelope | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
+| API-02 | API | BR-06, AC-21 | Header with unknown requester id | 401 `Unknown development requester` | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
+| API-03 | API | BR-15, AC-21 | Header with an inactive requester id (seeded Epsilon) | 403 `Requester account is inactive` | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
+| API-04 | API | FR-01/02/03, AC-01/04 | Create valid ticket with explicit priority | 201; `ticketNumber` format; `status NEW`; priority echoed | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
+| API-05 | API | FR-01, AC-02/03 | Create with empty title, title > 120 chars, description > 4000 chars, missing categoryId | 400 `Validation failed` + `details` entries per field | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
+| API-06 | API | FR-01, BR-11 | Create with nonexistent categoryId and invalid priority | 400 with field-specific messages | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
+| API-07 | API | FR-04/14, AC-06 | List returns only the active requester's tickets (two requesters seeded with data) | `data` contains only requester A tickets; `totalItems` counts only A's | `server/tests/lab-02/my-tickets.api.test.ts` | Pending |
+| API-08 | API | FR-05, AC-08 | `search` matches case-insensitively across title and description; empty search returns all | Subset matched; page resets to 1 | `server/tests/lab-02/my-tickets.api.test.ts` | Pending |
+| API-09 | API | FR-06, AC-09 | `categoryId` + `priority` filters combine with AND | Only tickets matching both returned | `server/tests/lab-02/my-tickets.api.test.ts` | Pending |
+| API-10 | API | FR-07, AC-10 | Sort by `title asc` and `priority desc`; invalid `sortBy`/`sortDir` | Correct ordering incl. priority rank; 400 on invalid values | `server/tests/lab-02/my-tickets.api.test.ts` | Pending |
+| API-11 | API | FR-04, AC-11 | Pagination: 25 tickets, page 2 of default 10; `page=0`; `pageSize=51`; `categoryId` filter that doesn't exist | Correct slice + `meta` totals; 400 on invalid page/pageSize/filter | `server/tests/lab-02/my-tickets.api.test.ts` | Pending |
+| API-12 | API | FR-08/14, AC-07 | Detail by ticketNumber: owned → 200 with requester + attachments; other-owner → 403; nonexistent → 404; malformed number → 400 | Documented status codes and messages; no data leak on 403 | `server/tests/lab-02/ticket-detail.api.test.ts` | Pending |
+| API-13 | API | FR-09, AC-12 | Upload a valid 1 KB PNG to an owned ticket | 201 metadata; file stored; metadata matches | `server/tests/lab-02/attachments.api.test.ts` | Pending |
+| API-14 | API | FR-09, AC-13 | Upload a file > 5 MB | 413; no metadata persisted | `server/tests/lab-02/attachments.api.test.ts` | Pending |
+| API-15 | API | FR-09, AC-13 | Upload a disallowed type (e.g., `.exe`) | 415; no metadata persisted | `server/tests/lab-02/attachments.api.test.ts` | Pending |
+| API-16 | API | FR-09, AC-14 | Upload a 6th attachment to a ticket with 5 active | 400 limit-reached message | `server/tests/lab-02/attachments.api.test.ts` | Pending |
+| API-17 | API | FR-12, AC-15 | Soft-remove an attachment, then attempt download and re-remove | 200 with `removedAt` set; download 404 `Attachment has been removed`; re-remove 404; DB row persists with `removedAt` | `server/tests/lab-02/attachments.api.test.ts` | Pending |
+| API-18 | API | FR-11/14, AC-12/07 | Download returns byte-identical stream with correct `Content-Type`/`Content-Disposition`; requester B downloading A's attachment | 200 + headers + identical bytes; 403 for B | `server/tests/lab-02/attachments.api.test.ts` | Pending |
+| API-19 | API | FR-10, AC-15 | Detail response excludes removed attachments | `attachments` lists active only; `removedAt` not null entries absent | `server/tests/lab-02/ticket-detail.api.test.ts` | Pending |
+| API-20 | API | BR-13, AC-18 | Simulated DB failure on list endpoint (mock/stub) | 500 with generic message, no stack trace in body | `server/tests/lab-02/my-tickets.api.test.ts` | Pending |
+| API-21 | API | FR-13, BR-05 | `GET /api/requesters` returns only active requesters ordered by id (5 seeded: 4 active + 1 inactive Epsilon excluded) | 200; 4 active returned; inactive excluded | `server/tests/lab-02/api/requesters.test.ts` | Pass |
+| API-22 | API | FR-17, AC-22 | `GET /api/related-systems` returns all 7 seeded systems ordered by id | 200; 7 systems returned | `server/tests/lab-02/api/relatedSystems.test.ts` | Pass |
+| API-23 | API | FR-17, BR-19, AC-22 | Create ticket with a valid `relatedSystemId`; response includes `relatedSystem` | 201; relatedSystem matches the provided ID | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
+| API-24 | API | FR-17, BR-19, AC-22 | Create ticket with a missing or invalid `relatedSystemId` | 400 field error (`Related system is required` / `Related system does not exist`) | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
+| API-25 | API | FR-17, AC-22 | Detail and list responses include `relatedSystem` | relatedSystem present in both 200 responses | `server/tests/lab-02/ticket-detail.api.test.ts` | Pending |
 
 ### 2.3 UI (client, component tests with mocked API)
 

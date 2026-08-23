@@ -41,21 +41,21 @@ model Ticket {
   description   String?  @db.Text
   status        Status   @default(NEW)
   priority      Priority @default(MEDIUM)
-  requesterId   Int
-  categoryId    Int
-  systemId      Int?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  requesterId    Int
+  categoryId     Int
+  relatedSystemId Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  requester  Requester  @relation(fields: [requesterId], references: [id], onDelete: Restrict)
-  category   Category   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  system     RelatedSystem? @relation(fields: [systemId], references: [id], onDelete: Restrict)
-  attachments Attachment[]
+  requester    Requester      @relation(fields: [requesterId], references: [id], onDelete: Restrict)
+  category     Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  relatedSystem RelatedSystem @relation(fields: [relatedSystemId], references: [id], onDelete: Restrict)
+  attachments  Attachment[]
 
   @@index([requesterId, createdAt(sort: Desc)])
   @@index([categoryId])
   @@index([priority])
-  @@index([systemId])
+  @@index([relatedSystemId])
 }
 
 model Attachment {
