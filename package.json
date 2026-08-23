@@ -5,6 +5,7 @@
   "description": "TokTickIT monorepo root helper scripts (CPE334 Lab 1)",
   "scripts": {
     "db:migrate": "npm --prefix server run prisma:migrate",
-    "db:seed": "npm --prefix server run prisma:seed"
+    "db:seed": "npm --prefix server run prisma:seed",
+    "ports:free": "node scripts/ports-free.cjs"
   }
 }
