@@ -7,8 +7,10 @@ services:
       POSTGRES_USER: toktickit
       POSTGRES_PASSWORD: toktickit_dev_password
       POSTGRES_DB: toktickit_dev
+    # Host port 5433 instead of the usual 5432 so the stack coexists with a
+    # native Windows PostgreSQL service that already occupies 5432.
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - toktickit_pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -16,6 +18,35 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  server:
+    build:
+      context: ./server
+    container_name: toktickit-server
+    restart: unless-stopped
+    environment:
+      # Inside Compose, containers reach Postgres by service name, not
+      # localhost. This bypasses any host port conflicts entirely.
+      DATABASE_URL: postgresql://toktickit:toktickit_dev_password@postgres:5432/toktickit_dev?schema=public
+      PORT: 4000
+      CORS_ORIGIN: http://localhost:5173
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  client:
+    build:
+      context: ./client
+      args:
+        VITE_API_URL: http://localhost:4000
+    container_name: toktickit-client
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - server
 
 volumes:
   toktickit_pgdata:

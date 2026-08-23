@@ -1,0 +1,118 @@
+:root{
+  --tok-primary:#006B3C; --tok-secondary:#0B7A46; --tok-primary-soft:#EAF6EF;
+  --tok-page-bg:#F5F7F6; --tok-surface:#FFFFFF; --tok-text:#1E2A25; --tok-text-muted:#5C6B64;
+  --tok-border:#C9D4CE; --tok-border-soft:#DFE7E2; --tok-field-editable:#FFFFFF;
+  --tok-field-readonly:#F0F3F1; --tok-field-readonly-border:#D9E2DD;
+  --tok-error:#B3261E; --tok-error-soft:#FDECEA; --tok-warning:#B26A00; --tok-success:#1E7A46;
+  --tok-radius:.375rem; --tok-radius-card:.75rem; --tok-ring:0 0 0 3px rgba(0,107,60,.28);
+  --tok-shadow:0 1px 3px rgba(30,42,37,.08);
+  --tok-font:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue","Noto Sans","Liberation Sans",Arial,sans-serif;
+}
+*{box-sizing:border-box}
+/* Slightly denser base scale (15px root instead of 16px) — zooms the whole
+   UI out a touch so more fits on screen without redesigning each component. */
+html{font-size:93.75%}
+body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:var(--tok-font);line-height:1.5}
+
+/* ============ APP HEADER ============ */
+.tok-navbar{position:sticky;top:0;z-index:100;background:var(--tok-surface);border-bottom:1px solid var(--tok-border-soft);
+  display:flex;align-items:center;gap:1.25rem;padding:.625rem 1.5rem;flex-wrap:wrap}
+.tok-brand{display:inline-flex;align-items:center;gap:.625rem;font-weight:700;font-size:1.0625rem;color:var(--tok-text);text-decoration:none}
+.tok-brand-badge{width:34px;height:34px;border-radius:10px;background:var(--tok-primary);color:#fff;display:grid;place-items:center;flex:none}
+.tok-nav{display:flex;align-items:center;gap:.25rem}
+.tok-nav a{display:inline-flex;align-items:center;min-height:38px;padding:.375rem 1rem;border-radius:999px;border:1px solid transparent;
+  font-size:.9375rem;font-weight:600;color:var(--tok-text-muted);text-decoration:none}
+.tok-nav a:hover{color:var(--tok-secondary)}
+.tok-nav a.active{background:var(--tok-primary-soft);color:var(--tok-primary);border-color:rgba(0,107,60,.25)}
+.tok-req-wrap{margin-left:auto;display:flex;align-items:center;gap:.75rem}
+.tok-req-label{font-size:.6875rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tok-text-muted);text-align:right;line-height:1.25}
+.tok-req-select{appearance:none;-webkit-appearance:none;border:1px solid var(--tok-border);border-radius:.5rem;background:#fff
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235C6B64' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")
+  no-repeat right .75rem center;padding:.5rem 2.25rem .5rem .875rem;font-family:inherit;font-size:.9375rem;font-weight:600;color:var(--tok-text);min-height:40px}
+.tok-req-caption{font-size:.8125rem;color:var(--tok-text-muted)}
+.tok-req-select:focus-visible,.tok-nav a:focus-visible{outline:none;box-shadow:var(--tok-ring);border-color:var(--tok-primary)}
+
+/* ============ PAGE FRAME ============ */
+.tok-main{max-width:1200px;margin:0 auto;padding:1.5rem 1rem 3rem}
+@media (min-width:992px){.tok-main{padding:1.75rem 1.5rem 3rem}}
+.tok-breadcrumb{font-size:.8125rem;color:var(--tok-text-muted);margin-bottom:.25rem}
+.tok-breadcrumb a{color:var(--tok-text-muted);text-decoration:none}
+.tok-breadcrumb a:hover{color:var(--tok-secondary);text-decoration:underline}
+.tok-breadcrumb .sep{margin:0 .375rem;color:var(--tok-border)}
+.tok-breadcrumb .current{color:var(--tok-text);font-weight:600}
+.tok-page-title{font-size:1.5rem;font-weight:700;margin:0 0 1.25rem}
+
+/* ============ CARD + SECTIONS ============ */
+.tok-card{background:var(--tok-surface);border:1px solid var(--tok-border-soft);border-radius:var(--tok-radius-card);box-shadow:var(--tok-shadow);padding:2rem}
+.tok-section-label{display:flex;align-items:baseline;gap:.5rem;font-size:.75rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tok-secondary);margin:0 0 1.125rem}
+.tok-section-note{font-size:.75rem;font-weight:500;letter-spacing:.02em;text-transform:none;color:var(--tok-text-muted)}
+.tok-divider{border:0;border-top:1px dashed var(--tok-border);margin:1.625rem 0}
+.tok-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem 1.5rem}
+@media (max-width:767.98px){.tok-grid-2{grid-template-columns:1fr}}
+
+/* ============ FIELDS ============ */
+.tok-label{display:block;font-size:.875rem;font-weight:600;color:var(--tok-text);margin-bottom:.375rem}
+.tok-req{color:var(--tok-error)}
+.tok-input,.tok-select,.tok-textarea{width:100%;border:1px solid var(--tok-border);border-radius:var(--tok-radius);
+  background:var(--tok-field-editable);color:var(--tok-text);font-family:inherit;font-size:.9375rem;padding:.625rem .75rem;min-height:44px}
+.tok-input::placeholder,.tok-textarea::placeholder{color:#9AA8A1}
+.tok-input:focus-visible,.tok-select:focus-visible,.tok-textarea:focus-visible{outline:none;border-color:var(--tok-primary);box-shadow:var(--tok-ring)}
+.tok-readonly{background:var(--tok-field-readonly);border-color:var(--tok-field-readonly-border);color:var(--tok-text-muted);cursor:default}
+.tok-readonly:focus{box-shadow:none}
+.tok-select{appearance:none;-webkit-appearance:none;padding-right:2.25rem;
+  background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235C6B64' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")
+  no-repeat right .75rem center}
+.tok-textarea{min-height:132px;resize:vertical;line-height:1.55}
+.tok-hint{font-size:.8125rem;color:var(--tok-text-muted);margin:.375rem 0 0}
+.tok-field.invalid .tok-input,.tok-field.invalid .tok-select,.tok-field.invalid .tok-textarea{border-color:var(--tok-error)}
+.tok-err{display:none;align-items:flex-start;gap:.375rem;font-size:.8125rem;color:var(--tok-error);margin:.375rem 0 0}
+.tok-field.invalid .tok-err{display:flex}
+
+/* ============ ATTACHMENTS ============ */
+.tok-dropzone{border:2px dashed var(--tok-border);border-radius:.5rem;background:#FBFDFC;padding:2.75rem 1.25rem;text-align:center;color:var(--tok-text-muted);font-size:.9375rem}
+.tok-dropzone.dragover{border-color:var(--tok-primary);background:var(--tok-primary-soft)}
+.tok-dropzone svg{color:var(--tok-primary);margin-bottom:.625rem}
+.tok-browse{color:var(--tok-primary);font-weight:700;text-decoration:none;cursor:pointer}
+.tok-browse:hover{color:var(--tok-secondary);text-decoration:underline}
+.tok-formats{margin-top:.625rem;font-size:.75rem;letter-spacing:.08em;color:var(--tok-text-muted)}
+.tok-chips{display:flex;flex-wrap:wrap;gap:.625rem;margin-top:1rem}
+.tok-chip{display:inline-flex;align-items:center;gap:.5rem;max-width:100%;border:1px solid var(--tok-border);border-radius:999px;
+  background:#fff;padding:.375rem .75rem;font-size:.8125rem;color:var(--tok-text)}
+.tok-chip .ok{color:var(--tok-success);font-weight:700}
+.tok-chip .bang{color:var(--tok-error);font-weight:700}
+.tok-chip .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tok-chip .size{color:var(--tok-text-muted)}
+.tok-chip .x{border:0;background:none;color:var(--tok-text-muted);font-size:.875rem;line-height:1;cursor:pointer;padding:.125rem;min-width:20px;min-height:20px}
+.tok-chip .x:hover{color:var(--tok-text)}
+.tok-chip.invalid{border-color:var(--tok-error);color:var(--tok-error)}
+.tok-chip.invalid .x{color:var(--tok-error)}
+
+/* ============ ALERTS + ACTIONS ============ */
+.tok-alert{display:none;border-radius:var(--tok-radius);padding:.75rem 1rem;font-size:.875rem;margin:0 0 1.25rem}
+.tok-alert.error{display:flex;gap:.5rem;background:var(--tok-error-soft);color:var(--tok-error);border:1px solid rgba(179,38,30,.35)}
+.tok-alert.success{display:flex;gap:.5rem;background:var(--tok-primary-soft);color:var(--tok-primary);border:1px solid rgba(0,107,60,.35)}
+.tok-actions{display:flex;justify-content:flex-end;gap:.75rem;margin-top:2rem}
+.tok-btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;border-radius:var(--tok-radius);font-family:inherit;
+  font-size:.9375rem;font-weight:600;min-height:44px;padding:.625rem 1.25rem;cursor:pointer}
+.tok-btn.secondary{background:#fff;border:1px solid var(--tok-border);color:var(--tok-text)}
+.tok-btn.secondary:hover{background:var(--tok-primary-soft)}
+.tok-btn.primary{background:var(--tok-primary);border:1px solid var(--tok-primary);color:#fff;font-weight:700;padding:.625rem 1.375rem}
+.tok-btn.primary:hover{background:var(--tok-secondary)}
+.tok-btn:disabled{opacity:.55;cursor:not-allowed}
+.tok-btn:focus-visible{outline:none;box-shadow:var(--tok-ring)}
+.tok-spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:tokspin .7s linear infinite}
+@keyframes tokspin{to{transform:rotate(360deg)}}
+
+@media (max-width:767.98px){
+  .tok-navbar{padding:.625rem 1rem;gap:.75rem}
+  /* The selector row (label + select + caption) must be allowed to wrap and
+     shrink, or its intrinsic min-width forces the navbar past the viewport. */
+  .tok-req-wrap{margin-left:0;width:100%;justify-content:flex-start;flex-wrap:wrap;min-width:0}
+  .tok-req-label{text-align:left}
+  .tok-req-select{max-width:100%;min-width:0}
+  .tok-req-caption{white-space:normal}
+  .tok-card{padding:1.25rem}
+  .tok-actions{flex-direction:column-reverse}
+  .tok-btn{width:100%}
+  .tok-dropzone{padding:1.75rem 1rem}
+}

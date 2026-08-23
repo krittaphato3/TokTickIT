@@ -63,35 +63,53 @@ Comment I gave partner on their PR → their response:
 Issue 3:
 
 Reviewer name / student ID / GitHub username:
-- Name: [Reviewer Name]
-- Student ID: [Student ID]
-- GitHub username: [GitHub Username]
+- Name: ALONGKORN KAEWPROM
+- Student ID: 67070501050
+- GitHub username: Alongkron1234
+
+Reviewer name / student ID / GitHub username:
+- Name: NAPATR KASEMWEERASAN
+- Student ID: 67070501014
+- GitHub username: napatsun
 
 PRs reviewed (links):
-- [Paste PR link here]
+- https://github.com/krittaphato3/TokTickIT/pull/24
 
 Comment received from partner on my PR → my response:
-- [Reviewer Name]: [Comment]
+- Alongkron1234: ตรวจเช็คแล้วไฟล์โอเคครยถ้วนดีครับ แต่อยากเห็นผลการ test เพิ่มเติมจะดีมากครับ
+- krittaphato3 (me): อันนี้คือผลจากการรัน npm test ครับ ซึ่งประกอบด้วย API-21 — FR-13, BR-15, AC-21, UI-07 — FR-13, BR-03, BR-05 ของ requesterselection (ด้วย Screenshot)
+- Alongkron1234 (Approved): ครบถ้วนเรียบร้อยดีมากมีผลการรัน test ชันเจน
+- napatsun (Approved): จากที่ดูโค้ดเเละไล่อ่านจากคอมเมนต์ของคุณอลงกรณ์ที่บอกเรื่องผลการ test เเละคุณกฤตภาสก็ได้เแก้ไขเรียบร้อย สำหรับผมผ่านเเละ Approve
 
 Comment I gave partner on their PR → their response:
-- [Your comment]
-- [Partner response]
+-
 
 ---
 
 Issue 4:
 
 Reviewer name / student ID / GitHub username:
-- Name: [Reviewer Name]
-- Student ID: [Student ID]
-- GitHub username: [GitHub Username]
+- Name: NAPATR KASEMWEERASAN
+- Student ID: 67070501014
+- GitHub username: napatsun
+
+Reviewer name / student ID / GitHub username:
+- Name: ALONGKORN KAEWPROM
+- Student ID: 67070501050
+- GitHub username: Alongkron1234
 
 PRs reviewed (links):
-- [Paste PR link here]
+- https://github.com/krittaphato3/TokTickIT/pull/25
 
 Comment received from partner on my PR → my response:
-- [Reviewer Name]: [Comment]
+- napatsun (Approved): โดยรวมโอเค ครบถ้วน ทีนี้ถ้าคุณกฤตภาสว่าง ส่งผล npm test มาให้ผมดูหน่อย เดี๋ยวผมมาดูนะ
+- krittaphato3 (me): อันนี้คือผลการรัน npm test ครับ (แนบ Screenshot ผลรันในคอมเมนต์ PR)
+- Alongkron1234: จากที่ผมดูโค้ดการทำงานทุกอย่างโอเค แต่ว่ามีตรงชื่อไฟล์ tickets.test.ts ที่อาจจะไม่ตรงกับชื่อไฟล์ใน Requirement ที่ได้รับมานะครับ รบกวนเช็คตรงส่วนนี้อีกทีนะ
+- krittaphato3 (me): รับทราบครับ จะตรวจสอบละแก้ไขให้
+- krittaphato3 (me): ได้ทำการแก้ไขแล้วรบกวนตรวจสอบด้วยนะครับ ขอบคุณครับ (ย้ายไฟล์ทดสอบไปที่ server/tests/lab-02/create-ticket.api.test.ts ตาม requirement)
+- Alongkron1234 (Approved): ตรวจสอบแล้วมั้งหมดเรียบร้อยดีมากครับ
+
+Status: MERGED (2026-08-23) — both reviewers approved after the test-file rename fix.
 
 Comment I gave partner on their PR → their response:
-- [Your comment]
-- [Partner response]
+-
