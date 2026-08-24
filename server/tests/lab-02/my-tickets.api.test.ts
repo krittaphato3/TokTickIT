@@ -255,6 +255,70 @@ describe('GET /api/tickets — search (API-08)', () => {
     expect(res.body.meta.totalItems).toBe(0);
     expect(res.body.meta.hasNextPage).toBe(false);
   });
+
+  it('treats SQL wildcards (% _ \\) as literal characters consistently in rows and counts', async () => {
+    const hardware = await categoryIdOf('Hardware');
+    const printer = await systemIdOf('Printer');
+    // Only these two contain a literal "%" / "_" character.
+    await seedTicket({
+      requesterId: ALPHA_ID,
+      title: 'Save at 50%',
+      description: 'path C:\\temp',
+      categoryId: hardware,
+      relatedSystemId: printer,
+      secondsAgo: 30,
+    });
+    await seedTicket({
+      requesterId: ALPHA_ID,
+      title: 'under_score keys',
+      categoryId: hardware,
+      relatedSystemId: printer,
+      secondsAgo: 20,
+    });
+    await seedTicket({
+      requesterId: ALPHA_ID,
+      title: 'plain keyboard broken',
+      description: 'no wildcard characters here',
+      categoryId: hardware,
+      relatedSystemId: printer,
+      secondsAgo: 10,
+    });
+
+    // If "%" leaked into ILIKE as a wildcard it would match all three
+    // fixtures; escaped, it matches only the literal percent titles.
+    // .query() percent-encodes values, so "50%" arrives as the three
+    // characters 5, 0, % at the handler.
+    const percent = await getList('').query({ search: '50%' });
+    expect(percent.status).toBe(200);
+    expect(titlesOf(percent.body)).toEqual(['Save at 50%']);
+    // BR-07/BR-10: the count must agree with the returned rows even when the
+    // term contains wildcard characters.
+    expect(percent.body.meta.totalItems).toBe(
+      percent.body.data.length,
+    );
+
+    const underscore = await getList('').query({ search: 'under_score' });
+    expect(underscore.status).toBe(200);
+    expect(titlesOf(underscore.body)).toEqual(['under_score keys']);
+    expect(underscore.body.meta.totalItems).toBe(1);
+
+    const backslash = await getList('').query({ search: 'C:\\temp' });
+    expect(backslash.status).toBe(200);
+    expect(titlesOf(backslash.body)).toEqual(['Save at 50%']);
+
+    // A term consisting of a bare wildcard character is the sharpest case:
+    // unescaped it acts as a match-everything pattern, so the row set and
+    // the count diverge if either path forgets to escape.
+    const barePercent = await getList('').query({ search: '%' });
+    expect(barePercent.status).toBe(200);
+    expect(barePercent.body.data).toHaveLength(1);
+    expect(barePercent.body.meta.totalItems).toBe(1);
+
+    const bareUnderscore = await getList('').query({ search: '_' });
+    expect(bareUnderscore.status).toBe(200);
+    expect(bareUnderscore.body.data).toHaveLength(1);
+    expect(bareUnderscore.body.meta.totalItems).toBe(1);
+  });
 });
 
 describe('GET /api/tickets — category/priority filters combine with AND (API-09)', () => {

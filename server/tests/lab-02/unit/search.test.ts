@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildIlikePattern,
   buildSearchFilter,
   normalizeSearchTerm,
 } from '../../../src/services/ticket.service.js';
@@ -21,31 +22,40 @@ describe('search normalization (UT-03)', () => {
     expect(normalizeSearchTerm('   ')).toBeNull();
   });
 
-  it('builds a title OR description contains filter that matches either field', () => {
+  it('wraps the normalized term into a %term% ILIKE pattern', () => {
+    expect(buildIlikePattern('Network')).toBe('%network%');
+    expect(buildIlikePattern('  printer jam ')).toBe('%printer jam%');
+  });
+
+  it('escapes SQL LIKE wildcards so %, _, and backslash match literally', () => {
+    // The pattern is a bound ILIKE parameter: % and _ must be backslash-
+    // escaped to be literals, and a literal backslash in the term must be
+    // escaped itself. (Terms are lowercased by normalizeSearchTerm.)
+    expect(buildIlikePattern('100%')).toBe('%100\\%%');
+    expect(buildIlikePattern('a_b')).toBe('%a\\_b%');
+    expect(buildIlikePattern('C:\\temp')).toBe('%c:\\\\temp%');
+    expect(buildIlikePattern('%_\\')).toBe('%\\%\\_\\\\%');
+  });
+
+  it('builds a title OR description ILIKE filter that matches either field', () => {
     const filter = buildSearchFilter('network')!;
-    const vpnTicket = { title: 'VPN drops', description: 'A stable network is needed' };
-    const printerTicket = { title: 'Network printer offline', description: null };
-    const unrelated = { title: 'Keyboard sticky', description: 'Keys stick' };
+    const sql = filter.sql ?? filter.toString();
+    // The fragment must reference both columns with the same bound pattern.
+    expect(sql).toContain('t."title" ILIKE');
+    expect(sql).toContain("COALESCE(t.\"description\", '') ILIKE");
+    expect(sql).toContain('OR');
 
-    // Prisma `contains` is evaluated per field with OR — simulate the
-    // predicate case-insensitively as ILIKE would on PostgreSQL.
-    const matches = (ticket: typeof vpnTicket) =>
-      ((filter.OR[0].title as { contains: string }).contains &&
-        ticket.title
-          .toLowerCase()
-          .includes(
-            (filter.OR[0].title as { contains: string }).contains.toLowerCase(),
-          )) ||
-      (ticket.description !== null &&
-        ticket.description
-          .toLowerCase()
-          .includes(
-            (filter.OR[1].description as { contains: string }).contains.toLowerCase(),
-          ));
+    // Simulate the predicate as ILIKE would evaluate it on PostgreSQL using
+    // the pattern the fragment binds.
+    const pattern = buildIlikePattern('network')!;
+    const literal = pattern.slice(1, -1); // strip the wrapping %
+    const matches = (title: string, description: string | null) =>
+      title.toLowerCase().includes(literal) ||
+      (description !== null && description.toLowerCase().includes(literal));
 
-    expect(matches(vpnTicket)).toBe(true);
-    expect(matches(printerTicket)).toBe(true);
-    expect(matches(unrelated)).toBe(false);
+    expect(matches('VPN drops', 'A stable network is needed')).toBe(true);
+    expect(matches('Network printer offline', null)).toBe(true);
+    expect(matches('Keyboard sticky', 'Keys stick')).toBe(false);
   });
 
   it('an empty/whitespace term yields no filter at all (match all rows)', () => {

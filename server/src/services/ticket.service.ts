@@ -53,18 +53,29 @@ export function normalizeSearchTerm(term: string | null | undefined): string | n
   return trimmed.length > 0 ? trimmed : null;
 }
 
-// Prisma WHERE fragment for BR-07: case-insensitive substring over title OR
-// description (Prisma contains is case-sensitive on PostgreSQL without
-// mode: 'insensitive'). Returns null when there is no effective search term.
-export function buildSearchFilter(term: string | null | undefined) {
+// The trimmed term becomes an ILIKE pattern, so the SQL wildcards (% and _)
+// and the backslash escape character itself are prefixed with "\" to match
+// as literal text (BR-07). Both the page query and the count query use this
+// exact pattern so rows and totalItems can never diverge.
+export function buildIlikePattern(term: string | null | undefined): string | null {
   const normalized = normalizeSearchTerm(term);
   if (!normalized) return null;
-  return {
-    OR: [
-      { title: { contains: normalized, mode: 'insensitive' as const } },
-      { description: { contains: normalized, mode: 'insensitive' as const } },
-    ],
-  };
+  return `%${normalized.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
+}
+
+// Prisma WHERE fragment for BR-07: case-insensitive substring over title OR
+// description with the same wildcard escaping as the raw page query (Prisma's
+// contains has no ESCAPE support, so the fragment is written as raw SQL).
+// Returns null when there is no effective search term.
+export function buildSearchFilter(
+  term: string | null | undefined,
+): Prisma.Sql | null {
+  const pattern = buildIlikePattern(term);
+  if (!pattern) return null;
+  return Prisma.sql` AND (
+    t."title" ILIKE ${pattern}
+    OR COALESCE(t."description", '') ILIKE ${pattern}
+  )`;
 }
 
 // Formats the next value of the dedicated ticket_number_seq into the
@@ -350,24 +361,11 @@ export async function listTickets(
     categoryIdFilter = id;
   }
 
-  const searchTerm = normalizeSearchTerm(query.search as string | undefined);
-  // ILIKE patterns are escaped so % and _ in the term are literals (BR-07).
+  // One shared ILIKE condition for both the page query and the count, built
+  // by buildSearchFilter with identical wildcard escaping (BR-07), so data
+  // rows and totalItems always agree even for terms like "%" or "_".
   const searchCondition =
-    searchTerm === null
-      ? Prisma.empty
-      : Prisma.sql` AND (
-          t."title" ILIKE ${`%${searchTerm.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`}
-          OR COALESCE(t."description", '') ILIKE ${`%${searchTerm.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`}
-        )`;
-
-  const where = {
-    requesterId,
-    ...(buildSearchFilter(query.search as string | undefined) ?? {}),
-    ...(categoryIdFilter !== null ? { categoryId: categoryIdFilter } : {}),
-    ...(typeof query.priority === 'string' && query.priority !== ''
-      ? { priority: query.priority as Priority }
-      : {}),
-  };
+    buildSearchFilter(query.search as string | undefined) ?? Prisma.empty;
 
   // Filter conditions are composed as typed fragments because a literal NULL
   // parameter cannot be typed by PostgreSQL (42P18) and every value here has
@@ -409,8 +407,9 @@ export async function listTickets(
           ? Prisma.sql`t."updatedAt"`
           : Prisma.sql`t."createdAt"`;
 
-  // The page-id selection and the count read one consistent snapshot; a
-  // failure inside the transaction surfaces as the generic safe-500 (API-20).
+  // The page-id selection and the count share the identical WHERE fragments
+  // and read one consistent snapshot; a failure inside the transaction
+  // surfaces as the generic safe-500 (API-20).
   const [pageIds, totalItems] = await prisma.$transaction([
     prisma.$queryRaw<{ id: number }[]>`
       SELECT t.id
@@ -420,8 +419,15 @@ export async function listTickets(
       LIMIT ${pageSize}
       OFFSET ${(page - 1) * pageSize}
     `,
-    prisma.ticket.count({ where }),
-  ]).then(([rows, count]) => [rows.map((row) => row.id), count] as const);
+    prisma.$queryRaw<{ count: bigint }[]>`
+      SELECT COUNT(*)::bigint AS count
+      FROM "Ticket" AS t
+      WHERE t."requesterId" = ${requesterId}${searchCondition}${categoryCondition}${priorityCondition}
+    `,
+  ]).then(
+    ([rows, counted]) =>
+      [rows.map((row) => row.id), Number(counted[0].count)] as const,
+  );
 
   const tickets =
     pageIds.length === 0
