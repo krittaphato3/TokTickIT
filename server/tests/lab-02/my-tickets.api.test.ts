@@ -78,6 +78,16 @@ function getList(query = '', requesterId: number = ALPHA_ID) {
     .set('X-Dev-Requester-Id', String(requesterId));
 }
 
+// Fixture ticket numbers live exclusively in the reserved 9xxxxx band, so a
+// file-level sweep removes anything an interrupted run (crash, Ctrl+C) left
+// behind without touching sequence-numbered tickets from other suites or
+// seed data. Live runs already clean up after themselves via afterEach.
+beforeAll(async () => {
+  await prisma.ticket.deleteMany({
+    where: { ticketNumber: { startsWith: `TTK-${new Date().getFullYear()}-9` } },
+  });
+});
+
 function titlesOf(body: { data: { title: string }[] }): string[] {
   return body.data.map((t) => t.title);
 }
@@ -363,9 +373,10 @@ describe('GET /api/tickets — sorting (API-10)', () => {
     const { zebra, apple, mangoOld, cherry, mangoNew } = await seedSortFixtures();
     const res = await getList('');
     expect(res.status).toBe(200);
+    // Newest first: mangoNew (10s ago) leads, cherry (20s) follows.
     expect(res.body.data.map((t: { ticketNumber: string }) => t.ticketNumber)).toEqual([
-      cherry.ticketNumber,
       mangoNew.ticketNumber,
+      cherry.ticketNumber,
       mangoOld.ticketNumber,
       apple.ticketNumber,
       zebra.ticketNumber,
@@ -405,11 +416,13 @@ describe('GET /api/tickets — sorting (API-10)', () => {
     ]);
 
     const asc = await getList('?sortBy=priority&sortDir=asc');
+    // Ties break by createdAt desc even in ascending rank order, so the two
+    // HIGH tickets keep mangoNew ahead of mangoOld.
     expect(asc.body.data.map((t: { ticketNumber: string }) => t.ticketNumber)).toEqual([
       zebra.ticketNumber,
       apple.ticketNumber,
-      mangoOld.ticketNumber,
       mangoNew.ticketNumber,
+      mangoOld.ticketNumber,
       cherry.ticketNumber,
     ]);
   });
