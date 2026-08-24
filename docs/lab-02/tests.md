@@ -1,6 +1,6 @@
 # CPE 334 Lab 2 — TokTickIT Requester Ticketing MVP: Test Plan
 
-- **Status:** Draft v1.0 — Issue #13 rows (**UT-01, API-01..06, API-21, API-22, API-23, API-24**) are **Pass**; all other rows remain **Pending** until their owning issue is implemented.
+- **Status:** Draft v1.0 — Issue #13 rows (**UT-01, API-01..06, API-21, API-22, API-23, API-24**) and Issue #14 rows (**UI-01, UI-02, UI-03**) are **Pass**; all other rows remain **Pending** until their owning issue is implemented.
 - **Companion documents:** [`specification.md`](./specification.md), [`api-spec.md`](./api-spec.md), [`ui-spec.md`](./ui-spec.md)
 
 ---
@@ -60,9 +60,10 @@ Test files live under `server/tests/lab-02/` and `client/tests/lab-02/`. API and
 
 | Test ID | Type | Requirement/AC | What It Tests | Expected Result | Automated Test File | Final Status |
 |---|---|---|---|---|---|---|
-| UI-01 | UI | FR-01, AC-02/03 | Create form: submit with empty title/missing category; long title; long description | Inline field errors with icon + text; no API call; first invalid field focused | `client/tests/lab-02/ui/createTicket.test.tsx` | Pending |
-| UI-02 | UI | BR-12, AC-05 | Submit button busy/disabled while request in flight; rapid double-click | Exactly one create call; button shows "Submitting…" and ignores repeat clicks | `client/tests/lab-02/ui/createTicket.test.tsx` | Pending |
-| UI-03 | UI | FR-01, AC-01 | Successful create with mocked API | Navigates to detail / shows success with generated ticket number | `client/tests/lab-02/ui/createTicket.test.tsx` | Pending |
+| UI-01 | UI | FR-01, AC-02/03 | Create form: submit with empty title/missing category; long title; long description | Inline field errors with icon + text; no API call; first invalid field focused | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
+| UI-02 | UI | BR-12, AC-05 | Submit button busy/disabled while request in flight; rapid double-click | Exactly one create call; button shows "Submitting…" and ignores repeat clicks | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
+| UI-03 | UI | FR-01, AC-01 | Successful create with mocked API | Navigates to detail / shows success with generated ticket number | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
+| UI-03a (extra) | UI | AC-20 | Visible labels wired via for/id; aria-invalid + aria-describedby on invalid fields; focus moves to first invalid field; attachment picker allowlist/5 MB/5-cap client rules | Label/control wiring asserted; error slot referenced by aria-describedby; picker rejects bad type, > 5 MB, 6th file | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
 | UI-04 | UI | FR-04/15, AC-11/18 | My Tickets renders skeleton while loading, then rows; failure shows error + Try again | Loading skeleton visible; rows render; error banner + retry re-fetches | `client/tests/lab-02/ui/ticketList.test.tsx` | Pending |
 | UI-05 | UI | FR-15, AC-17 | Empty list vs no-results states | "No tickets yet" + CTA when zero tickets; "No results match your filters" + Clear filters when filters match nothing | `client/tests/lab-02/ui/ticketList.test.tsx` | Pending |
 | UI-06 | UI | FR-05/06/07, AC-08/09/10 | Search, category/priority filters, sort control issue correct API params; Clear filters resets | Requests carry `search`/`categoryId`/`priority`/`sortBy`/`sortDir`; clear resets to defaults | `client/tests/lab-02/ui/ticketList.test.tsx` | Pending |

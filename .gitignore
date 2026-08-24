@@ -31,5 +31,8 @@ playwright-report/
 # Uploaded attachment storage (server-side)
 server/uploads/
 
+# Embedded PostgreSQL data directory (Docker-free dev database)
+server/.pgdata/
+
 # Local labsheet (never commit/upload)
 /Lab_02_labsheet.pdf

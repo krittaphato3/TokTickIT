@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TokTickIT — Create Ticket (Zen Green v0.3)</title>
+<style>
+  :root{
+    --tok-primary:#006B3C; --tok-secondary:#0B7A46; --tok-primary-soft:#EAF6EF;
+    --tok-page-bg:#F5F7F6; --tok-surface:#FFFFFF; --tok-text:#1E2A25; --tok-text-muted:#5C6B64;
+    --tok-border:#C9D4CE; --tok-border-soft:#DFE7E2; --tok-field-editable:#FFFFFF;
+    --tok-field-readonly:#F0F3F1; --tok-field-readonly-border:#D9E2DD;
+    --tok-error:#B3261E; --tok-error-soft:#FDECEA; --tok-warning:#B26A00; --tok-success:#1E7A46;
+    --tok-radius:.375rem; --tok-radius-card:.75rem; --tok-ring:0 0 0 3px rgba(0,107,60,.28);
+    --tok-shadow:0 1px 3px rgba(30,42,37,.08);
+    --tok-font:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue","Noto Sans","Liberation Sans",Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:var(--tok-font);line-height:1.5}
+
+  /* ============ APP HEADER ============ */
+  .tok-navbar{position:sticky;top:0;z-index:100;background:var(--tok-surface);border-bottom:1px solid var(--tok-border-soft);
+    display:flex;align-items:center;gap:1.25rem;padding:.625rem 1.5rem;flex-wrap:wrap}
+  .tok-brand{display:inline-flex;align-items:center;gap:.625rem;font-weight:700;font-size:1.0625rem;color:var(--tok-text);text-decoration:none}
+  .tok-brand-badge{width:34px;height:34px;border-radius:10px;background:var(--tok-primary);color:#fff;display:grid;place-items:center;flex:none}
+  .tok-nav{display:flex;align-items:center;gap:.25rem}
+  .tok-nav a{display:inline-flex;align-items:center;min-height:38px;padding:.375rem 1rem;border-radius:999px;border:1px solid transparent;
+    font-size:.9375rem;font-weight:600;color:var(--tok-text-muted);text-decoration:none}
+  .tok-nav a:hover{color:var(--tok-secondary)}
+  .tok-nav a.active{background:var(--tok-primary-soft);color:var(--tok-primary);border-color:rgba(0,107,60,.25)}
+  .tok-req-wrap{margin-left:auto;display:flex;align-items:center;gap:.75rem}
+  .tok-req-label{font-size:.6875rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tok-text-muted);text-align:right;line-height:1.25}
+  .tok-req-select{appearance:none;-webkit-appearance:none;border:1px solid var(--tok-border);border-radius:.5rem;background:#fff
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235C6B64' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")
+    no-repeat right .75rem center;padding:.5rem 2.25rem .5rem .875rem;font-family:inherit;font-size:.9375rem;font-weight:600;color:var(--tok-text);min-height:40px}
+  .tok-req-caption{font-size:.8125rem;color:var(--tok-text-muted)}
+  .tok-req-select:focus-visible,.tok-nav a:focus-visible{outline:none;box-shadow:var(--tok-ring);border-color:var(--tok-primary)}
+
+  /* ============ PAGE FRAME ============ */
+  .tok-main{max-width:1200px;margin:0 auto;padding:1.5rem 1rem 3rem}
+  @media (min-width:992px){.tok-main{padding:1.75rem 1.5rem 3rem}}
+  .tok-breadcrumb{font-size:.8125rem;color:var(--tok-text-muted);margin-bottom:.25rem}
+  .tok-breadcrumb a{color:var(--tok-text-muted);text-decoration:none}
+  .tok-breadcrumb a:hover{color:var(--tok-secondary);text-decoration:underline}
+  .tok-breadcrumb .sep{margin:0 .375rem;color:var(--tok-border)}
+  .tok-breadcrumb .current{color:var(--tok-text);font-weight:600}
+  .tok-page-title{font-size:1.5rem;font-weight:700;margin:0 0 1.25rem}
+
+  /* ============ CARD + SECTIONS ============ */
+  .tok-card{background:var(--tok-surface);border:1px solid var(--tok-border-soft);border-radius:var(--tok-radius-card);box-shadow:var(--tok-shadow);padding:2rem}
+  .tok-section-label{display:flex;align-items:baseline;gap:.5rem;font-size:.75rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tok-secondary);margin:0 0 1.125rem}
+  .tok-section-note{font-size:.75rem;font-weight:500;letter-spacing:.02em;text-transform:none;color:var(--tok-text-muted)}
+  .tok-divider{border:0;border-top:1px dashed var(--tok-border);margin:1.625rem 0}
+  .tok-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem 1.5rem}
+  @media (max-width:767.98px){.tok-grid-2{grid-template-columns:1fr}}
+
+  /* ============ FIELDS ============ */
+  .tok-label{display:block;font-size:.875rem;font-weight:600;color:var(--tok-text);margin-bottom:.375rem}
+  .tok-req{color:var(--tok-error)}
+  .tok-input,.tok-select,.tok-textarea{width:100%;border:1px solid var(--tok-border);border-radius:var(--tok-radius);
+    background:var(--tok-field-editable);color:var(--tok-text);font-family:inherit;font-size:.9375rem;padding:.625rem .75rem;min-height:44px}
+  .tok-input::placeholder,.tok-textarea::placeholder{color:#9AA8A1}
+  .tok-input:focus-visible,.tok-select:focus-visible,.tok-textarea:focus-visible{outline:none;border-color:var(--tok-primary);box-shadow:var(--tok-ring)}
+  .tok-readonly{background:var(--tok-field-readonly);border-color:var(--tok-field-readonly-border);color:var(--tok-text-muted);cursor:default}
+  .tok-readonly:focus{box-shadow:none}
+  .tok-select{appearance:none;-webkit-appearance:none;padding-right:2.25rem;
+    background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235C6B64' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")
+    no-repeat right .75rem center}
+  .tok-textarea{min-height:132px;resize:vertical;line-height:1.55}
+  .tok-hint{font-size:.8125rem;color:var(--tok-text-muted);margin:.375rem 0 0}
+  .tok-field.invalid .tok-input,.tok-field.invalid .tok-select,.tok-field.invalid .tok-textarea{border-color:var(--tok-error)}
+  .tok-err{display:none;align-items:flex-start;gap:.375rem;font-size:.8125rem;color:var(--tok-error);margin:.375rem 0 0}
+  .tok-field.invalid .tok-err{display:flex}
+
+  /* ============ ATTACHMENTS ============ */
+  .tok-dropzone{border:2px dashed var(--tok-border);border-radius:.5rem;background:#FBFDFC;padding:2.75rem 1.25rem;text-align:center;color:var(--tok-text-muted);font-size:.9375rem}
+  .tok-dropzone.dragover{border-color:var(--tok-primary);background:var(--tok-primary-soft)}
+  .tok-dropzone svg{color:var(--tok-primary);margin-bottom:.625rem}
+  .tok-browse{color:var(--tok-primary);font-weight:700;text-decoration:none;cursor:pointer}
+  .tok-browse:hover{color:var(--tok-secondary);text-decoration:underline}
+  .tok-formats{margin-top:.625rem;font-size:.75rem;letter-spacing:.08em;color:var(--tok-text-muted)}
+  .tok-chips{display:flex;flex-wrap:wrap;gap:.625rem;margin-top:1rem}
+  .tok-chip{display:inline-flex;align-items:center;gap:.5rem;max-width:100%;border:1px solid var(--tok-border);border-radius:999px;
+    background:#fff;padding:.375rem .75rem;font-size:.8125rem;color:var(--tok-text)}
+  .tok-chip .ok{color:var(--tok-success);font-weight:700}
+  .tok-chip .bang{color:var(--tok-error);font-weight:700}
+  .tok-chip .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tok-chip .size{color:var(--tok-text-muted)}
+  .tok-chip .x{border:0;background:none;color:var(--tok-text-muted);font-size:.875rem;line-height:1;cursor:pointer;padding:.125rem;min-width:20px;min-height:20px}
+  .tok-chip .x:hover{color:var(--tok-text)}
+  .tok-chip.invalid{border-color:var(--tok-error);color:var(--tok-error)}
+  .tok-chip.invalid .x{color:var(--tok-error)}
+
+  /* ============ ALERTS + ACTIONS ============ */
+  .tok-alert{display:none;border-radius:var(--tok-radius);padding:.75rem 1rem;font-size:.875rem;margin:0 0 1.25rem}
+  .tok-alert.error{display:flex;gap:.5rem;background:var(--tok-error-soft);color:var(--tok-error);border:1px solid rgba(179,38,30,.35)}
+  .tok-alert.success{display:flex;gap:.5rem;background:var(--tok-primary-soft);color:var(--tok-primary);border:1px solid rgba(0,107,60,.35)}
+  .tok-actions{display:flex;justify-content:flex-end;gap:.75rem;margin-top:2rem}
+  .tok-btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;border-radius:var(--tok-radius);font-family:inherit;
+    font-size:.9375rem;font-weight:600;min-height:44px;padding:.625rem 1.25rem;cursor:pointer}
+  .tok-btn.secondary{background:#fff;border:1px solid var(--tok-border);color:var(--tok-text)}
+  .tok-btn.secondary:hover{background:var(--tok-primary-soft)}
+  .tok-btn.primary{background:var(--tok-primary);border:1px solid var(--tok-primary);color:#fff;font-weight:700;padding:.625rem 1.375rem}
+  .tok-btn.primary:hover{background:var(--tok-secondary)}
+  .tok-btn:disabled{opacity:.55;cursor:not-allowed}
+  .tok-btn:focus-visible{outline:none;box-shadow:var(--tok-ring)}
+  .tok-spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:tokspin .7s linear infinite}
+  @keyframes tokspin{to{transform:rotate(360deg)}}
+
+  @media (max-width:767.98px){
+    .tok-navbar{padding:.625rem 1rem;gap:.75rem}
+    .tok-req-wrap{margin-left:0;width:100%;justify-content:space-between}
+    .tok-req-label{text-align:left}
+    .tok-card{padding:1.25rem}
+    .tok-actions{flex-direction:column-reverse}
+    .tok-btn{width:100%}
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= APP HEADER ================= -->
+<header class="tok-navbar">
+  <a class="tok-brand" href="#">
+    <span class="tok-brand-badge" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg>
+    </span>
+    TokTickIT
+  </a>
+  <nav class="tok-nav" aria-label="Primary">
+    <a href="#" class="active" aria-current="page">New Ticket</a>
+    <a href="#">My Tickets</a>
+  </nav>
+  <div class="tok-req-wrap">
+    <span class="tok-req-label" id="devReqLabel">Development<br>Requester</span>
+    <select class="tok-req-select" aria-labelledby="devReqLabel">
+      <option selected>Dev User Alpha</option>
+      <option>Dev User Beta</option>
+      <option>Dev User Gamma</option>
+      <option>Dev User Delta</option>
+    </select>
+    <span class="tok-req-caption">Testing only — not real authentication</span>
+  </div>
+</header>
+
+<main class="tok-main">
+  <nav class="tok-breadcrumb" aria-label="Breadcrumb">
+    <a href="#">My Tickets</a><span class="sep">/</span><span class="current">New</span>
+  </nav>
+  <h1 class="tok-page-title">Create Ticket</h1>
+
+  <form class="tok-card" id="createForm" novalidate>
+    <div class="tok-alert" id="formAlert" role="alert"></div>
+
+    <!-- REQUESTER CONTEXT -->
+    <section aria-label="Requester context">
+      <h2 class="tok-section-label">Requester context</h2>
+      <div class="tok-grid-2">
+        <div class="tok-field">
+          <label class="tok-label" for="requester">Requester</label>
+          <input class="tok-input tok-readonly" id="requester" readonly tabindex="-1" value="Dev User Alpha">
+          <p class="tok-hint">Testing only — not real authentication</p>
+        </div>
+        <div class="tok-field">
+          <label class="tok-label" for="priority">Requested Priority</label>
+          <select class="tok-select" id="priority">
+            <option>Low</option><option selected>Medium</option><option>High</option><option>Critical</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <hr class="tok-divider">
+
+    <!-- CLASSIFICATION -->
+    <section aria-label="Classification">
+      <h2 class="tok-section-label">Classification</h2>
+      <div class="tok-grid-2">
+        <div class="tok-field" id="fieldCategory">
+          <label class="tok-label" for="category">Category <span class="tok-req" aria-hidden="true">*</span></label>
+          <select class="tok-select" id="category" required>
+            <option value="" selected>Select a category…</option>
+            <option>Account and Access</option><option>Hardware</option><option>Software</option><option>Network</option>
+          </select>
+          <p class="tok-err"><span aria-hidden="true">!</span> Category is required</p>
+        </div>
+        <div class="tok-field" id="fieldSystem">
+          <label class="tok-label" for="relatedSystem">Related System <span class="tok-req" aria-hidden="true">*</span></label>
+          <select class="tok-select" id="relatedSystem" required>
+            <option value="" selected>Select a related system…</option>
+            <option>Email</option><option>Campus Wi-Fi</option><option>VPN</option><option>LEB2 App</option><option>Grade Submission App</option><option>Printer</option><option>Corporate Laptop</option>
+          </select>
+          <p class="tok-err"><span aria-hidden="true">!</span> Related system is required</p>
+        </div>
+      </div>
+    </section>
+
+    <hr class="tok-divider">
+
+    <!-- DETAILS -->
+    <section aria-label="Details">
+      <h2 class="tok-section-label">Details</h2>
+      <div class="tok-field" id="fieldTitle" style="margin-bottom:1.25rem">
+        <label class="tok-label" for="title">Title <span class="tok-req" aria-hidden="true">*</span></label>
+        <input class="tok-input" id="title" maxlength="140" placeholder="One line that sums the problem">
+        <p class="tok-err"><span aria-hidden="true">!</span> Title is required (1–120 characters)</p>
+      </div>
+      <div class="tok-field" id="fieldDescription">
+        <label class="tok-label" for="description">Description</label>
+        <textarea class="tok-textarea" id="description" maxlength="4100" placeholder="What happened, when, and what you already tried…"></textarea>
+        <p class="tok-hint">Optional, up to 4,000 characters</p>
+        <p class="tok-err"><span aria-hidden="true">!</span> Description must be 4,000 characters or fewer</p>
+      </div>
+    </section>
+
+    <hr class="tok-divider">
+
+    <!-- ATTACHMENTS -->
+    <section aria-label="Attachments">
+      <h2 class="tok-section-label">Attachments <span class="tok-section-note">· optional · up to 5 files · 5 MB each</span></h2>
+      <div class="tok-dropzone" id="dropzone">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <div>Drag and drop files here, or <span class="tok-browse" id="browse" role="button" tabindex="0">browse files</span></div>
+        <div class="tok-formats">JPG · PNG · WEBP · PDF</div>
+        <input type="file" id="fileInput" multiple hidden accept=".jpg,.jpeg,.png,.webp,.pdf">
+      </div>
+      <div class="tok-chips" id="chips">
+        <span class="tok-chip"><span class="ok" aria-hidden="true">✓</span><span class="name">boot-error.png</span><span class="size">512 KB</span><button type="button" class="x" aria-label="Remove boot-error.png">×</button></span>
+        <span class="tok-chip invalid"><span class="bang" aria-hidden="true">!</span><span class="name">screen-rec.gif — File type not supported</span><button type="button" class="x" aria-label="Dismiss screen-rec.gif error">×</button></span>
+      </div>
+    </section>
+
+    <div class="tok-actions">
+      <button type="button" class="tok-btn secondary" id="cancelBtn">Cancel</button>
+      <button type="submit" class="tok-btn primary" id="submitBtn">Submit Ticket</button>
+    </div>
+  </form>
+</main>
+
+<script>
+  var ALLOWED=['jpg','jpeg','png','webp','pdf'], MAX=5*1024*1024, LIMIT=5;
+  var chips=document.getElementById('chips'), input=document.getElementById('fileInput'),
+      zone=document.getElementById('dropzone'), browse=document.getElementById('browse');
+
+  function fmt(b){return b>=1048576?(b/1048576).toFixed(1)+' MB':Math.max(1,Math.round(b/1024))+' KB'}
+  function activeCount(){return chips.querySelectorAll('.tok-chip:not(.invalid)').length}
+  function addChip(name,size,err){
+    var c=document.createElement('span');c.className='tok-chip'+(err?' invalid':'');
+    c.innerHTML=(err?'<span class="bang">!</span>':'<span class="ok">✓</span>')+'<span class="name"></span>'+(size?'<span class="size"></span>':'')+'<button type="button" class="x" aria-label="Remove '+name+'">×</button>';
+    c.querySelector('.name').textContent=err?name+' — '+err:name;
+    if(size)c.querySelector('.size').textContent=fmt(size);
+    chips.appendChild(c);
+  }
+  function handle(files){
+    Array.prototype.forEach.call(files,function(f){
+      var ext=(f.name.split('.').pop()||'').toLowerCase();
+      if(activeCount()>=LIMIT)return addChip(f.name,0,'Attachment limit reached (5 max)');
+      if(ALLOWED.indexOf(ext)===-1)return addChip(f.name,0,'File type not supported');
+      if(f.size>MAX)return addChip(f.name,0,'File too large — max 5 MB');
+      addChip(f.name,f.size,null);
+    });
+  }
+  browse.addEventListener('click',function(){input.click()});
+  browse.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();input.click()}});
+  input.addEventListener('change',function(){handle(input.files);input.value=''});
+  ['dragover','dragenter'].forEach(function(ev){zone.addEventListener(ev,function(e){e.preventDefault();zone.classList.add('dragover')})});
+  ['dragleave','drop'].forEach(function(ev){zone.addEventListener(ev,function(e){e.preventDefault();zone.classList.remove('dragover')})});
+  zone.addEventListener('drop',function(e){handle(e.dataTransfer.files)});
+  chips.addEventListener('click',function(e){if(e.target.classList.contains('x'))e.target.closest('.tok-chip').remove()});
+
+  var form=document.getElementById('createForm'),btn=document.getElementById('submitBtn'),alertBox=document.getElementById('formAlert');
+  form.addEventListener('submit',function(e){
+    e.preventDefault();alertBox.className='tok-alert';
+    var bad=[];
+    var t=document.getElementById('title').value.trim();
+    if(!t||t.length>120)bad.push('fieldTitle');
+    if(!document.getElementById('category').value)bad.push('fieldCategory');
+    if(!document.getElementById('relatedSystem').value)bad.push('fieldSystem');
+    if(document.getElementById('description').value.length>4000)bad.push('fieldDescription');
+    ['fieldTitle','fieldCategory','fieldSystem','fieldDescription'].forEach(function(id){
+      document.getElementById(id).classList.toggle('invalid',bad.indexOf(id)!==-1);
+    });
+    if(bad.length){document.getElementById(bad[0]).querySelector('input,select,textarea').focus();return}
+    btn.disabled=true;btn.innerHTML='<span class="tok-spinner"></span> Submitting…';btn.setAttribute('aria-busy','true');
+    setTimeout(function(){
+      btn.disabled=false;btn.textContent='Submit Ticket';btn.removeAttribute('aria-busy');
+      alertBox.className='tok-alert success';
+      alertBox.textContent='Ticket created — official number TTK-2026-000042 assigned by the backend. Opening ticket detail…';
+    },900);
+  });
+  document.getElementById('cancelBtn').addEventListener('click',function(){
+    form.reset();alertBox.className='tok-alert';
+    ['fieldTitle','fieldCategory','fieldSystem','fieldDescription'].forEach(function(id){document.getElementById(id).classList.remove('invalid')});
+  });
+</script>
+</body>
+</html>
