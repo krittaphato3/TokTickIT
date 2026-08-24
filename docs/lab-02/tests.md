@@ -201,6 +201,8 @@ Deviations / notes:
 - Search wildcards (`%`, `_`, `\`) in user input are escaped before ILIKE matching.
 - Fixture tickets use reserved `TTK-<year>-9xxxxx` numbers so they never collide with sequence-issued numbers; the suite sweeps that band on start to self-heal after interrupted runs.
 
+_Peer-review addendum (PR #27):_ the reviewer asked whether `%`, `_`, and `\` are escaped before ILIKE. Verification found the page query escaped correctly but the count path (Prisma `contains`) did not, so a term containing `%` or `_` behaved as a wildcard in `totalItems` while matching literally in `data`. Fixed by sharing one escaped ILIKE fragment (`buildIlikePattern` → `buildSearchFilter`) across the page query and the count; a wildcard-consistency test was added (red: `expected 3 to be 1`, green after fix). Suite now 60/60.
+
 
 ## 7. Known Limitations
 
