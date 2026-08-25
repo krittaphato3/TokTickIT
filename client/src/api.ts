@@ -115,6 +115,65 @@ export async function createTicket(
   return body as Ticket;
 }
 
+// Issue #15/#16 — list the active Development Requester's tickets.
+// Search/filter params are appended only when set; sort is always sent
+// explicitly (the UI's default "newest first" maps to sortBy=createdAt
+// &sortDir=desc, matching the server default). Page/pageSize are always sent.
+export type SortBy = 'createdAt' | 'updatedAt' | 'title' | 'priority';
+export type SortDir = 'asc' | 'desc';
+
+export interface TicketListParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  categoryId?: number;
+  priority?: Priority;
+  sortBy?: SortBy;
+  sortDir?: SortDir;
+}
+
+export interface TicketListMeta {
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
+export interface TicketListResult {
+  data: Ticket[];
+  meta: TicketListMeta;
+}
+
+export async function getTickets(
+  params: TicketListParams,
+  requesterId: number,
+): Promise<TicketListResult> {
+  const search = new URLSearchParams();
+  if (params.page !== undefined) search.set('page', String(params.page));
+  if (params.pageSize !== undefined)
+    search.set('pageSize', String(params.pageSize));
+  if (params.search !== undefined && params.search !== '')
+    search.set('search', params.search);
+  if (params.categoryId !== undefined)
+    search.set('categoryId', String(params.categoryId));
+  if (params.priority !== undefined) search.set('priority', params.priority);
+  if (params.sortBy !== undefined) search.set('sortBy', params.sortBy);
+  if (params.sortDir !== undefined) search.set('sortDir', params.sortDir);
+
+  const qs = search.toString();
+  const url = `${API_URL}/api/tickets${qs ? `?${qs}` : ''}`;
+  const response = await fetch(url, {
+    headers: { 'X-Dev-Requester-Id': String(requesterId) },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new ApiError(response.status, body);
+  }
+  return body as TicketListResult;
+}
+
 // Issue 2 + Issue 4 — call the backend:
 //   fetch `${API_URL}/api/health`; if not ok, throw.
 //   then fetch `${API_URL}/api/categories`; if not ok, throw.

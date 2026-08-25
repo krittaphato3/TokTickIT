@@ -4,6 +4,8 @@ import { checkSystem } from './api';
 import { DevRequesterProvider } from './DevRequesterProvider';
 import RequesterSelector from './RequesterSelector';
 import CreateTicketPage from './components/CreateTicketPage';
+import MyTicketsPage from './components/MyTicketsPage';
+import { useDevRequester } from './devRequesterContext';
 
 // UI states: idle, loading, success, error.
 type UiState = 'idle' | 'loading' | 'success' | 'error';
@@ -157,16 +159,6 @@ function HomeScreen() {
   );
 }
 
-// Placeholder until Issue #15/#16 deliver the real list.
-function MyTicketsPlaceholder() {
-  return (
-    <main className="tok-main">
-      <h1 className="h4 mb-4">My Tickets</h1>
-      <p className="tok-req-caption">Coming in Issue #15 — My Tickets API.</p>
-    </main>
-  );
-}
-
 function TicketDetail({ ticketNumber }: { ticketNumber: string }) {
   return (
     <main className="tok-main">
@@ -192,6 +184,10 @@ function TicketDetail({ ticketNumber }: { ticketNumber: string }) {
 
 function Shell() {
   const [route, setRoute] = useState<Route>(() => parseRoute(window.location.hash));
+  // Keying the list screen by active requester remounts it on switch, so
+  // search/filters/sort/pagination reset to defaults and the first fetch uses
+  // the new identity only (ui-spec §9 / BR-05).
+  const { activeRequester } = useDevRequester();
 
   function navigate(hash: string) {
     setRoute(parseRoute(hash));
@@ -219,7 +215,12 @@ function Shell() {
       {route.name === 'new-ticket' && (
         <CreateTicketPage onCreated={handleCreated} />
       )}
-      {route.name === 'tickets' && <MyTicketsPlaceholder />}
+      {route.name === 'tickets' && (
+        <MyTicketsPage
+          key={activeRequester?.id ?? 'none'}
+          onNavigate={navigate}
+        />
+      )}
       {route.name === 'ticket-detail' && (
         <TicketDetail ticketNumber={route.ticketNumber} />
       )}

@@ -109,7 +109,7 @@ Breakpoints follow Bootstrap 5 (and match AC-19):
 
 | Range | Layout rules |
 |---|---|
-| **Desktop ≥ 992px** | Ticket list = multi-column table (7 columns, see §10); Create form = two-column grid (category + priority side by side, related system full-width below); navbar shows all items inline. |
+| **Desktop ≥ 992px** | Ticket list = multi-column table (6 columns, see §10); Create form = two-column grid (category + priority side by side, related system full-width below); navbar shows all items inline. |
 | **Tablet 768–991px** | Two-column layout retained for the form; list table kept but with reduced column set (Ticket #, Title, Priority, Status, Created — category moves into title row as a chip). |
 | **Mobile < 768px** | Everything stacks vertically. Ticket list becomes **cards** (§10). Form fields stack full-width. Touch targets ≥ 44×44px. **No horizontal scroll** anywhere. Pagination collapses to Prev / Next + "Page X of Y". |
 
@@ -139,13 +139,15 @@ The Dev Requester selector stays visible at all breakpoints (compact on mobile).
 
 **Toolbar (above the list):**
 - Search box with magnifier icon and a clear (×) button when non-empty. Debounced (300ms); submits `search` on change.
-- Filters: Category select (All Categories + 4 seeded), Priority select (All Priorities + 4), Related System select (All + 7 seeded). Selecting Category or Priority immediately re-requests with `categoryId` / `priority`. The Related System filter re-requests with `relatedSystemId` (exact match on the ticket's related system).
+- Filters: Category select (All Categories + 4 seeded: Account and Access, Hardware, Software, Network), Priority select (All Priorities + 4). Selecting Category or Priority immediately re-requests with `categoryId` / `priority`.
 - Sort control: options map to API params — "Newest first" (`createdAt desc`), "Oldest first" (`createdAt asc`), "Title A–Z" (`title asc`), "Title Z–A" (`title desc`), "Priority: high first" (`priority desc`), "Priority: low first" (`priority asc`).
-- **Clear filters** (secondary, appears only when search/filters/sort differ from defaults): resets search, filters, and sort to defaults.
+- **Clear filters** (secondary, appears only when search/filters/sort differ from defaults): resets search, filters, and sort to defaults and re-requests page 1.
 
-**Desktop/tablet table columns:** Ticket # (monospace link) · Title · Category (chip) · Priority (badge) · Status (badge) · Related System (chip, or "—") · Created (local date + time). Sortable headers: Title, Priority, Created (cycle asc/desc on click). Rows are links to the detail view; hover row highlight (pale green).
+**Desktop ≥992px table columns:** Ticket # (monospace link) · Title · Category (chip) · Priority (badge) · Status (badge) · Created (local date + time) — 6 columns. Sortable headers: Title, Priority, Created (cycle asc/desc on click; a column's first click uses its natural direction: Title → asc, Priority → desc/high first, Created → desc/newest first). Rows are links to the detail view; hover row highlight (pale green).
 
-**Mobile cards:** each ticket = card with ticket number + title, badges row (Priority · Status · Category chip), and Created date. Tap anywhere opens detail. No horizontal scroll.
+**Tablet 768–991px:** the Category column is hidden; the category chip renders inline inside the title cell instead.
+
+**Mobile < 768px cards:** each ticket = card link with ticket number + title, badges row (Priority badge · Status badge · Category chip), and Created date. Tap anywhere opens detail. Touch targets ≥ 44px. No horizontal scroll.
 
 **Pagination:** "Showing 1–10 of 42" + Prev / numbered pages (max 5 with ellipsis) / Next. Page change resets scroll to top of the list.
 
