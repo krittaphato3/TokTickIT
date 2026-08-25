@@ -1,4 +1,5 @@
 import type { PrismaClient, Priority } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 // HTTP error carrying a status code, a safe message, and optional field-level
 // validation details. Thrown by route handlers/services and translated into a
@@ -17,6 +18,65 @@ export const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const;
 export const MEDIUM_PRIORITY = 'MEDIUM';
 export const MAX_TITLE_LENGTH = 120;
 export const MAX_DESCRIPTION_LENGTH = 4000;
+
+// BR-09 — priority sorts by rank (Critical 4 > High 3 > Medium 2 > Low 1),
+// not by the alphabetical order of the enum labels.
+export const PRIORITY_RANK: Record<(typeof PRIORITIES)[number], number> = {
+  LOW: 1,
+  MEDIUM: 2,
+  HIGH: 3,
+  CRITICAL: 4,
+};
+
+// In-memory comparator ordering tickets highest priority first
+// (Critical > High > Medium > Low); the SQL layer orders by the CASE mapping
+// of this same table (see listTickets).
+export function compareByPriority(
+  a: { priority: string },
+  b: { priority: string },
+): number {
+  return (
+    (PRIORITY_RANK[b.priority as (typeof PRIORITIES)[number]] ?? 0) -
+    (PRIORITY_RANK[a.priority as (typeof PRIORITIES)[number]] ?? 0)
+  );
+}
+
+const SORT_FIELDS = ['createdAt', 'updatedAt', 'title', 'priority'] as const;
+type SortField = (typeof SORT_FIELDS)[number];
+const SORT_DIRECTIONS = ['asc', 'desc'] as const;
+
+// UT-03 — normalizes the search query param: trim + lowercase, or null when
+// absent/blank so the list query carries no search filter at all.
+export function normalizeSearchTerm(term: string | null | undefined): string | null {
+  if (typeof term !== 'string') return null;
+  const trimmed = term.trim().toLowerCase();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+// The trimmed term becomes an ILIKE pattern, so the SQL wildcards (% and _)
+// and the backslash escape character itself are prefixed with "\" to match
+// as literal text (BR-07). Both the page query and the count query use this
+// exact pattern so rows and totalItems can never diverge.
+export function buildIlikePattern(term: string | null | undefined): string | null {
+  const normalized = normalizeSearchTerm(term);
+  if (!normalized) return null;
+  return `%${normalized.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
+}
+
+// Prisma WHERE fragment for BR-07: case-insensitive substring over title OR
+// description with the same wildcard escaping as the raw page query (Prisma's
+// contains has no ESCAPE support, so the fragment is written as raw SQL).
+// Returns null when there is no effective search term.
+export function buildSearchFilter(
+  term: string | null | undefined,
+): Prisma.Sql | null {
+  const pattern = buildIlikePattern(term);
+  if (!pattern) return null;
+  return Prisma.sql` AND (
+    t."title" ILIKE ${pattern}
+    OR COALESCE(t."description", '') ILIKE ${pattern}
+  )`;
+}
 
 // Formats the next value of the dedicated ticket_number_seq into the
 // labsheet ticket-number format: TTK-<current year>-<6 zero-padded digits>.
@@ -208,4 +268,201 @@ export async function createTicket(
       updatedAt: ticket.updatedAt,
     };
   });
+}
+
+const MIN_PAGE = 1;
+const MAX_PAGE_SIZE = 50;
+const DEFAULT_PAGE_SIZE = 10;
+
+function parseIntegerParam(
+  raw: string | undefined,
+): number | null | 'invalid' {
+  if (raw === undefined) return null;
+  return /^-?\d+$/.test(raw) ? Number(raw) : 'invalid';
+}
+
+// Validates the list query params per api-spec §3.2. Throws a plain HttpError
+// (no details array — each rule has its own dedicated message).
+export function validateListParams(query: Record<string, unknown>) {
+  const pageResult = parseIntegerParam(query.page as string | undefined);
+  if (pageResult === 'invalid' || (pageResult !== null && pageResult < MIN_PAGE)) {
+    throw new HttpError(400, 'page must be an integer >= 1');
+  }
+  const page = pageResult ?? MIN_PAGE;
+
+  const pageSizeResult = parseIntegerParam(query.pageSize as string | undefined);
+  if (
+    pageSizeResult === 'invalid' ||
+    (pageSizeResult !== null &&
+      (pageSizeResult < 1 || pageSizeResult > MAX_PAGE_SIZE))
+  ) {
+    throw new HttpError(400, 'pageSize must be between 1 and 50');
+  }
+  const pageSize = pageSizeResult ?? DEFAULT_PAGE_SIZE;
+
+  const rawPriority = query.priority as string | undefined;
+  let priority: Priority | undefined;
+  if (rawPriority !== undefined && rawPriority !== '') {
+    if (!(PRIORITIES as readonly string[]).includes(rawPriority)) {
+      throw new HttpError(
+        400,
+        'priority must be one of LOW, MEDIUM, HIGH, CRITICAL',
+      );
+    }
+    priority = rawPriority as Priority;
+  }
+
+  const rawSortBy = query.sortBy as string | undefined;
+  if (rawSortBy !== undefined && !(SORT_FIELDS as readonly string[]).includes(rawSortBy)) {
+    throw new HttpError(
+      400,
+      'sortBy must be one of createdAt, updatedAt, title, priority',
+    );
+  }
+
+  const rawSortDir = query.sortDir as string | undefined;
+  if (rawSortDir !== undefined && !(SORT_DIRECTIONS as readonly string[]).includes(rawSortDir)) {
+    throw new HttpError(400, 'sortDir must be asc or desc');
+  }
+
+  return { page, pageSize };
+}
+
+// GET /api/tickets (api-spec §3.2). The base query is always scoped to the
+// active requester (BR-06); search/category/priority combine with AND
+// (BR-07/08); priority orders by rank with createdAt desc as tie-break
+// (BR-09); pagination metadata is computed for the filtered set (BR-10).
+export async function listTickets(
+  prisma: PrismaClient,
+  requesterId: number,
+  query: Record<string, unknown>,
+) {
+  const { page, pageSize } = validateListParams(query);
+
+  const categoryIdRaw = query.categoryId as string | undefined;
+  let categoryIdFilter: number | null = null;
+  if (categoryIdRaw !== undefined && categoryIdRaw !== '') {
+    if (!/^-?\d+$/.test(categoryIdRaw)) {
+      throw new HttpError(
+        400,
+        'categoryId does not reference an existing category',
+      );
+    }
+    const id = Number(categoryIdRaw);
+    // Existence is checked inside the same transaction-free flow; an unknown
+    // category is a client error (400), not an empty result.
+    const exists = await prisma.category.findUnique({ where: { id } });
+    if (!exists) {
+      throw new HttpError(
+        400,
+        'categoryId does not reference an existing category',
+      );
+    }
+    categoryIdFilter = id;
+  }
+
+  // One shared ILIKE condition for both the page query and the count, built
+  // by buildSearchFilter with identical wildcard escaping (BR-07), so data
+  // rows and totalItems always agree even for terms like "%" or "_".
+  const searchCondition =
+    buildSearchFilter(query.search as string | undefined) ?? Prisma.empty;
+
+  // Filter conditions are composed as typed fragments because a literal NULL
+  // parameter cannot be typed by PostgreSQL (42P18) and every value here has
+  // already passed validateListParams / the category existence check.
+  const categoryCondition =
+    categoryIdFilter === null
+      ? Prisma.empty
+      : Prisma.sql` AND t."categoryId" = ${categoryIdFilter}`;
+  const priorityValue =
+    typeof query.priority === 'string' && query.priority !== ''
+      ? query.priority
+      : null;
+  const priorityCondition =
+    priorityValue === null
+      ? Prisma.empty
+      : Prisma.sql` AND t."priority"::text = ${priorityValue}`;
+
+  const sortBy = ((query.sortBy as SortField | undefined) ?? 'createdAt') as SortField;
+  const directionSql = query.sortDir === 'asc' ? Prisma.sql`ASC` : Prisma.sql`DESC`;
+
+  // Priority never sorts by its enum label: a CASE expression maps it to the
+  // BR-09 rank so Critical > High > Medium > Low in both directions. Every
+  // ordering carries (created_at desc, id desc) tie-breakers so equal keys
+  // stay deterministic across pages. Page ids come from one parameterized
+  // query, then the rows are hydrated through Prisma with their
+  // category/related-system relations.
+  const rankColumn =
+    sortBy === 'priority'
+      ? Prisma.sql`CASE t."priority"
+            WHEN 'LOW' THEN 1
+            WHEN 'MEDIUM' THEN 2
+            WHEN 'HIGH' THEN 3
+            WHEN 'CRITICAL' THEN 4
+            ELSE 0
+          END`
+      : sortBy === 'title'
+        ? Prisma.sql`t."title"`
+        : sortBy === 'updatedAt'
+          ? Prisma.sql`t."updatedAt"`
+          : Prisma.sql`t."createdAt"`;
+
+  // The page-id selection and the count share the identical WHERE fragments
+  // and read one consistent snapshot; a failure inside the transaction
+  // surfaces as the generic safe-500 (API-20).
+  const [pageIds, totalItems] = await prisma.$transaction([
+    prisma.$queryRaw<{ id: number }[]>`
+      SELECT t.id
+      FROM "Ticket" AS t
+      WHERE t."requesterId" = ${requesterId}${searchCondition}${categoryCondition}${priorityCondition}
+      ORDER BY ${rankColumn} ${directionSql}, t."createdAt" DESC, t.id DESC
+      LIMIT ${pageSize}
+      OFFSET ${(page - 1) * pageSize}
+    `,
+    prisma.$queryRaw<{ count: bigint }[]>`
+      SELECT COUNT(*)::bigint AS count
+      FROM "Ticket" AS t
+      WHERE t."requesterId" = ${requesterId}${searchCondition}${categoryCondition}${priorityCondition}
+    `,
+  ]).then(
+    ([rows, counted]) =>
+      [rows.map((row) => row.id), Number(counted[0].count)] as const,
+  );
+
+  const tickets =
+    pageIds.length === 0
+      ? []
+      : (
+          await prisma.ticket.findMany({
+            where: { requesterId, id: { in: pageIds } },
+            include: { category: true, relatedSystem: true },
+          })
+        ).sort((a, b) => pageIds.indexOf(a.id) - pageIds.indexOf(b.id));
+
+  const totalPages = Math.ceil(totalItems / pageSize);
+
+  return {
+    data: tickets.map((ticket) => ({
+      id: ticket.id,
+      ticketNumber: ticket.ticketNumber,
+      title: ticket.title,
+      description: ticket.description,
+      status: ticket.status,
+      priority: ticket.priority,
+      category: { id: ticket.category.id, name: ticket.category.name },
+      relatedSystem: ticket.relatedSystem
+        ? { id: ticket.relatedSystem.id, name: ticket.relatedSystem.name }
+        : null,
+      createdAt: ticket.createdAt,
+      updatedAt: ticket.updatedAt,
+    })),
+    meta: {
+      page,
+      pageSize,
+      totalItems,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1 && totalItems > 0,
+    },
+  };
 }

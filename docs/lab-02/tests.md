@@ -1,6 +1,6 @@
 # CPE 334 Lab 2 — TokTickIT Requester Ticketing MVP: Test Plan
 
-- **Status:** Draft v1.0 — Issue #13 rows (**UT-01, API-01..06, API-21, API-22, API-23, API-24**) and Issue #14 rows (**UI-01, UI-02, UI-03**) are **Pass**; all other rows remain **Pending** until their owning issue is implemented.
+- **Status:** Draft v1.0 — Issue #13 rows (**UT-01, API-01..06, API-21, API-22, API-23, API-24**), Issue #14 rows (**UI-01, UI-02, UI-03**) and Issue #15 rows (**UT-02, UT-03, API-07..API-11, API-20**) are **Pass**; all other rows remain **Pending** until their owning issue is implemented.
 - **Companion documents:** [`specification.md`](./specification.md), [`api-spec.md`](./api-spec.md), [`ui-spec.md`](./ui-spec.md)
 
 ---
@@ -23,8 +23,8 @@ Test files live under `server/tests/lab-02/` and `client/tests/lab-02/`. API and
 | Test ID | Type | Requirement/AC | What It Tests | Expected Result | Automated Test File | Final Status |
 |---|---|---|---|---|---|---|
 | UT-01 | Unit | FR-02, BR-01, AC-01 | Ticket-number generator emits `TTK-<year>-<6 zero-padded digits>` | Format matches regex; consecutive calls increment the sequence; values unique | `server/tests/lab-02/unit/ticketNumber.test.ts` | Pass |
-| UT-02 | Unit | FR-07, BR-09, AC-10 | Priority-rank map used by the sort comparator (LOW 1 → CRITICAL 4) | Comparator orders Critical > High > Medium > Low | `server/tests/lab-02/unit/priorityRank.test.ts` | Pending |
-| UT-03 | Unit | FR-05, BR-07, AC-08 | Search-term normalization (trim, case-insensitive substring predicate) | "  NETWORK " matches "network" in title/description; empty term matches all | `server/tests/lab-02/unit/search.test.ts` | Pending |
+| UT-02 | Unit | FR-07, BR-09, AC-10 | Priority-rank map used by the sort comparator (LOW 1 → CRITICAL 4) | Comparator orders Critical > High > Medium > Low | `server/tests/lab-02/unit/priorityRank.test.ts` | Pass |
+| UT-03 | Unit | FR-05, BR-07, AC-08 | Search-term normalization (trim, case-insensitive substring predicate) | "  NETWORK " matches "network" in title/description; empty term matches all | `server/tests/lab-02/unit/search.test.ts` | Pass |
 
 ### 2.2 API (server)
 
@@ -36,11 +36,11 @@ Test files live under `server/tests/lab-02/` and `client/tests/lab-02/`. API and
 | API-04 | API | FR-01/02/03, AC-01/04 | Create valid ticket with explicit priority | 201; `ticketNumber` format; `status NEW`; priority echoed | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
 | API-05 | API | FR-01, AC-02/03 | Create with empty title, title > 120 chars, description > 4000 chars, missing categoryId | 400 `Validation failed` + `details` entries per field | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
 | API-06 | API | FR-01, BR-11 | Create with nonexistent categoryId and invalid priority | 400 with field-specific messages | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
-| API-07 | API | FR-04/14, AC-06 | List returns only the active requester's tickets (two requesters seeded with data) | `data` contains only requester A tickets; `totalItems` counts only A's | `server/tests/lab-02/my-tickets.api.test.ts` | Pending |
-| API-08 | API | FR-05, AC-08 | `search` matches case-insensitively across title and description; empty search returns all | Subset matched; page resets to 1 | `server/tests/lab-02/my-tickets.api.test.ts` | Pending |
-| API-09 | API | FR-06, AC-09 | `categoryId` + `priority` filters combine with AND | Only tickets matching both returned | `server/tests/lab-02/my-tickets.api.test.ts` | Pending |
-| API-10 | API | FR-07, AC-10 | Sort by `title asc` and `priority desc`; invalid `sortBy`/`sortDir` | Correct ordering incl. priority rank; 400 on invalid values | `server/tests/lab-02/my-tickets.api.test.ts` | Pending |
-| API-11 | API | FR-04, AC-11 | Pagination: 25 tickets, page 2 of default 10; `page=0`; `pageSize=51`; `categoryId` filter that doesn't exist | Correct slice + `meta` totals; 400 on invalid page/pageSize/filter | `server/tests/lab-02/my-tickets.api.test.ts` | Pending |
+| API-07 | API | FR-04/14, AC-06 | List returns only the active requester's tickets (two requesters seeded with data) | `data` contains only requester A tickets; `totalItems` counts only A's | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
+| API-08 | API | FR-05, AC-08 | `search` matches case-insensitively across title and description; empty search returns all | Subset matched; page resets to 1 | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
+| API-09 | API | FR-06, AC-09 | `categoryId` + `priority` filters combine with AND | Only tickets matching both returned | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
+| API-10 | API | FR-07, AC-10 | Sort by `title asc` and `priority desc`; invalid `sortBy`/`sortDir` | Correct ordering incl. priority rank; 400 on invalid values | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
+| API-11 | API | FR-04, AC-11 | Pagination: 25 tickets, page 2 of default 10; `page=0`; `pageSize=51`; `categoryId` filter that doesn't exist | Correct slice + `meta` totals; 400 on invalid page/pageSize/filter | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
 | API-12 | API | FR-08/14, AC-07 | Detail by ticketNumber: owned → 200 with requester + attachments; other-owner → 403; nonexistent → 404; malformed number → 400 | Documented status codes and messages; no data leak on 403 | `server/tests/lab-02/ticket-detail.api.test.ts` | Pending |
 | API-13 | API | FR-09, AC-12 | Upload a valid 1 KB PNG to an owned ticket | 201 metadata; file stored; metadata matches | `server/tests/lab-02/attachments.api.test.ts` | Pending |
 | API-14 | API | FR-09, AC-13 | Upload a file > 5 MB | 413; no metadata persisted | `server/tests/lab-02/attachments.api.test.ts` | Pending |
@@ -49,7 +49,7 @@ Test files live under `server/tests/lab-02/` and `client/tests/lab-02/`. API and
 | API-17 | API | FR-12, AC-15 | Soft-remove an attachment, then attempt download and re-remove | 200 with `removedAt` set; download 404 `Attachment has been removed`; re-remove 404; DB row persists with `removedAt` | `server/tests/lab-02/attachments.api.test.ts` | Pending |
 | API-18 | API | FR-11/14, AC-12/07 | Download returns byte-identical stream with correct `Content-Type`/`Content-Disposition`; requester B downloading A's attachment | 200 + headers + identical bytes; 403 for B | `server/tests/lab-02/attachments.api.test.ts` | Pending |
 | API-19 | API | FR-10, AC-15 | Detail response excludes removed attachments | `attachments` lists active only; `removedAt` not null entries absent | `server/tests/lab-02/ticket-detail.api.test.ts` | Pending |
-| API-20 | API | BR-13, AC-18 | Simulated DB failure on list endpoint (mock/stub) | 500 with generic message, no stack trace in body | `server/tests/lab-02/my-tickets.api.test.ts` | Pending |
+| API-20 | API | BR-13, AC-18 | Simulated DB failure on list endpoint (mock/stub) | 500 with generic message, no stack trace in body | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
 | API-21 | API | FR-13, BR-05 | `GET /api/requesters` returns only active requesters ordered by id (5 seeded: 4 active + 1 inactive Epsilon excluded) | 200; 4 active returned; inactive excluded | `server/tests/lab-02/api/requesters.test.ts` | Pass |
 | API-22 | API | FR-17, AC-22 | `GET /api/related-systems` returns all 7 seeded systems ordered by id | 200; 7 systems returned | `server/tests/lab-02/api/relatedSystems.test.ts` | Pass |
 | API-23 | API | FR-17, BR-19, AC-22 | Create ticket with a valid `relatedSystemId`; response includes `relatedSystem` | 201; relatedSystem matches the provided ID | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
@@ -166,7 +166,43 @@ CI note: `npm test` in `server` may need a `--runInBand`-style serial execution 
 
 ## 6. Final Results
 
-_Pending — to be completed after implementation. Record per-test outcomes (Pass/Fail + notes) for every row in §2, the executed commands from §5, and any deviations from this plan._
+_Issue #15 (My Tickets API) recorded 2026-08-24. Earlier-issue rows were recorded on their owning branches._
+
+### Issue #15 — GET /api/tickets (UT-02, UT-03, API-07..API-11, API-20)
+
+Commands executed (from `server/`, embedded PostgreSQL running via `npm run db:up`):
+
+```bash
+npx vitest run tests/lab-02/unit/priorityRank.test.ts tests/lab-02/unit/search.test.ts
+npx vitest run tests/lab-02/my-tickets.api.test.ts
+npm test          # full server suite
+npm run build     # typecheck/build gate
+```
+
+Outcomes:
+
+| Test ID | Outcome | Notes |
+|---|---|---|
+| UT-02 | Pass | Rank map LOW 1 → CRITICAL 4; comparator highest-first; alphabetical-label trap covered |
+| UT-03 | Pass | Trim + lowercase normalization; blank/absent term → no filter; title OR description predicate |
+| API-07 | Pass | Two-requester isolation; `totalItems` per requester; list-row shape; 400/401/403 header contract |
+| API-08 | Pass | Case-insensitive match on title and description; empty/blank search returns all; pagination resets to page 1 of the matched subset |
+| API-09 | Pass | categoryId + priority combine with AND; each filter alone returns the superset; invalid priority → 400 |
+| API-10 | Pass | createdAt desc default; title asc/desc; priority rank desc/asc with deterministic tie-break; invalid sortBy/sortDir → 400 |
+| API-11 | Pass | 25 fixtures, page 2 slice at default pageSize 10, final partial page hasNextPage=false; page=0 / page=abc / pageSize=0 / pageSize=51 / nonexistent categoryId → 400 |
+| API-20 | Pass | `$transaction` stubbed to reject → generic 500 envelope; body contains neither the simulated error text nor a stack trace |
+
+Totals: full server suite **57/57 passing across 10 files** (`npm test`); build gate clean. The red→green cycle was real: all 22 new API assertions first failed with `expected 404` (no route) and both unit files failed on missing exports before implementation.
+
+Deviations / notes:
+
+- **Serial file execution is now mandatory**, as anticipated by the CI note above: `vitest.config.ts` sets `fileParallelism: false`. With parallel workers, `create-ticket.api.test.ts` and `my-tickets.api.test.ts` interleave writes for the same requesters against the shared database and exact-count assertions fail intermittently (~1 in 10 runs). Verified stable over 16 consecutive full-suite runs after the change.
+- Priority sorting uses a parameterized raw SQL `CASE` rank expression (not Prisma enum ordering, which would sort alphabetically); page ids are selected first, then hydrated through Prisma with category/related-system includes so response shapes stay identical to §3.1.
+- Search wildcards (`%`, `_`, `\`) in user input are escaped before ILIKE matching.
+- Fixture tickets use reserved `TTK-<year>-9xxxxx` numbers so they never collide with sequence-issued numbers; the suite sweeps that band on start to self-heal after interrupted runs.
+
+_Peer-review addendum (PR #27):_ the reviewer asked whether `%`, `_`, and `\` are escaped before ILIKE. Verification found the page query escaped correctly but the count path (Prisma `contains`) did not, so a term containing `%` or `_` behaved as a wildcard in `totalItems` while matching literally in `data`. Fixed by sharing one escaped ILIKE fragment (`buildIlikePattern` → `buildSearchFilter`) across the page query and the count; a wildcard-consistency test was added (red: `expected 3 to be 1`, green after fix). Suite now 60/60.
+
 
 ## 7. Known Limitations
 
