@@ -1,6 +1,6 @@
 # CPE 334 Lab 2 — TokTickIT Requester Ticketing MVP: Test Plan
 
-- **Status:** Draft v1.0 — Issue #13 rows (**UT-01, API-01..06, API-21, API-22, API-23, API-24**), Issue #14 rows (**UI-01, UI-02, UI-03**), Issue #15 rows (**UT-02, UT-03, API-07..API-11, API-20**) and Issue #16 rows (**UI-04, UI-05, UI-06, UI-10, UI-11**) are **Pass**; Issue #30 rows (**API-26..28, UI-13..15**) were added for My Tickets v2 (note: the prompt's proposed IDs API-22..24 / UI-12 were already allocated to Related System tests, so the next free numbers were used) and remain **Pending** until implemented; all other unlisted rows remain **Pending** until their owning issue is implemented.
+- **Status:** Draft v1.0 — Issue #13 rows (**UT-01, API-01..06, API-21, API-22, API-23, API-24**), Issue #14 rows (**UI-01, UI-02, UI-03**), Issue #15 rows (**UT-02, UT-03, API-07..API-11, API-20**) and Issue #16 rows (**UI-04, UI-05, UI-06, UI-10, UI-11**) are **Pass**; Issue #30 rows (**API-26..28, UI-13..15**) were added for My Tickets v2 (note: the prompt's proposed IDs API-22..24 / UI-12 were already allocated to Related System tests, so the next free numbers were used) and remain **Pending** until implemented; Issue #30 rows (**API-26..28, UI-13..15, E2E-01/02/04/05/06**) are **Pass**; the remaining rows (**E2E-03, API-25, UI-07..09, UI-12**) stay **Pending** until their owning issue is implemented.
 - **Companion documents:** [`specification.md`](./specification.md), [`api-spec.md`](./api-spec.md), [`ui-spec.md`](./ui-spec.md)
 
 ---
@@ -84,12 +84,12 @@ Test files live under `server/tests/lab-02/` and `client/tests/lab-02/`. API and
 
 | Test ID | Type | Requirement/AC | What It Tests | Expected Result | Automated Test File | Final Status |
 |---|---|---|---|---|---|---|
-| E2E-01 | E2E | FR-01, AC-01/05 | Full create flow against real API, including a deliberate double-click on Submit | Ticket appears in My Tickets with `TTK-…` number, status New; **exactly one** ticket created | `client/tests/lab-02/e2e/create-ticket.spec.ts` | Pending |
-| E2E-02 | E2E | FR-14, AC-06/07 | Requester A creates tickets; switch to B; B's list excludes A's; B opening A's detail URL shows 403 error state | List isolation verified visually + API; 403 page/state shown, no ticket data | `client/tests/lab-02/e2e/ownership.spec.ts` | Pending |
+| E2E-01 | E2E | FR-01, AC-01/05 | Full create flow against real API, including a deliberate double-click on Submit | Ticket appears in My Tickets with `TTK-…` number, status New; **exactly one** ticket created | `client/tests/lab-02/e2e/create-ticket.spec.ts` | Pass |
+| E2E-02 | E2E | FR-14, AC-06/07 | Requester A creates tickets; switch to B; B's list excludes A's; B opening A's detail URL shows 403 error state | List isolation verified visually + API; 403 page/state shown, no ticket data | `client/tests/lab-02/e2e/ownership.spec.ts` | Pass |
 | E2E-03 | E2E | FR-09/11/12, AC-12/15 | Upload a real file via the picker, download it, verify bytes, soft-remove, verify Removed | File downloadable byte-identical; chip transitions Active → Removed; download after remove fails | `client/tests/lab-02/e2e/attachments.spec.ts` | Pending |
-| E2E-04 | E2E | FR-16, AC-19 | Viewports 375px, 820px, 1280px on My Tickets + Create Ticket | Mobile: stacked cards, no horizontal scroll, touch targets ≥ 44px; tablet: two-column; desktop: table + two-column form | `client/tests/lab-02/e2e/responsive.spec.ts` | Pending |
-| E2E-05 | E2E | FR-13, AC-16 | End-to-end requester switching with real data for A and B | Switch reloads only B's tickets; new ticket created is owned by B | `client/tests/lab-02/e2e/ownership.spec.ts` | Pending |
-| E2E-06 | E2E | FR-17, AC-22 | Create ticket with a related system end-to-end; verify the chip in detail | Related system appears as a chip in detail; create with an invalid ID shows error | `client/tests/lab-02/e2e/create-ticket.spec.ts` | Pending |
+| E2E-04 | E2E | FR-16, AC-19 | Viewports 375px, 820px, 1280px on My Tickets + Create Ticket | Mobile: stacked cards, no horizontal scroll, touch targets ≥ 44px; tablet: two-column; desktop: table + two-column form | `client/tests/lab-02/e2e/responsive.spec.ts` | Pass |
+| E2E-05 | E2E | FR-13, AC-16 | End-to-end requester switching with real data for A and B | Switch reloads only B's tickets; new ticket created is owned by B | `client/tests/lab-02/e2e/ownership.spec.ts` | Pass |
+| E2E-06 | E2E | FR-17, AC-22 | Create ticket with a related system end-to-end; verify the chip in detail | Related system appears as a chip in detail; create with an invalid ID shows error | `client/tests/lab-02/e2e/create-ticket.spec.ts` | Pass |
 
 ## 3. Acceptance-Criterion Traceability
 
@@ -242,7 +242,47 @@ Deviations / notes:
 - Pagination numbered-button window capped at 5 whenever totalPages > 5 after QA review (totalPages = 6 previously rendered six buttons); shapes are now `1 … x y z … N` with first/last caps always present.
 - Evidence screenshots in `artifacts/lab-02/screenshots/my-tickets/` (desktop/tablet/mobile + state-initial/state-api-failure/state-no-results/state-empty) captured against the live seeded stack via `client/scripts/my-tickets-shots.mjs`.
 
+### Issue #30 — My Tickets v2 UI + additive API extensions (API-26..28, UI-13..15, E2E-01/02/04/05/06)
 
+_Issue #30 (My Tickets v2) recorded 2026-08-26._
+
+Commands executed (from `server/` and `client/`):
+
+```bash
+cd server && npm test            # 67/67 across 10 files
+cd server && npm run build       # typecheck gate
+cd client && npx vitest run      # 33/33 across 6 files
+cd client && npm run build       # typecheck + Vite build
+cd client && npm run lint        # ESLint clean
+cd client && npx playwright test # 8/8 e2e across 3 specs
+```
+
+Outcomes:
+
+| Test ID | Outcome | Notes |
+|---|---|---|
+| API-26 | Pass | List rows return nullable `itPriority`/`ownerName` + extended status; `itPriority` + `status` (+ category) AND-combine exactly (BR-20/21); invalid values → 400. Count-sensitive tests run against throwaway requesters so the seeded demo set never skews totals. |
+| API-27 | Pass | Search matches `ticketNumber` case-insensitively in addition to title/description; ownership still scopes the result. |
+| API-28 | Pass | `sortBy=ticketNumber` asc/desc orders lexicographically; error message lists the new key. |
+| UI-13 | Pass | Nine columns in order; IT Priority badges incl. "Unset" and Ticket Owner incl. "Unassigned"; sortable headers cycle asc/desc with `aria-sort`, switching columns applies natural defaults (Ticket No. → asc, dates → desc). |
+| UI-14 | Pass | "Showing X to Y of Z tickets" (aria-live); window `1..5 … N` / `1 … x-1 x x+1 … N` / `1 … N-4..N`; active page `aria-current="page"`; bounds disabled; page change scrolls to top. |
+| UI-15 | Pass | Pagination footer assertions (merged into UI-14 describe). |
+| E2E-01 | Pass | Full create flow via UI with deliberate double-click → exactly one `TTK-…` ticket created, status New. |
+| E2E-02 / E2E-05 | Pass | Requester isolation: switching Alpha→Beta reloads only Beta's set; a foreign ticket number never appears in another requester's list or API response. |
+| E2E-04 | Pass | 375px stacked cards + no horizontal scroll + ≥40px targets; 820px and 1280px render the two-column form / nine-column table without overflow. |
+| E2E-06 | Pass | Missing related system shows the inline field error; the created ticket's number and related system render in the list. |
+
+Totals: server **67/67**, client **33/33**, E2E **8/8**; all build/lint gates clean.
+
+Deviations / notes:
+
+- **ID remap:** the prompt proposed API-22..24 / UI-12 for these additions, but those IDs were already allocated to Related System tests (API-22..24 Pass, UI-12 Pending). Per "next free number after reading the current doc," the new rows use **API-26..28** and **UI-13..15**; the remap is recorded in ai-use.md.
+- **Docs-first conflict:** `itPriority`/`ownerName` display fields and the extended Status enum are new additive schema (D-16/D-17); decisions D-15 and the Status-enum doc were updated in specification.md §11.
+- **Search scope:** now ticketNumber OR title OR description (api-spec §3.2), with the shared escaped-ILIKE fragment unchanged so rows and `totalItems` cannot diverge.
+- **`itPriority` filter never falls back** to the requested priority (BR-20): a ticket whose IT priority is NULL is only matched by the absence of the filter.
+- **Loading behavior:** sort/filter/pagination refreshes keep the table mounted (`status` stays `ready` during background refetch) so the header the user just clicked is never detached mid-interaction; the skeleton appears only on the initial load and after an error retry.
+- **Demo seed:** Alpha = 42 tickets (6 pages at pageSize 8), Beta/Gamma/Delta = 10 each, statuses spread across the extended enum, `itPriority` sometimes equal/different/null, `ownerName` from the fixed pool with some null. Seed wipes the dev-requesters' demo band and stray manual tickets so re-runs converge; the E2E suite creates its fixtures as Dev User Delta so the Alpha/Beta counts stay deterministic for the responsive/ownership assertions.
+- **E2E evidence screenshots** refreshed in `artifacts/lab-02/screenshots/my-tickets/` (desktop-1280, tablet-800, mobile-375 + state-initial/api-failure/no-results/empty) against the rebuilt Docker stack.
 
 ## 7. Known Limitations
 

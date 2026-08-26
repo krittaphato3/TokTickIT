@@ -1,37 +1,71 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getTickets } from '../api';
-import type { Priority, SortBy, SortDir, Ticket, TicketListMeta } from '../api';
+import { getCategories, getTickets } from '../api';
+import type {
+  Priority,
+  SortBy,
+  SortDir,
+  Ticket,
+  TicketListMeta,
+  TicketStatus,
+} from '../api';
 import { useDevRequester } from '../devRequesterContext';
 import '../styles/my-tickets.css';
 
 type ListStatus = 'loading' | 'ready' | 'error';
 
-// Sort control value ⇄ API params. Order matches the mockup exactly.
-const SORT_OPTIONS: Array<{ label: string; sortBy: SortBy; sortDir: SortDir }> = [
-  { label: 'Newest first', sortBy: 'createdAt', sortDir: 'desc' },
-  { label: 'Oldest first', sortBy: 'createdAt', sortDir: 'asc' },
-  { label: 'Title A–Z', sortBy: 'title', sortDir: 'asc' },
-  { label: 'Title Z–A', sortBy: 'title', sortDir: 'desc' },
-  { label: 'Priority: high first', sortBy: 'priority', sortDir: 'desc' },
-  { label: 'Priority: low first', sortBy: 'priority', sortDir: 'asc' },
+// Issue #30 — My Tickets v2 (ui-spec §10). Nine-column fluid table with
+// sortable headers; the sort state lives on the headers (not a select).
+// Natural defaults: ticketNumber asc, dates desc.
+interface SortState {
+  key: SortBy;
+  dir: SortDir;
+}
+
+const NATURAL_DIR: Record<SortBy, SortDir> = {
+  ticketNumber: 'asc',
+  createdAt: 'desc',
+  updatedAt: 'desc',
+  title: 'asc',
+  priority: 'desc',
+};
+
+const DEFAULT_SORT: SortState = { key: 'createdAt', dir: 'desc' };
+
+const PAGE_SIZE = 8;
+const SEARCH_DEBOUNCE_MS = 300;
+
+const STATUS_LABELS: Array<{ value: TicketStatus | ''; label: string }> = [
+  { value: '', label: 'All Statuses' },
+  { value: 'OPEN', label: 'Open' },
+  { value: 'PENDING', label: 'Pending' },
+  { value: 'IN_PROGRESS', label: 'In Progress' },
+  { value: 'RESOLVED', label: 'Resolved' },
 ];
 
-const DEFAULT_SORT = SORT_OPTIONS[0];
-const PAGE_SIZE = 10;
-const SEARCH_DEBOUNCE_MS = 300;
+const PRIORITY_OPTIONS: Array<{ value: Priority | ''; label: string }> = [
+  { value: '', label: 'All Priorities' },
+  { value: 'LOW', label: 'Low' },
+  { value: 'MEDIUM', label: 'Medium' },
+  { value: 'HIGH', label: 'High' },
+  { value: 'CRITICAL', label: 'Critical' },
+];
 
 interface Filters {
   search: string;
-  categoryId: string; // '' = All Categories
-  priority: string; // '' = All Priorities
-  sortIndex: number; // index into SORT_OPTIONS
+  categoryId: string;
+  priority: string;
+  itPriority: string;
+  status: string;
+  sort: SortState;
 }
 
 const DEFAULT_FILTERS: Filters = {
   search: '',
   categoryId: '',
   priority: '',
-  sortIndex: 0,
+  itPriority: '',
+  status: '',
+  sort: DEFAULT_SORT,
 };
 
 function isDefault(filters: Filters): boolean {
@@ -39,645 +73,600 @@ function isDefault(filters: Filters): boolean {
     filters.search === '' &&
     filters.categoryId === '' &&
     filters.priority === '' &&
-    filters.sortIndex === 0
+    filters.itPriority === '' &&
+    filters.status === ''
   );
 }
 
-function sortValueToParams(index: number): { sortBy: SortBy; sortDir: SortDir } {
-  const option = SORT_OPTIONS[index] ?? DEFAULT_SORT;
-  return { sortBy: option.sortBy, sortDir: option.sortDir };
-}
-
-function paramsToSortValue(sortBy: SortBy, sortDir: SortDir): number {
-  const index = SORT_OPTIONS.findIndex(
-    (o) => o.sortBy === sortBy && o.sortDir === sortDir,
+function filtersDiffer(a: Filters, b: Filters): boolean {
+  return (
+    a.search !== b.search ||
+    a.categoryId !== b.categoryId ||
+    a.priority !== b.priority ||
+    a.itPriority !== b.itPriority ||
+    a.status !== b.status ||
+    a.sort.key !== b.sort.key ||
+    a.sort.dir !== b.sort.dir
   );
-  return index >= 0 ? index : 0;
 }
 
-// Natural direction for the first click on a sortable column header.
-const NATURAL_DIR: Record<'title' | 'priority' | 'createdAt', SortDir> = {
-  title: 'asc',
-  priority: 'desc',
-  createdAt: 'desc',
+function buildQuery(filters: Filters, page: number): URLSearchParams {
+  const params = new URLSearchParams();
+  params.set('page', String(page));
+  params.set('pageSize', String(PAGE_SIZE));
+  if (filters.search.trim() !== '') params.set('search', filters.search.trim());
+  if (filters.categoryId !== '')
+    params.set('categoryId', filters.categoryId);
+  if (filters.priority !== '') params.set('priority', filters.priority);
+  if (filters.itPriority !== '')
+    params.set('itPriority', filters.itPriority);
+  if (filters.status !== '') params.set('status', filters.status);
+  params.set('sortBy', filters.sort.key);
+  params.set('sortDir', filters.sort.dir);
+  return params;
+}
+
+// Pagination window identical to the reference: all pages when ≤7 total,
+// otherwise 1..5 + ellipsis + last / 1 + ellipsis + neighborhood + ellipsis
+// + last / 1 + ellipsis + last-4..last.
+function pageWindow(totalPages: number, current: number): Array<number | '…'> {
+  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+  if (current <= 4) return [1, 2, 3, 4, 5, '…', totalPages];
+  if (current >= totalPages - 3)
+    return [1, '…', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+  return [1, '…', current - 1, current, current + 1, '…', totalPages];
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function fmtDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  let h = d.getHours();
+  const am = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} ${String(h).padStart(2, '0')}:${String(
+    d.getMinutes(),
+  ).padStart(2, '0')} ${am}`;
+}
+
+function priBadgeClass(priority: Priority): string {
+  switch (priority) {
+    case 'CRITICAL':
+      return 'pri-critical';
+    case 'HIGH':
+      return 'pri-high';
+    case 'MEDIUM':
+      return 'pri-medium';
+    default:
+      return 'pri-low';
+  }
+}
+
+function PriBadge({ priority }: { priority: Priority }) {
+  return (
+    <span className={`mt-badge ${priBadgeClass(priority)}`}>
+      {priority === 'CRITICAL' ? '! ' : ''}
+      {priority.charAt(0) + priority.slice(1).toLowerCase()}
+    </span>
+  );
+}
+
+function statusBadgeClass(status: TicketStatus): string {
+  switch (status) {
+    case 'OPEN':
+      return 'st-open';
+    case 'PENDING':
+      return 'st-pending';
+    case 'IN_PROGRESS':
+      return 'st-inprogress';
+    case 'RESOLVED':
+      return 'st-resolved';
+    default:
+      return 'badge-new';
+  }
+}
+
+const STATUS_TEXT: Record<TicketStatus, string> = {
+  NEW: 'New',
+  OPEN: 'Open',
+  PENDING: 'Pending',
+  IN_PROGRESS: 'In Progress',
+  RESOLVED: 'Resolved',
 };
 
-function priorityBadgeClass(priority: Priority): string {
-  switch (priority) {
-    case 'LOW':
-      return 'badge b-low';
-    case 'MEDIUM':
-      return 'badge b-med';
-    case 'HIGH':
-      return 'badge b-high';
-    case 'CRITICAL':
-      return 'badge b-crit';
-  }
-}
-
-function priorityLabel(priority: Priority): string {
-  return priority === 'CRITICAL' ? '! Critical' : priority.charAt(0) + priority.slice(1).toLowerCase();
-}
-
-function formatDateTime(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-// Numbered pagination: at most 5 numbered buttons whenever totalPages > 5,
-// shaped `1 … x y z … N` (first and last always present when outside the
-// moving 3-page window); all pages listed when totalPages <= 5.
-function pageItems(current: number, total: number): Array<number | '…'> {
-  if (total <= 0) return [];
-  if (total <= 5) {
-    return Array.from({ length: total }, (_, i) => i + 1);
-  }
-  const windowStart = Math.max(1, Math.min(current - 1, total - 2));
-  const windowEnd = windowStart + 2;
-  const items: Array<number | '…'> = [];
-  if (windowStart > 1) {
-    items.push(1);
-    if (windowStart > 2) items.push('…');
-  }
-  for (let p = windowStart; p <= windowEnd; p++) items.push(p);
-  if (windowEnd < total) {
-    if (windowEnd < total - 1) items.push('…');
-    items.push(total);
-  }
-  return items;
-}
-
-/** aria-sort value for an actively sorted column header; null otherwise. */
-function ariaSortFor(
-  column: 'title' | 'priority' | 'createdAt',
-  sortIndex: number,
-): 'ascending' | 'descending' | null {
-  const current = sortValueToParams(sortIndex);
-  if (current.sortBy !== column) return null;
-  return current.sortDir === 'asc' ? 'ascending' : 'descending';
-}
-
-function SkeletonRows() {
+function StatusBadge({ status }: { status: TicketStatus }) {
   return (
-    <>
-      {[0, 1, 2].map((i) => (
-        <div className="sk-row" data-testid="sk-row" key={i} aria-hidden="true">
-          <span className="sk" style={{ width: '14%' }} />
-          <span className="sk" style={{ width: '38%' }} />
-          <span className="sk" style={{ width: '12%' }} />
-          <span className="sk" style={{ width: '10%' }} />
-          <span className="sk" style={{ width: '10%' }} />
-        </div>
-      ))}
-    </>
+    <span className={`mt-badge ${statusBadgeClass(status)}`}>
+      {STATUS_TEXT[status]}
+    </span>
   );
 }
 
-export default function MyTicketsPage({
-  onNavigate,
-}: {
-  onNavigate: (hash: string) => void;
-}) {
-  const { activeRequester } = useDevRequester();
-  const requesterId = activeRequester?.id ?? null;
+function Carets() {
+  return (
+    <svg className="mt-sic" viewBox="0 0 8 12" aria-hidden="true">
+      <path className="mt-up" d="M4 0l4 5H0z" />
+      <path className="mt-dn" d="M4 12L0 7h8z" />
+    </svg>
+  );
+}
 
-  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
-  const [page, setPage] = useState(1);
+interface SortableHeaderProps {
+  label: string;
+  sortKey: SortBy;
+  active: SortState;
+  onChange: (next: SortState) => void;
+}
+
+function SortableHeader({ label, sortKey, active, onChange }: SortableHeaderProps) {
+  const isActive = active.key === sortKey;
+  const ariaSort = isActive ? (active.dir === 'asc' ? 'ascending' : 'descending') : 'none';
+  const handleClick = () => {
+    if (isActive) {
+      onChange({ key: sortKey, dir: active.dir === 'asc' ? 'desc' : 'asc' });
+    } else {
+      // Switching columns applies that column's natural default direction.
+      onChange({ key: sortKey, dir: NATURAL_DIR[sortKey] });
+    }
+  };
+  return (
+    <th aria-sort={ariaSort}>
+      <button type="button" className="mt-th-sort" onClick={handleClick}>
+        {label} <Carets />
+      </button>
+    </th>
+  );
+}
+
+export default function MyTicketsPage({ onNavigate }: { onNavigate?: (hash: string) => void }) {
+  const { activeRequester } = useDevRequester();
   const [status, setStatus] = useState<ListStatus>('loading');
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [meta, setMeta] = useState<TicketListMeta | null>(null);
+  const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+  const [searchDraft, setSearchDraft] = useState('');
 
-  // Monotonic token so only the latest in-flight response mutates state.
   const requestSeq = useRef(0);
 
-  // Latest-request snapshot used by the debounced search effect and Try again.
-  const fetchList = useCallback(
-    async (params: Filters, targetPage: number) => {
-      if (requesterId === null) return;
-      const seq = ++requestSeq.current;
-      setStatus('loading');
-      try {
-        const result = await getTickets(
-          {
-            page: targetPage,
-            pageSize: PAGE_SIZE,
-            ...(params.search !== '' ? { search: params.search } : {}),
-            ...(params.categoryId !== ''
-              ? { categoryId: Number(params.categoryId) }
-              : {}),
-            ...(params.priority !== ''
-              ? { priority: params.priority as Priority }
-              : {}),
-            ...sortValueToParams(params.sortIndex),
-          },
-          requesterId,
-        );
-        if (seq !== requestSeq.current) return;
-        setTickets(result.data);
-        setMeta(result.meta);
-        setStatus('ready');
-      } catch {
-        if (seq !== requestSeq.current) return;
-        setStatus('error');
-      }
-    },
-    [requesterId],
-  );
-
-  // Refetch whenever filters or pagination change.
+  // Debounce the search draft into the committed filter.
   useEffect(() => {
-    void fetchList(filters, page);
-  }, [fetchList, filters, page]);
-
-  // Debounced search commits to `filters` (which triggers the refetch above).
-  const [searchDraft, setSearchDraft] = useState('');
-  useEffect(() => {
+    if (searchDraft === filters.search) return;
     const timer = setTimeout(() => {
-      setFilters((current) =>
-        current.search === searchDraft
-          ? current
-          : { ...current, search: searchDraft },
-      );
+      setFilters((f) => ({ ...f, search: searchDraft }));
       setPage(1);
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [searchDraft]);
+  }, [searchDraft, filters.search]);
 
-  // Page change scrolls the list back into view (jsdom has no scrollIntoView).
+  const load = useCallback(async () => {
+    if (!activeRequester) return;
+    const seq = ++requestSeq.current;
+    // Only the initial fetch (or a retry after an error) shows the loading
+    // skeleton; refreshes while data is on screen keep the table mounted so
+    // sort/pagination clicks never flash or detach the header the user just
+    // interacted with.
+    setStatus((prev) => (prev === 'ready' ? 'ready' : 'loading'));
+    try {
+      const result = await getTickets(
+        Object.fromEntries(buildQuery(filters, page)) as never,
+        activeRequester.id,
+      );
+      if (seq !== requestSeq.current) return; // stale response — discard
+      setTickets(result.data);
+      setMeta(result.meta);
+      setStatus('ready');
+    } catch {
+      if (seq !== requestSeq.current) return;
+      setStatus('error');
+    }
+  }, [activeRequester, filters, page]);
+
   useEffect(() => {
-    document.getElementById('my-tickets-top')?.scrollIntoView?.({
-      block: 'start',
-    });
-  }, [page]);
+    void load();
+  }, [load]);
 
-  function updateFilter(patch: Partial<Filters>) {
+  const scrollToTop = () => {
+    document.querySelector('.mt-page')?.scrollIntoView?.({ behavior: 'smooth' });
+  };
+
+  const updateFilter = (patch: Partial<Filters>) => {
+    setFilters((f) => ({ ...f, ...patch }));
     setPage(1);
-    setFilters((current) => ({ ...current, ...patch }));
-  }
+  };
 
-  function toggleColumnSort(column: 'title' | 'priority' | 'createdAt') {
-    const current = sortValueToParams(filters.sortIndex);
-    const dir =
-      current.sortBy === column && current.sortDir === NATURAL_DIR[column]
-        ? column === 'title'
-          ? 'desc'
-          : 'asc'
-        : NATURAL_DIR[column];
-    updateFilter({ sortIndex: paramsToSortValue(column, dir) });
-  }
-
-  function clearAllFilters() {
-    setSearchDraft('');
+  const clearAllFilters = () => {
     setFilters(DEFAULT_FILTERS);
+    setSearchDraft('');
     setPage(1);
+    scrollToTop();
+  };
+
+  const changePage = (next: number) => {
+    setPage(next);
+    scrollToTop();
+  };
+
+  const anyFilterActive = !isDefault(filters);
+  const showEmpty = status === 'ready' && meta?.totalItems === 0 && !anyFilterActive;
+  const showNoResults =
+    status === 'ready' && meta?.totalItems === 0 && anyFilterActive;
+  const showClearHeadButton =
+    filtersDiffer(filters, DEFAULT_FILTERS);
+
+  const rows = useMemo(
+    () =>
+      tickets.map((t) => (
+        <tr key={t.id}>
+          <td>
+            <a
+              className="mt-tkt-link"
+              href={`#/tickets/${t.ticketNumber}`}
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate?.(`#/tickets/${t.ticketNumber}`);
+              }}
+            >
+              {t.ticketNumber}
+            </a>
+          </td>
+          <td>{fmtDate(t.createdAt)}</td>
+          <td className="mt-sum">{t.title}</td>
+          <td>{t.category.name}</td>
+          <td>
+            <PriBadge priority={t.priority} />
+          </td>
+          <td>
+            {t.itPriority ? (
+              <PriBadge priority={t.itPriority} />
+            ) : (
+              <span className="mt-badge badge-unset">Unset</span>
+            )}
+          </td>
+          <td>
+            <StatusBadge status={t.status} />
+          </td>
+          <td>
+            {t.ownerName ?? <span className="mt-muted">Unassigned</span>}
+          </td>
+          <td>{fmtDate(t.updatedAt)}</td>
+        </tr>
+      )),
+    [tickets, onNavigate],
+  );
+
+  const cards = useMemo(
+    () =>
+      tickets.map((t) => (
+        <div className="m-card" key={t.id}>
+          <div className="row1">
+            <a
+              className="mt-tkt-link"
+              href={`#/tickets/${t.ticketNumber}`}
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate?.(`#/tickets/${t.ticketNumber}`);
+              }}
+            >
+              {t.ticketNumber}
+            </a>
+            <span className="mt-muted" style={{ fontSize: '0.8125rem' }}>
+              {fmtDate(t.createdAt)}
+            </span>
+          </div>
+          <div className="sum">{t.title}</div>
+          <div className="badges">
+            <PriBadge priority={t.priority} />
+            {t.itPriority ? (
+              <PriBadge priority={t.itPriority} />
+            ) : (
+              <span className="mt-badge badge-unset">Unset</span>
+            )}
+            <StatusBadge status={t.status} />
+          </div>
+          <div className="meta">
+            <span>
+              {t.category.name} · {t.ownerName ?? 'Unassigned'}
+            </span>
+            <span>Updated {fmtDate(t.updatedAt)}</span>
+          </div>
+        </div>
+      )),
+    [tickets, onNavigate],
+  );
+
+  if (!activeRequester) {
+    return null;
   }
 
-  const nonDefault = !isDefault(filters);
+  const showingText =
+    meta == null || meta.totalItems === 0
+      ? 'Showing 0 to 0 of 0 tickets'
+      : `Showing ${(meta.page - 1) * meta.pageSize + 1} to ${Math.min(
+          meta.page * meta.pageSize,
+          meta.totalItems,
+        )} of ${meta.totalItems} tickets`;
 
-  const rangeText = useMemo(() => {
-    if (!meta || meta.totalItems === 0) return null;
-    const x = (meta.page - 1) * meta.pageSize + 1;
-    const y = Math.min(meta.page * meta.pageSize, meta.totalItems);
-    return `Showing ${x}–${y} of ${meta.totalItems}`;
-  }, [meta]);
-
-  const emptyTickets = status === 'ready' && meta !== null && meta.totalItems === 0 && isDefault(filters);
-  const noResults =
-    status === 'ready' && meta !== null && meta.totalItems === 0 && !isDefault(filters);
-  const showTable = status === 'ready' && tickets.length > 0;
-
-  const pages = meta ? pageItems(meta.page, meta.totalPages) : [];
+  const window_ = meta ? pageWindow(meta.totalPages, meta.page) : [];
 
   return (
-    <main className="tok-main">
-      <div id="my-tickets-top" />
-      <h1 className="tok-page-title">My Tickets</h1>
-      <p className="mt-sub">
-        Owned by <strong>{activeRequester?.name ?? '—'}</strong> · default sort:
-        newest first
-      </p>
-
-      <section className="mt-card tok-card" aria-label="My Tickets list">
-        <div className="toolbar">
-          <div className="ctl search">
-            <label className="tok-label" htmlFor="ticket-search">
-              Search
-            </label>
-            <div className="searchwrap">
-              <span className="mag" aria-hidden="true">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                >
-                  <circle cx="11" cy="11" r="7" />
-                  <line x1="21" y1="21" x2="16.5" y2="16.5" />
-                </svg>
-              </span>
-              <input
-                id="ticket-search"
-                type="text"
-                placeholder="Search by title or description…"
-                value={searchDraft}
-                onChange={(e) => setSearchDraft(e.target.value)}
-              />
-              {searchDraft !== '' && (
-                <button
-                  type="button"
-                  className="clear"
-                  aria-label="Clear search"
-                  onClick={() => setSearchDraft('')}
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="ctl">
-            <label className="tok-label" htmlFor="filter-category">
-              Category
-            </label>
-            <select
-              id="filter-category"
-              className="tok-select"
-              value={filters.categoryId}
-              onChange={(e) => updateFilter({ categoryId: e.target.value })}
-            >
-              <option value="">All Categories</option>
-              <option value="1">Account and Access</option>
-              <option value="2">Hardware</option>
-              <option value="3">Software</option>
-              <option value="4">Network</option>
-            </select>
-          </div>
-
-          <div className="ctl">
-            <label className="tok-label" htmlFor="filter-priority">
-              Priority
-            </label>
-            <select
-              id="filter-priority"
-              className="tok-select"
-              value={filters.priority}
-              onChange={(e) => updateFilter({ priority: e.target.value })}
-            >
-              <option value="">All Priorities</option>
-              <option value="LOW">Low</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="HIGH">High</option>
-              <option value="CRITICAL">Critical</option>
-            </select>
-          </div>
-
-          <div className="ctl">
-            <label className="tok-label" htmlFor="filter-sort">
-              Sort
-            </label>
-            <select
-              id="filter-sort"
-              className="tok-select"
-              value={filters.sortIndex}
-              onChange={(e) =>
-                updateFilter({ sortIndex: Number(e.target.value) })
-              }
-            >
-              {SORT_OPTIONS.map((option, index) => (
-                <option key={option.label} value={index}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {nonDefault && (
-            <button
-              type="button"
-              className="tok-btn secondary clear-filters"
-              onClick={clearAllFilters}
-            >
-              Clear filters
+    <main className="mt-page">
+      <div className="mt-head">
+        <div>
+          <h1>My Tickets</h1>
+          <p className="mt-sub">View and track all of your support requests.</p>
+        </div>
+        <div className="mt-actions">
+          {showClearHeadButton && (
+            <button type="button" className="mt-btn mt-btn-secondary" onClick={clearAllFilters}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+                <path d="M20 11A8 8 0 1 0 20 13" />
+                <polyline points="20 4 20 11 13 11" />
+              </svg>
+              Clear Filters
             </button>
           )}
+          <a
+            className="mt-btn mt-btn-primary"
+            href="#/new-ticket"
+            onClick={(e) => {
+              e.preventDefault();
+              onNavigate?.('#/new-ticket');
+            }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Create Ticket
+          </a>
         </div>
+      </div>
 
-        <div data-testid="my-tickets-region" aria-live="polite">
-          {status === 'loading' && <SkeletonRows />}
-
-          {status === 'error' && (
-            <div className="errbar" role="alert">
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                aria-hidden="true"
-              >
-                <path d="M12 3 2 21h20z" />
-                <line x1="12" y1="10" x2="12" y2="15" />
-                <circle cx="12" cy="18" r="0.5" fill="currentColor" />
-              </svg>
-              <span>
-                We couldn't load your tickets. Your filters are preserved.
-              </span>
+      <section className="mt-filter-card" aria-label="Search and filters">
+        <div>
+          <label className="mt-f-label" htmlFor="mt-search">
+            Search by ticket number or summary
+          </label>
+          <div className="mt-search-wrap">
+            <svg className="mt-mag" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M10 2a8 8 0 1 0 4.9 14.3l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z" />
+            </svg>
+            <input
+              id="mt-search"
+              type="search"
+              placeholder="Search by ticket number or summary..."
+              aria-label="Search by ticket number or summary"
+              aria-describedby="mt-search-hint"
+              autoComplete="off"
+              value={searchDraft}
+              onChange={(e) => setSearchDraft(e.target.value)}
+            />
+            {searchDraft !== '' && (
               <button
                 type="button"
-                className="btn-tertiary retry"
-                onClick={() => void fetchList(filters, page)}
+                className="mt-search-clear"
+                aria-label="Clear search"
+                onClick={() => setSearchDraft('')}
               >
-                Try again
+                ✕
               </button>
-            </div>
-          )}
-
-          {showTable && (
-            <>
-              <div className="tablewrap">
-                <table>
-                <thead>
-                  <tr>
-                    <th scope="col">Ticket #</th>
-                    <th
-                      scope="col"
-                      aria-sort={ariaSortFor('title', filters.sortIndex) ?? undefined}
-                    >
-                      <button
-                        type="button"
-                        className="th-sort"
-                        onClick={() => toggleColumnSort('title')}
-                      >
-                        Title
-                        {ariaSortFor('title', filters.sortIndex) !== null && (
-                          <span className="sort-glyph" aria-hidden="true">
-                            {ariaSortFor('title', filters.sortIndex) ===
-                            'ascending'
-                              ? '▲'
-                              : '▼'}
-                          </span>
-                        )}
-                      </button>
-                    </th>
-                    <th
-                      scope="col"
-                      className="col-cat"
-                      aria-sort={undefined}
-                    >
-                      Category
-                    </th>
-                    <th
-                      scope="col"
-                      aria-sort={ariaSortFor('priority', filters.sortIndex) ?? undefined}
-                    >
-                      <button
-                        type="button"
-                        className="th-sort"
-                        onClick={() => toggleColumnSort('priority')}
-                      >
-                        Priority
-                        {ariaSortFor('priority', filters.sortIndex) !== null && (
-                          <span className="sort-glyph" aria-hidden="true">
-                            {ariaSortFor('priority', filters.sortIndex) ===
-                            'ascending'
-                              ? '▲'
-                              : '▼'}
-                          </span>
-                        )}
-                      </button>
-                    </th>
-                    <th scope="col" aria-sort={undefined}>
-                      Status
-                    </th>
-                    <th
-                      scope="col"
-                      aria-sort={ariaSortFor('createdAt', filters.sortIndex) ?? undefined}
-                    >
-                      <button
-                        type="button"
-                        className="th-sort"
-                        onClick={() => toggleColumnSort('createdAt')}
-                      >
-                        Created
-                        {ariaSortFor('createdAt', filters.sortIndex) !==
-                          null && (
-                          <span className="sort-glyph" aria-hidden="true">
-                            {ariaSortFor('createdAt', filters.sortIndex) ===
-                            'ascending'
-                              ? '▲'
-                              : '▼'}
-                          </span>
-                        )}
-                      </button>
-                    </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tickets.map((ticket) => (
-                      <tr key={ticket.id}>
-                        <td>
-                          <a
-                            className="tnum"
-                            href={`#/tickets/${ticket.ticketNumber}`}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              onNavigate(`#/tickets/${ticket.ticketNumber}`);
-                            }}
-                          >
-                            {ticket.ticketNumber}
-                          </a>
-                        </td>
-                        <td className="ttitle">
-                          {ticket.title}
-                          <span className="cat-chip cat-inline">
-                            {ticket.category.name}
-                          </span>
-                        </td>
-                        <td className="col-cat">
-                          <span className="cat-chip">{ticket.category.name}</span>
-                        </td>
-                        <td>
-                          <span className={priorityBadgeClass(ticket.priority)}>
-                            {priorityLabel(ticket.priority)}
-                          </span>
-                        </td>
-                        <td>
-                          <span className="badge b-new">
-                            <span className="dot" aria-hidden="true" />
-                            New
-                          </span>
-                        </td>
-                        <td className="created">
-                          {formatDateTime(ticket.createdAt)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile (<768px) representation of the same rows; visibility is
-                  purely CSS so tests can assert either representation. */}
-              <div className="mcards">
-                {tickets.map((ticket) => (
-                  <a
-                    key={ticket.id}
-                    className="mcard"
-                    href={`#/tickets/${ticket.ticketNumber}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      onNavigate(`#/tickets/${ticket.ticketNumber}`);
-                    }}
-                  >
-                    <span className="row1">
-                      <span className="tnum">{ticket.ticketNumber}</span>
-                      <span className="ttitle">{ticket.title}</span>
-                    </span>
-                    <span className="row2">
-                      <span className={priorityBadgeClass(ticket.priority)}>
-                        {priorityLabel(ticket.priority)}
-                      </span>
-                      <span className="badge b-new">
-                        <span className="dot" aria-hidden="true" />
-                        New
-                      </span>
-                      <span className="cat-chip">{ticket.category.name}</span>
-                    </span>
-                    <span className="created">
-                      {formatDateTime(ticket.createdAt)}
-                    </span>
-                  </a>
-                ))}
-              </div>
-            </>
-          )}
-
-          {emptyTickets && (
-            <div className="state-pad">
-              <span className="glyph" aria-hidden="true">
-                <svg
-                  width="28"
-                  height="28"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v1a2 2 0 0 0 0 4v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1a2 2 0 0 0 0-4z" />
-                  <line
-                    x1="13"
-                    y1="7"
-                    x2="13"
-                    y2="17"
-                    strokeDasharray="2 2"
-                  />
-                </svg>
-              </span>
-              <h3 className="state-title">No tickets yet</h3>
-              <p className="state-text">
-                When you submit a support request, it will appear here with its
-                official ticket number.
-              </p>
-              <button
-                type="button"
-                className="tok-btn primary"
-                onClick={() => onNavigate('#/new-ticket')}
-              >
-                Create your first ticket
-              </button>
-            </div>
-          )}
-
-          {noResults && (
-            <div className="state-pad">
-              <span className="glyph" aria-hidden="true">
-                <svg
-                  width="26"
-                  height="26"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <circle cx="11" cy="11" r="7" />
-                  <line x1="21" y1="21" x2="16.5" y2="16.5" />
-                  <line x1="8" y1="11" x2="14" y2="11" />
-                </svg>
-              </span>
-              <h3 className="state-title">No results match your filters</h3>
-              <p className="state-text">
-                Try a different search term, or clear the filters to see all of
-                your tickets.
-              </p>
-              <button
-                type="button"
-                className="tok-btn secondary"
-                onClick={clearAllFilters}
-              >
-                Clear filters
-              </button>
-            </div>
-          )}
+            )}
+          </div>
+          <span id="mt-search-hint" hidden>
+            Matches are case-insensitive across ticket number, title and description.
+          </span>
         </div>
+        <div>
+          <label className="mt-f-label" htmlFor="mt-f-category">
+            Category
+          </label>
+          <CategorySelect
+            id="mt-f-category"
+            value={filters.categoryId}
+            onChange={(v) => updateFilter({ categoryId: v })}
+          />
+        </div>
+        <div>
+          <label className="mt-f-label" htmlFor="mt-f-reqpri">
+            Requested Priority
+          </label>
+          <select
+            id="mt-f-reqpri"
+            value={filters.priority}
+            onChange={(e) => updateFilter({ priority: e.target.value })}
+          >
+            {PRIORITY_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="mt-f-label" htmlFor="mt-f-itpri">
+            IT Priority
+          </label>
+          <select
+            id="mt-f-itpri"
+            value={filters.itPriority}
+            onChange={(e) => updateFilter({ itPriority: e.target.value })}
+          >
+            {PRIORITY_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="mt-f-label" htmlFor="mt-f-status">
+            Current Status
+          </label>
+          <select
+            id="mt-f-status"
+            value={filters.status}
+            onChange={(e) => updateFilter({ status: e.target.value })}
+          >
+            {STATUS_LABELS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </section>
 
-        {showTable && meta && (
-          <div className="pager">
-            <span className="range">{rangeText}</span>
-            <span className="pages">
+      <section className="mt-table-card" aria-label="My tickets list">
+        {status === 'loading' && (
+          <div data-testid="skeleton-row-container" className="mt-skeleton" role="status" aria-label="Loading tickets">
+            <div data-testid="skeleton-row" className="sk-row" />
+            <div data-testid="skeleton-row" className="sk-row" />
+            <div data-testid="skeleton-row" className="sk-row" />
+          </div>
+        )}
+
+        {status === 'error' && (
+          <div className="mt-errbar" role="alert">
+            <span>We couldn&apos;t load your tickets. Your filters are preserved.</span>
+            <button type="button" className="mt-btn mt-btn-tertiary" onClick={() => void load()}>
+              Try again
+            </button>
+          </div>
+        )}
+
+        {showEmpty && (
+          <div className="mt-live-state">
+            <h3>No tickets yet</h3>
+            <p>When you submit a support request, it will appear here with its official ticket number.</p>
+            <a
+              className="mt-btn mt-btn-primary"
+              href="#/new-ticket"
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate?.('#/new-ticket');
+              }}
+            >
+              Create your first ticket
+            </a>
+          </div>
+        )}
+
+        {showNoResults && (
+          <div className="mt-live-state">
+            <h3>No results match your filters</h3>
+            <p>Try a different search term, or clear the filters to see all of your tickets.</p>
+            <button type="button" className="mt-btn mt-btn-secondary" onClick={clearAllFilters}>
+              Clear filters
+            </button>
+          </div>
+        )}
+
+        {status === 'ready' && meta !== null && meta.totalItems > 0 && (
+          <>
+            <table className="mt-desktop-only">
+              <thead>
+                <tr>
+                  <SortableHeader label="Ticket No." sortKey="ticketNumber" active={filters.sort} onChange={(sort) => updateFilter({ sort })} />
+                  <SortableHeader label="Created Date" sortKey="createdAt" active={filters.sort} onChange={(sort) => updateFilter({ sort })} />
+                  <th>Summary</th>
+                  <th>Category</th>
+                  <th>Requested Priority</th>
+                  <th>IT Priority</th>
+                  <th>Current Status</th>
+                  <th>Ticket Owner</th>
+                  <SortableHeader label="Last Updated" sortKey="updatedAt" active={filters.sort} onChange={(sort) => updateFilter({ sort })} />
+                </tr>
+              </thead>
+              <tbody>{rows}</tbody>
+            </table>
+
+            {/* Mobile cards (<768px) mirror each row exactly. */}
+            <div className="mt-cards">{cards}</div>
+          </>
+        )}
+
+        {meta !== null && (
+          <div className="mt-foot">
+            <span className="mt-showing" aria-live="polite">
+              {showingText}
+            </span>
+            <nav className="mt-pager" aria-label="Pagination">
               <button
                 type="button"
-                className="pbtn prev"
-                aria-label="Previous page"
-                disabled={!meta.hasPrevPage}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="mt-page-btn"
+                disabled={meta.page <= 1}
+                onClick={() => changePage(meta.page - 1)}
               >
-                ‹ Prev
+                ‹ Previous
               </button>
-              {pages.map((item, i) =>
-                item === '…' ? (
-                  <span className="ellipsis" key={`ellipsis-${i}`}>
+              {window_.map((p, i) =>
+                p === '…' ? (
+                  <span key={`ellipsis-${i}`} className="mt-page-ellipsis">
                     …
                   </span>
                 ) : (
                   <button
+                    key={p}
                     type="button"
-                    key={item}
-                    className={`pbtn${item === meta.page ? ' current' : ''}`}
-                    aria-current={item === meta.page ? 'page' : undefined}
-                    aria-label={`Go to page ${item}`}
-                    onClick={() => setPage(item)}
+                    className={`mt-page-btn${p === meta.page ? ' active' : ''}`}
+                    aria-current={p === meta.page ? 'page' : undefined}
+                    onClick={() => changePage(p)}
                   >
-                    {item}
+                    {p}
                   </button>
                 ),
               )}
               <button
                 type="button"
-                className="pbtn next"
-                aria-label="Next page"
-                disabled={!meta.hasNextPage}
-                onClick={() => setPage((p) => p + 1)}
+                className="mt-page-btn"
+                disabled={meta.page >= meta.totalPages}
+                onClick={() => changePage(meta.page + 1)}
               >
                 Next ›
               </button>
-            </span>
-            <span className="page-simple">
-              Page {meta.page} of {meta.totalPages}
-            </span>
+            </nav>
           </div>
         )}
       </section>
     </main>
+  );
+}
+
+function CategorySelect({
+  id,
+  value,
+  onChange,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getCategories()
+      .then((list) => {
+        if (!cancelled) setCategories(list);
+      })
+      .catch(() => {
+        /* filter simply stays empty */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value="">All Categories</option>
+      {categories.map((c) => (
+        <option key={c.id} value={String(c.id)}>
+          {c.name}
+        </option>
+      ))}
+    </select>
   );
 }

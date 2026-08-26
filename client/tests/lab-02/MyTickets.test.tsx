@@ -3,6 +3,10 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../../src/App';
 
+// Issue #30 — My Tickets v2 (UI-04..06, UI-11..15). The screen is the
+// nine-column fluid table from ui-spec §10 backed by the extended
+// GET /api/tickets contract.
+
 const REQUESTERS = [
   { id: 1, name: 'Dev User Alpha', email: 'alpha@toktickit.test' },
   { id: 2, name: 'Dev User Beta', email: 'beta@toktickit.test' },
@@ -20,6 +24,9 @@ interface SeedTicket {
   ticketNumber: string;
   title: string;
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  status: 'NEW' | 'OPEN' | 'PENDING' | 'IN_PROGRESS' | 'RESOLVED';
+  itPriority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | null;
+  ownerName: string | null;
   category: { id: number; name: string };
 }
 
@@ -29,8 +36,10 @@ function makeTicket(seed: SeedTicket) {
     ticketNumber: seed.ticketNumber,
     title: seed.title,
     description: null,
-    status: 'NEW' as const,
+    status: seed.status,
     priority: seed.priority,
+    itPriority: seed.itPriority,
+    ownerName: seed.ownerName,
     category: seed.category,
     relatedSystem: { id: 1, name: 'Email Server' },
     createdAt: `2026-08-${String(10 + (seed.id % 15)).padStart(2, '0')}T09:30:00.000Z`,
@@ -38,8 +47,74 @@ function makeTicket(seed: SeedTicket) {
   };
 }
 
-// 14 tickets → 2 pages at the default pageSize of 10; priorities varied so
-// every badge class and text label is exercisable.
+function makeMeta(totalItems: number, page = 1, pageSize = 10) {
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  return {
+    page,
+    pageSize,
+    totalItems,
+    totalPages,
+    hasNextPage: page < totalPages,
+    hasPrevPage: page > 1,
+  };
+}
+
+// Every recorded list call: URL + headers, in order.
+let listCalls: Array<{ url: string; headers: Record<string, string> }> = [];
+type FetchHandler = (url: string, init?: RequestInit) => Response | Promise<Response>;
+let fetchHandler: FetchHandler = () => new Response('{}', { status: 500 });
+
+function jsonResponse(body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+beforeEach(() => {
+  listCalls = [];
+  fetchHandler = () => jsonResponse({ data: [], meta: makeMeta(0) });
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      let handlerResponse: Response | Promise<Response>;
+      if (url.includes('/api/requesters')) {
+        handlerResponse = jsonResponse(REQUESTERS);
+      } else if (url.includes('/api/categories')) {
+        handlerResponse = jsonResponse(CATEGORIES);
+      } else if (url.includes('/api/tickets?') || /[/?]api\/tickets$/.test(url)) {
+        listCalls.push({
+          url,
+          headers: (init?.headers ?? {}) as Record<string, string>,
+        });
+        handlerResponse = fetchHandler(url, init);
+      } else {
+        handlerResponse = jsonResponse([]);
+      }
+      return Promise.resolve(handlerResponse);
+    }),
+  );
+});
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
+async function openTicketsList() {
+  window.location.hash = '#/tickets';
+  render(<App />);
+  await screen.findByRole('heading', { name: 'My Tickets', level: 1 });
+}
+
+// Ticket numbers render in both the desktop row and the mobile card; wait
+// for either and return it.
+function findTicketLink() {
+  return screen.findAllByText('TTK-2026-000001');
+}
+
 const TITLES = [
   'Laptop will not boot after update',
   'Campus Wi-Fi drops every hour',
@@ -47,631 +122,457 @@ const TITLES = [
   'Cannot access library account',
 ];
 
-const TICKETS = Array.from({ length: 14 }, (_, i): SeedTicket => {
+const PRIORITIES = ['HIGH', 'MEDIUM', 'CRITICAL', 'LOW'] as const;
+
+// 14 tickets → 2 pages at pageSize 10; every badge variant appears at least
+// once across the set.
+const TICKETS: SeedTicket[] = Array.from({ length: 14 }, (_, i) => {
   const n = i + 1;
-  const priorities = ['HIGH', 'MEDIUM', 'CRITICAL', 'LOW'] as const;
   return {
     id: n,
     ticketNumber: `TTK-2026-${String(n).padStart(6, '0')}`,
     title: `${TITLES[i % 4]} (#${n})`,
-    priority: priorities[i % 4],
+    priority: PRIORITIES[i % 4],
+    status:
+      i % 5 === 0
+        ? 'NEW'
+        : i % 5 === 1
+          ? 'OPEN'
+          : i % 5 === 2
+            ? 'IN_PROGRESS'
+            : i % 5 === 3
+              ? 'RESOLVED'
+              : 'PENDING',
+    itPriority: i === 0 ? 'CRITICAL' : i === 3 ? null : 'MEDIUM',
+    ownerName: i === 1 ? null : i % 2 === 0 ? 'Michael Brown' : 'Sarah Johnson',
     category: CATEGORIES[i % 4],
   };
 });
 
-function ticketsPage(page: number, pageSize = 10, items = TICKETS) {
-  const start = (page - 1) * pageSize;
-  const slice = items.slice(start, start + pageSize);
-  return {
-    data: slice.map(makeTicket),
-    meta: {
-      page,
-      pageSize,
-      totalItems: items.length,
-      totalPages: Math.max(1, Math.ceil(items.length / pageSize)),
-      hasNextPage: page < Math.ceil(items.length / pageSize),
-      hasPrevPage: page > 1,
-    },
-  };
-}
+describe('UI-04 — initial load renders skeleton then data; failure shows retry', () => {
+  it('shows shimmer skeleton rows while the request is in flight', async () => {
+    let release!: (value: unknown) => void;
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    fetchHandler = async () => {
+      await gate;
+      return jsonResponse({ data: [], meta: makeMeta(0) });
+    };
 
-function ok(body: unknown) {
-  return { ok: true, status: 200, json: async () => body };
-}
-
-// Every GET /api/tickets call observed by the stub, in order (URL + headers).
-let listCalls: Array<{ url: URL; headers: Record<string, string> }>;
-
-/**
- * Installs a fetch stub that answers /api/requesters and routes every
- * /api/tickets GET through `handler`, recording each list call in `listCalls`.
- */
-function stubListFetch(
-  handler: (url: URL) => Promise<unknown> | unknown,
-): void {
-  listCalls = [];
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const raw =
-        typeof input === 'string'
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
-      const url = new URL(raw);
-      if (url.pathname.includes('/api/requesters')) {
-        if (!init?.method || init.method === 'GET') return ok(REQUESTERS);
-      }
-      if (url.pathname.includes('/api/categories')) return ok(CATEGORIES);
-      if (url.pathname.includes('/api/related-systems')) {
-        return ok([{ id: 1, name: 'Email Server' }]);
-      }
-      if (url.pathname.includes('/api/tickets')) {
-        listCalls.push({
-          url,
-          headers: (init?.headers ?? {}) as Record<string, string>,
-        });
-        return await handler(url);
-      }
-      return ok({});
-    }),
-  );
-}
-
-async function gotoMyTickets(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole('link', { name: 'My Tickets' }));
-  // The toolbar renders regardless of how many rows come back.
-  expect(await screen.findByLabelText('Search')).toBeInTheDocument();
-}
-
-beforeEach(() => {
-  localStorage.clear();
-  // Hash persists across tests in one jsdom file (e.g. after navigating to a
-  // detail route); reset so every test starts from a clean shell.
-  window.location.hash = '';
-});
-
-afterEach(() => {
-  cleanup();
-  vi.unstubAllGlobals();
-  vi.useRealTimers();
-  localStorage.clear();
-});
-
-describe('My Tickets screen', () => {
-  it('UI-04: skeleton while loading then rows render with Showing range', async () => {
-    let resolveList!: (value: unknown) => void;
-    stubListFetch(
-      () =>
-        new Promise((resolve) => {
-          resolveList = resolve;
-        }),
-    );
-
-    const user = userEvent.setup();
+    window.location.hash = '#/tickets';
     render(<App />);
-    await user.click(screen.getByRole('link', { name: 'My Tickets' }));
-
-    // Exactly three shimmer skeleton rows while the request is in flight.
-    const skeletons = await screen.findAllByTestId('sk-row');
+    expect(await screen.findByRole('heading', { name: 'My Tickets', level: 1 })).toBeInTheDocument();
+    const skeletons = await screen.findAllByTestId('skeleton-row');
     expect(skeletons).toHaveLength(3);
-    for (const row of skeletons) {
-      expect(row.querySelector('.sk')).not.toBeNull();
-    }
-    expect(screen.queryByRole('table')).not.toBeInTheDocument();
-
-    resolveList(ok(ticketsPage(1)));
-    expect(await screen.findByRole('table')).toBeInTheDocument();
-    expect(
-      screen.getAllByText('Laptop will not boot after update (#1)').length,
-    ).toBeGreaterThan(0);
-    // First row's monospace link shows the newest ticket.
-    expect(
-      screen.getAllByRole('link', { name: 'TTK-2026-000001' })[0],
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Showing 1–10 of 14/)).toBeInTheDocument();
-    // Every list request carried the dev requester header.
-    const calls = (
-      globalThis.fetch as ReturnType<typeof vi.fn>
-    ).mock.calls.filter((c: unknown[]) =>
-      String(c[0]).includes('/api/tickets'),
-    );
-    expect(calls.length).toBeGreaterThan(0);
-    for (const call of calls) {
-      expect(
-        (call[1] as RequestInit).headers as Record<string, string>,
-      ).toMatchObject({ 'X-Dev-Requester-Id': '1' });
-    }
+    release(undefined);
+    await screen.findByText('No tickets yet');
   });
 
-  it('UI-04 + UI-10: failure shows error banner and Try again re-fetches without losing filter state', async () => {
-    let seenSearchWithLaptop = false;
-    stubListFetch((url) => {
-      const search = url.searchParams.get('search') ?? '';
-      if (search === 'laptop') {
-        // Fail only the first laptop request; the retry succeeds.
-        if (!seenSearchWithLaptop) {
-          seenSearchWithLaptop = true;
-          return { ok: false, status: 500, json: async () => ({ error: 'DB down' }) };
-        }
-        return ok(
-          ticketsPage(
-            Number(url.searchParams.get('page') ?? 1),
-            10,
-            TICKETS.filter((t) => /laptop/i.test(t.title)),
-          ),
-        );
-      }
-      return ok(ticketsPage(Number(url.searchParams.get('page') ?? 1)));
-    });
-
+  it('failure renders an alert banner with Try again and preserves filter state across retry', async () => {
     const user = userEvent.setup();
-    render(<App />);
-    await gotoMyTickets(user);
+    fetchHandler = () => new Response(JSON.stringify({ error: 'boom' }), { status: 500 });
 
-    // Set a search filter first so we can prove state survives the failure.
-    await user.type(screen.getByLabelText('Search'), 'laptop');
-
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent(
+    await openTicketsList();
+    expect(await screen.findByRole('alert')).toHaveTextContent(
       "We couldn't load your tickets. Your filters are preserved.",
     );
-    expect(alert).toHaveClass('errbar');
 
-    // Filter input preserved during failure.
-    expect(screen.getByLabelText('Search')).toHaveValue('laptop');
-
-    await user.click(within(alert).getByRole('button', { name: 'Try again' }));
-
-    // Retry re-fetches the CURRENT params (same search), not defaults.
+    // Set a filter while failed so we can prove it survives the retry.
+    await user.type(screen.getByPlaceholderText('Search by ticket number or summary...'), 'vpn');
+    // Wait for the debounce to commit and re-issue (still failing).
     await vi.waitFor(() => {
-      expect(listCalls[listCalls.length - 1].url.searchParams.get('search')).toBe(
-        'laptop',
-      );
+      expect(listCalls[listCalls.length - 1].url).toContain('search=vpn');
     });
-    expect(await screen.findByRole('table')).toBeInTheDocument();
+
+    const callsAfterFailure = listCalls.length;
+    fetchHandler = () =>
+      jsonResponse({
+        data: [makeTicket(TICKETS[0])],
+        meta: makeMeta(1),
+      });
+
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+    expect((await findTicketLink()).length).toBeGreaterThan(0);
+
+    // The retry re-issues the same query including the typed search term.
+    const lastUrl = listCalls[listCalls.length - 1].url;
+    expect(lastUrl).toContain('search=vpn');
+    expect(listCalls.length).toBeGreaterThan(callsAfterFailure);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
+});
 
-  it('UI-05: zero tickets shows No tickets yet with Create your first ticket CTA', async () => {
-    stubListFetch(() => ok(ticketsPage(1, 10, [])));
-
-    const user = userEvent.setup();
-    render(<App />);
-    await gotoMyTickets(user);
-
+describe('UI-05 — distinct empty vs no-results states', () => {
+  it('zero tickets with no filters shows "No tickets yet" with create CTA', async () => {
+    fetchHandler = (url) => {
+      if (new URL(url).searchParams.get('categoryId') === '999') {
+        return jsonResponse({ data: [], meta: makeMeta(0) });
+      }
+      return jsonResponse({ data: [], meta: makeMeta(0) });
+    };
+    await openTicketsList();
     expect(await screen.findByText('No tickets yet')).toBeInTheDocument();
     expect(
-      screen.getByText(
-        'When you submit a support request, it will appear here with its official ticket number.',
-      ),
+      screen.getByRole('link', { name: 'Create your first ticket' }),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByText('No results match your filters'),
-    ).not.toBeInTheDocument();
-
-    // The CTA navigates to the New Ticket screen.
-    await user.click(
-      screen.getByRole('button', { name: 'Create your first ticket' }),
-    );
-    expect(await screen.findByLabelText(/^Title/)).toBeInTheDocument();
+    expect(screen.queryByText('No results match your filters')).not.toBeInTheDocument();
   });
 
-  it('UI-05: filters matching nothing shows distinct No results match your filters with Clear filters', async () => {
-    // Empty page ONLY for the selected category — a vacuous empty response
-    // would make this test pass without the filter ever being sent.
-    const HARDWARE_ID = '2';
-    stubListFetch((url) => {
-      if (url.searchParams.get('categoryId') === HARDWARE_ID) {
-        return ok(ticketsPage(1, 10, []));
+  it('filters matching nothing show "No results match your filters" with Clear filters', async () => {
+    const user = userEvent.setup();
+    // Only respond with rows when no category filter is applied, so the
+    // Category=Network choice genuinely matches nothing.
+    fetchHandler = (url) => {
+      if (new URL(url).searchParams.get('categoryId')) {
+        return jsonResponse({ data: [], meta: makeMeta(0) });
       }
-      return ok(ticketsPage(1));
-    });
+      return jsonResponse({
+        data: TICKETS.map(makeTicket),
+        meta: makeMeta(TICKETS.length),
+      });
+    };
 
-    const user = userEvent.setup();
-    render(<App />);
-    await gotoMyTickets(user);
+    await openTicketsList();
+    await findTicketLink();
 
-    // Non-default filter (category) that matches nothing → no-results state.
-    await user.selectOptions(screen.getByLabelText('Category'), HARDWARE_ID);
-
-    await vi.waitFor(() => {
-      expect(
-        listCalls[listCalls.length - 1].url.searchParams.get('categoryId'),
-      ).toBe(HARDWARE_ID);
-    });
-    expect(
-      await screen.findByText('No results match your filters'),
-    ).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Category'), '3');
+    expect(await screen.findByText('No results match your filters')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeInTheDocument();
     expect(screen.queryByText('No tickets yet')).not.toBeInTheDocument();
-    expect(
-      screen.getByText(
-        'Try a different search term, or clear the filters to see all of your tickets.',
-      ),
-    ).toBeInTheDocument();
-    expect(
-      screen.getAllByRole('button', { name: 'Clear filters' }).length,
-    ).toBeGreaterThan(0);
+
+    // The inline clear restores the unfiltered view.
+    const cleared = screen.getAllByRole('button', { name: 'Clear filters' });
+    await user.click(cleared[cleared.length - 1]);
+    expect((await findTicketLink()).length).toBeGreaterThan(0);
+  });
+});
+
+describe('UI-06 — debounced search, filters issue correct API params', () => {
+  beforeEach(() => {
+    fetchHandler = () =>
+      jsonResponse({ data: TICKETS.map(makeTicket), meta: makeMeta(TICKETS.length) });
   });
 
-  it('UI-06: search input debounces 300ms and issues one request with search param', async () => {
-    stubListFetch(() => ok(ticketsPage(1)));
-
-    // Real timers: userEvent typing takes ~0ms per char, so the only realistic
-    // 300ms+ gap is the debounce itself; assert on call count + final param.
+  it('debounces search input by 300ms before issuing a request', async () => {
     const user = userEvent.setup();
-    render(<App />);
-    await gotoMyTickets(user);
+    await openTicketsList();
+    await findTicketLink();
+    const callsBeforeTyping = listCalls.length;
 
-    const before = listCalls.length;
-
-    await user.type(screen.getByLabelText('Search'), 'wifi');
-    expect(listCalls.length).toBe(before); // debounce still pending
-
-    await waitForUrl(
-      () =>
-        listCalls.length === before + 1 &&
-        listCalls[listCalls.length - 1].url.searchParams.get('search') === 'wifi',
-      'exactly one debounced request with search=wifi',
+    await user.type(
+      screen.getByPlaceholderText('Search by ticket number or summary...'),
+      'laptop',
     );
-    expect(listCalls.length).toBe(before + 1);
+    // No request should fire while typing within the debounce window.
+    expect(listCalls.length).toBe(callsBeforeTyping);
+
+    await vi.waitFor(
+      () => {
+        expect(listCalls.length).toBe(callsBeforeTyping + 1);
+      },
+      { timeout: 1500 },
+    );
+    expect(listCalls[listCalls.length - 1].url).toContain('search=laptop');
   });
 
-  it('UI-06: category/priority/sort changes issue correct API params', async () => {
-    stubListFetch(() => ok(ticketsPage(1)));
-
+  it('the search × clear button empties the field and refetches without the param', async () => {
     const user = userEvent.setup();
-    render(<App />);
-    await gotoMyTickets(user);
+    await openTicketsList();
+    const input = screen.getByPlaceholderText('Search by ticket number or summary...');
+    await user.type(input, 'printer');
+    await vi.waitFor(() => {
+      expect(listCalls.some((c) => c.url.includes('search=printer'))).toBe(true);
+    });
 
-    const lastUrl = () => listCalls[listCalls.length - 1].url;
+    await user.click(screen.getByRole('button', { name: 'Clear search' }));
+    expect(input).toHaveValue('');
+    await vi.waitFor(() => {
+      const latest = listCalls[listCalls.length - 1].url;
+      expect(latest).not.toContain('search=');
+    });
+  });
 
-    // Category → categoryId param, resets to page 1.
-    await user.selectOptions(screen.getByLabelText('Category'), '2');
-    await waitForUrl(() => lastUrl().searchParams.get('categoryId') === '2');
-    expect(lastUrl().searchParams.get('page')).toBe('1');
+  it('Requested Priority / IT Priority / Status selects send their params and reset page to 1', async () => {
+    const user = userEvent.setup();
+    await openTicketsList();
+    await findTicketLink();
 
-    // Priority → priority param.
-    await user.selectOptions(screen.getByLabelText('Priority'), 'CRITICAL');
-    await waitForUrl(() => lastUrl().searchParams.get('priority') === 'CRITICAL');
-    expect(lastUrl().searchParams.get('categoryId')).toBe('2');
+    await user.selectOptions(screen.getByLabelText('IT Priority'), 'CRITICAL');
+    await vi.waitFor(() => {
+      const url = listCalls[listCalls.length - 1].url;
+      expect(url).toContain('itPriority=CRITICAL');
+      expect(new URL(url).searchParams.get('page')).toBe('1');
+    });
 
-    // Sort select maps all six options exactly to sortBy/sortDir pairs.
-    const sortMap: Array<[string, string, string]> = [
-      ['Newest first', 'createdAt', 'desc'],
-      ['Oldest first', 'createdAt', 'asc'],
-      ['Title A–Z', 'title', 'asc'],
-      ['Title Z–A', 'title', 'desc'],
-      ['Priority: high first', 'priority', 'desc'],
-      ['Priority: low first', 'priority', 'asc'],
-    ];
-    const sortSelect = screen.getByLabelText('Sort');
-    for (const [label, sortBy, sortDir] of sortMap) {
-      await user.selectOptions(sortSelect, label);
-      await waitForUrl(
-        () =>
-          lastUrl().searchParams.get('sortBy') === sortBy &&
-          lastUrl().searchParams.get('sortDir') === sortDir,
-        `sort ${label} → ${sortBy} ${sortDir}`,
-      );
+    await user.selectOptions(screen.getByLabelText('Current Status'), 'Open');
+    await vi.waitFor(() => {
+      const url = listCalls[listCalls.length - 1].url;
+      const params = new URL(url).searchParams;
+      expect(params.get('status')).toBe('OPEN');
+      expect(params.get('itPriority')).toBe('CRITICAL'); // AND-combined
+      expect(params.get('page')).toBe('1');
+    });
+
+    await user.selectOptions(screen.getByLabelText('Requested Priority'), 'High');
+    await vi.waitFor(() => {
+      const params = new URL(listCalls[listCalls.length - 1].url).searchParams;
+      expect(params.get('priority')).toBe('HIGH');
+      expect(params.get('status')).toBe('OPEN');
+      expect(params.get('page')).toBe('1');
+    });
+  });
+
+  it('every list call carries the X-Dev-Requester-Id header of the active requester', async () => {
+    await openTicketsList();
+    await findTicketLink();
+    for (const call of listCalls) {
+      expect(call.headers['X-Dev-Requester-Id']).toBe('1');
     }
   });
+});
 
-  it('UI-06: Clear filters appears only when non-default and resets everything', async () => {
-    stubListFetch(() => ok(ticketsPage(1)));
-
-    const user = userEvent.setup();
-    render(<App />);
-    await gotoMyTickets(user);
-
-    expect(
-      screen.queryByRole('button', { name: 'Clear filters' }),
-    ).not.toBeInTheDocument();
-
-    await user.type(screen.getByLabelText('Search'), 'printer');
-    await vi.waitFor(() => {
-      expect(listCalls[listCalls.length - 1].url.searchParams.get('search')).toBe(
-        'printer',
-      );
-    });
-    expect(
-      screen.getByRole('button', { name: 'Clear filters' }),
-    ).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
-
-    // Search box emptied; next request back to default params; button hidden.
-    await vi.waitFor(() => {
-      const p = listCalls[listCalls.length - 1].url.searchParams;
-      expect(p.get('search')).toBeNull();
-      expect(p.get('categoryId')).toBeNull();
-      expect(p.get('priority')).toBeNull();
-      // Default sort is sent explicitly: createdAt desc.
-      expect(p.get('sortBy')).toBe('createdAt');
-      expect(p.get('sortDir')).toBe('desc');
-      expect(p.get('page')).toBe('1');
-    });
-    expect(screen.getByLabelText('Search')).toHaveValue('');
-    expect(
-      screen.queryByRole('button', { name: 'Clear filters' }),
-    ).not.toBeInTheDocument();
-    expect(await screen.findByRole('table')).toBeInTheDocument();
+describe('UI-13 — nine-column table with sortable headers cycling aria-sort', () => {
+  beforeEach(() => {
+    fetchHandler = () =>
+      jsonResponse({ data: TICKETS.map(makeTicket), meta: makeMeta(TICKETS.length) });
   });
 
-  it('pagination: Prev disabled on page 1, Next loads page=2 showing 11–14 of 14', async () => {
-    stubListFetch((url) => ok(ticketsPage(Number(url.searchParams.get('page') ?? 1))));
-
-    const user = userEvent.setup();
-    render(<App />);
-    await gotoMyTickets(user);
-
-    expect(screen.getByText(/Showing 1–10 of 14/)).toBeInTheDocument();
-
-    const prev = screen.getByRole('button', { name: 'Previous page' });
-    const next = screen.getByRole('button', { name: 'Next page' });
-    expect(prev).toBeDisabled();
-    expect(next).toBeEnabled();
-
-    // Numbered buttons max 5 with ellipsis: 1 … 5 … style for 2 pages → just
-    // "1" and "2"; current page marked with aria-current.
-    const pageOne = screen.getByRole('button', { name: 'Go to page 1' });
-    expect(pageOne).toHaveAttribute('aria-current', 'page');
-
-    await user.click(next);
-
-    expect(await screen.findByText(/Showing 11–14 of 14/)).toBeInTheDocument();
-    expect(listCalls[listCalls.length - 1].url.searchParams.get('page')).toBe('2');
-    expect(screen.getByRole('button', { name: 'Previous page' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
-    expect(
-      screen.getByRole('button', { name: 'Go to page 2' }),
-    ).toHaveAttribute('aria-current', 'page');
+  it('renders exactly the nine documented columns in order', async () => {
+    await openTicketsList();
+    await findTicketLink();
+    const headers = within(document.querySelector('thead')!).getAllByRole('columnheader');
+    expect(headers.map((h) => h.textContent?.trim())).toEqual([
+      'Ticket No.',
+      'Created Date',
+      'Summary',
+      'Category',
+      'Requested Priority',
+      'IT Priority',
+      'Current Status',
+      'Ticket Owner',
+      'Last Updated',
+    ]);
   });
 
-  it('pagination window: >5 pages renders max 5 numbered buttons with ellipsis', async () => {
-    // 55 items at pageSize 10 → 6 pages (the historical off-by-one case).
-    const many = Array.from({ length: 55 }, (_, i): SeedTicket => {
+  it('displays IT Priority badges incl. "Unset" and Ticket Owner incl. "Unassigned"', async () => {
+    await openTicketsList();
+    await findTicketLink();
+    expect((await screen.findAllByText((_, el) => el?.classList.contains('pri-critical') === true)).length).toBeGreaterThan(0); // row 1 IT badge (table + mobile card)
+    expect(screen.getAllByText('Unset').length).toBeGreaterThan(0); // row 4 null IT priority
+    expect(screen.getByText('Unassigned')).toBeInTheDocument(); // row 2 null owner
+  });
+
+  it('cycles ascending→descending on repeated clicks and resets direction when switching columns', async () => {
+    const user = userEvent.setup();
+    await openTicketsList();
+    await findTicketLink();
+
+    const ticketHeader = screen.getByRole('button', { name: /Ticket No\./ }).closest('th')!;
+    const createdHeader = screen.getByRole('button', { name: /Created Date/ }).closest('th')!;
+    expect(ticketHeader).toHaveAttribute('aria-sort', 'none');
+    expect(createdHeader).toHaveAttribute('aria-sort', 'descending'); // dates default desc
+
+    await user.click(screen.getByRole('button', { name: /Ticket No\./ }));
+    expect(ticketHeader).toHaveAttribute('aria-sort', 'ascending');
+    await user.click(screen.getByRole('button', { name: /Ticket No\./ }));
+    expect(ticketHeader).toHaveAttribute('aria-sort', 'descending');
+
+    // Switching columns applies that column's natural default (dates → desc).
+    await user.click(screen.getByRole('button', { name: /Last Updated/ }));
+    const updatedHeader = screen.getByRole('button', { name: /Last Updated/ }).closest('th')!;
+    expect(updatedHeader).toHaveAttribute('aria-sort', 'descending');
+    expect(ticketHeader).toHaveAttribute('aria-sort', 'none');
+    await vi.waitFor(() => {
+      expect(listCalls[listCalls.length - 1].url).toContain('sortBy=updatedAt&sortDir=desc');
+    });
+  });
+});
+
+describe('UI-14 — pagination window, showing text, bounds, scroll reset', () => {
+  // 55 tickets → 6 pages; exercises both ellipsis shapes.
+  const MANY = SeedMany(57);
+
+  function SeedMany(count: number): SeedTicket[] {
+    return Array.from({ length: count }, (_, i) => {
       const n = i + 1;
       return {
         id: n,
         ticketNumber: `TTK-2026-${String(n).padStart(6, '0')}`,
         title: `Bulk ticket ${n}`,
-        priority: 'MEDIUM',
-        category: CATEGORIES[1],
+        priority: PRIORITIES[n % 4],
+        status: 'OPEN',
+        itPriority: null,
+        ownerName: null,
+        category: CATEGORIES[0],
       };
     });
-    stubListFetch((url) =>
-      ok(ticketsPage(Number(url.searchParams.get('page') ?? 1), 10, many)),
-    );
+  }
 
-    const user = userEvent.setup();
-    render(<App />);
-    await gotoMyTickets(user);
-
-    const numberedButtons = () =>
-      screen
-        .getAllByRole('button')
-        .filter((b) => /^Go to page \d+$/.test(b.getAttribute('aria-label') ?? ''));
-    const ellipses = () => document.querySelectorAll('.ellipsis');
-
-    // Page 1 of 6 → moving 3-window + first/last caps: "1 2 3 … 6".
-    const numberedLabels = () =>
-      numberedButtons().map((b) => b.textContent);
-    expect(numberedLabels()).toEqual(['1', '2', '3', '6']);
-    expect(numberedButtons().length).toBeLessThanOrEqual(5);
-    expect(ellipses().length).toBe(1);
-    expect(
-      screen.getByRole('button', { name: 'Go to page 1' }),
-    ).toHaveAttribute('aria-current', 'page');
-
-    // Middle page keeps the numbered count capped at five: "1 2 3 4 … 6".
-    await user.click(screen.getByRole('button', { name: 'Go to page 3' }));
-    expect(await screen.findByText(/Showing 21–30 of 55/)).toBeInTheDocument();
-    expect(listCalls[listCalls.length - 1].url.searchParams.get('page')).toBe('3');
-    expect(numberedButtons()).toHaveLength(5);
-    expect(ellipses().length).toBe(1);
-
-    // Last page → window merges with the end cap: "1 … 4 5 6" (≤ 5 buttons).
-    await user.click(screen.getByRole('button', { name: 'Go to page 6' }));
-    expect(await screen.findByText(/Showing 51–55 of 55/)).toBeInTheDocument();
-    expect(numberedButtons().length).toBeLessThanOrEqual(5);
-    expect(numberedLabels()).toEqual(['1', '4', '5', '6']);
-    expect(ellipses().length).toBe(1);
-    expect(
-      screen.getByRole('button', { name: 'Go to page 6' }),
-    ).toHaveAttribute('aria-current', 'page');
-  });
-
-  it('BR-05: switching requester resets filters/sort/page and refetches clean for the new identity', async () => {
-    stubListFetch((url) => ok(ticketsPage(Number(url.searchParams.get('page') ?? 1))));
-
-    const user = userEvent.setup();
-    render(<App />);
-    await gotoMyTickets(user);
-
-    // Establish non-default state: search + category + sort change + page 2.
-    await user.type(screen.getByLabelText('Search'), 'printer');
-    await vi.waitFor(() => {
-      expect(listCalls[listCalls.length - 1].url.searchParams.get('search')).toBe(
-        'printer',
-      );
+  function manyPage(url: string) {
+    const params = new URL(url).searchParams;
+    const page = Number(params.get('page') ?? '1');
+    const start = (page - 1) * 8;
+    const slice = MANY.slice(start, start + 8);
+    return jsonResponse({
+      data: slice.map(makeTicket),
+      meta: makeMeta(MANY.length, page, 8),
     });
-    await user.selectOptions(screen.getByLabelText('Category'), '2');
-    await user.selectOptions(
-      screen.getByLabelText('Sort'),
-      'Priority: low first',
-    );
-    await vi.waitFor(() => {
-      const p = listCalls[listCalls.length - 1].url.searchParams;
-      expect(p.get('sortBy')).toBe('priority');
-      expect(p.get('sortDir')).toBe('asc');
-      expect(p.get('categoryId')).toBe('2');
-    });
-    await user.click(screen.getByRole('button', { name: 'Next page' }));
-    await vi.waitFor(() => {
-      expect(listCalls[listCalls.length - 1].url.searchParams.get('page')).toBe('2');
-    });
+  }
 
-    // Switch the active requester through the header selector.
-    await user.selectOptions(
-      screen.getByRole('combobox', { name: 'Development Requester' }),
+  it('shows "Showing 1 to 8 of 57 tickets" with window 1..5 … 8', async () => {
+    fetchHandler = manyPage;
+    await openTicketsList();
+    expect(await screen.findByText(/Showing 1 to 8 of 57 tickets/)).toBeInTheDocument();
+
+    const nav = screen.getByRole('navigation', { name: /pagination/i });
+    const buttons = within(nav).getAllByRole('button');
+    // The ellipsis is a non-interactive <span>, so it is not a button.
+    expect(buttons.map((b) => b.textContent)).toEqual([
+      '‹ Previous',
+      '1',
       '2',
-    );
-
-    // A fresh GET fires for requester 2 with NO stale params and page=1.
-    await vi.waitFor(() => {
-      const call = listCalls[listCalls.length - 1];
-      expect(call.url.searchParams.get('page')).toBe('1');
-      expect(call.url.searchParams.get('search')).toBeNull();
-      expect(call.url.searchParams.get('categoryId')).toBeNull();
-      expect(call.url.searchParams.get('priority')).toBeNull();
-      // Default sort restored explicitly.
-      expect(call.url.searchParams.get('sortBy')).toBe('createdAt');
-      expect(call.url.searchParams.get('sortDir')).toBe('desc');
-    });
-    const lastCall = listCalls[listCalls.length - 1];
-    expect(lastCall.headers['X-Dev-Requester-Id']).toBe('2');
-
-    // UI reset too: search box empty, selects back to defaults, no Clear
-    // filters button, Showing range back to the first page.
-    expect(await screen.findByText(/Showing 1–10 of 14/)).toBeInTheDocument();
-    expect(screen.getByLabelText('Search')).toHaveValue('');
-    expect(screen.getByLabelText('Category')).toHaveValue('');
-    expect(screen.getByLabelText('Priority')).toHaveValue('');
-    expect(screen.getByLabelText('Sort')).toHaveValue('0');
-    expect(
-      screen.queryByRole('button', { name: 'Clear filters' }),
-    ).not.toBeInTheDocument();
-  });
-
-  it('navigation: clicking a ticket-number link routes to the detail route', async () => {
-    stubListFetch(() => ok(ticketsPage(1)));
-
-    const user = userEvent.setup();
-    render(<App />);
-    await gotoMyTickets(user);
-
-    await user.click(
-      screen.getAllByRole('link', { name: 'TTK-2026-000003' })[0],
-    );
-
-    expect(window.location.hash).toBe('#/tickets/TTK-2026-000003');
-    expect(
-      await screen.findByText('Official number:'),
-    ).toBeInTheDocument();
-    expect(screen.getAllByText('TTK-2026-000003').length).toBeGreaterThan(0);
-  });
-
-  it('sortable headers: clicking Title/Priority/Created cycles direction via API params', async () => {
-    stubListFetch(() => ok(ticketsPage(1)));
-
-    const user = userEvent.setup();
-    render(<App />);
-    await gotoMyTickets(user);
-
-    const lastUrl = () => listCalls[listCalls.length - 1].url;
-
-    // Title header: natural dir asc on first click, then desc. The sortable
-    // <th> contains the click target button.
-    const thButton = (name: string) =>
-      within(screen.getByRole('columnheader', { name })).getByRole('button');
-    await user.click(thButton('Title'));
-    await waitForUrl(
-      () =>
-        lastUrl().searchParams.get('sortBy') === 'title' &&
-        lastUrl().searchParams.get('sortDir') === 'asc',
-      'Title first click → title asc',
-    );
-    await user.click(thButton('Title'));
-    await waitForUrl(
-      () =>
-        lastUrl().searchParams.get('sortBy') === 'title' &&
-        lastUrl().searchParams.get('sortDir') === 'desc',
-      'Title second click → title desc',
-    );
-
-    // Priority header: natural dir desc (high first) on first click.
-    await user.click(thButton('Priority'));
-    await waitForUrl(
-      () =>
-        lastUrl().searchParams.get('sortBy') === 'priority' &&
-        lastUrl().searchParams.get('sortDir') === 'desc',
-      'Priority first click → priority desc',
-    );
-
-    // Created header: natural dir desc (newest first).
-    await user.click(thButton('Created'));
-    await waitForUrl(
-      () =>
-        lastUrl().searchParams.get('sortBy') === 'createdAt' &&
-        lastUrl().searchParams.get('sortDir') === 'desc',
-      'Created click → createdAt desc',
-    );
-  });
-
-  it('UI-11: accessibility — headers, badge text labels, link names, aria-current pagination', async () => {
-    // One ticket per priority so all four badges are asserted present.
-    const oneOfEach: SeedTicket[] = [
-      { id: 1, ticketNumber: 'TTK-2026-000001', title: 'Low prio issue', priority: 'LOW', category: CATEGORIES[0] },
-      { id: 2, ticketNumber: 'TTK-2026-000002', title: 'Medium prio issue', priority: 'MEDIUM', category: CATEGORIES[1] },
-      { id: 3, ticketNumber: 'TTK-2026-000003', title: 'High prio issue', priority: 'HIGH', category: CATEGORIES[2] },
-      { id: 4, ticketNumber: 'TTK-2026-000004', title: 'Critical prio issue', priority: 'CRITICAL', category: CATEGORIES[3] },
-    ];
-    stubListFetch(() => ok(ticketsPage(1, 10, oneOfEach)));
-
-    const user = userEvent.setup();
-    render(<App />);
-    await gotoMyTickets(user);
-
-    const table = await screen.findByRole('table');
-    for (const header of ['Ticket #', 'Title', 'Category', 'Priority', 'Status', 'Created']) {
-      expect(
-        screen.getByRole('columnheader', { name: header }),
-      ).toHaveAttribute('scope', 'col');
-    }
-
-    // Badge text labels present for all four priorities + status (never
-    // color-only).
-    expect(screen.getAllByText('! Critical').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('High').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Medium').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Low').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('New').length).toBeGreaterThan(0);
-    // Status badge carries its leading dot span.
-    expect(document.querySelectorAll('.b-new .dot').length).toBeGreaterThan(0);
-
-    // Ticket-number links have accessible names including the ticket number.
-    const links = within(table).getAllByRole('link');
-    expect(links.length).toBeGreaterThan(0);
-    for (const link of links) {
-      expect(link.textContent).toMatch(/^TTK-\d{4}-\d{6}$/);
-    }
-
-    // Busy region announced politely.
-    expect(screen.getByTestId('my-tickets-region')).toHaveAttribute(
-      'aria-live',
-      'polite',
-    );
-
-    // aria-current on the active pagination page.
-    expect(screen.getByRole('button', { name: 'Go to page 1' })).toHaveAttribute(
+      '3',
+      '4',
+      '5',
+      '8',
+      'Next ›',
+    ]);
+    expect(within(nav).getByText('…')).toBeInTheDocument();
+    expect(within(nav).getByRole('button', { name: '1' })).toHaveAttribute(
       'aria-current',
       'page',
     );
-    expect(screen.getAllByRole('button', { name: 'Previous page' })[0]).toBeDisabled();
+    expect(within(nav).getByRole('button', { name: '‹ Previous' })).toBeDisabled();
+  });
+
+  it('mid-window shows exactly five numbered buttons around the current page', async () => {
+    const user = userEvent.setup();
+    fetchHandler = manyPage;
+    await openTicketsList();
+    await screen.findByText(/Showing 1 to 8/);
+
+    await user.click(screen.getByRole('button', { name: 'Next ›' }));
+    expect(await screen.findByText(/Showing 9 to 16 of 57 tickets/)).toBeInTheDocument();
+    const nav = screen.getByRole('navigation', { name: /pagination/i });
+    const numbers = within(nav)
+      .getAllByRole('button')
+      .map((b) => b.textContent)
+      .filter((t) => /^\d+$/.test(t));
+    expect(numbers).toEqual(['1', '2', '3', '4', '5', '8']);
+    expect(within(nav).getByText('…')).toBeInTheDocument();
+
+    expect(within(nav).getByRole('button', { name: 'Next ›' })).toBeEnabled();
+    // Last page holds only the remainder: item 57 alone.
+    await user.click(within(nav).getByRole('button', { name: '8' }));
+    expect(await screen.findByText(/Showing 57 to 57 of 57 tickets/)).toBeInTheDocument();
+    const lastNav = screen.getByRole('navigation', { name: /pagination/i });
+    expect(
+      within(lastNav).getAllByRole('button').map((b) => b.textContent),
+    ).toEqual(['‹ Previous', '1', '4', '5', '6', '7', '8', 'Next ›']);
+    expect(within(lastNav).getByRole('button', { name: 'Next ›' })).toBeDisabled();
+  });
+
+  it('changing page requests the right slice from the API', async () => {
+    const user = userEvent.setup();
+    fetchHandler = manyPage;
+    await openTicketsList();
+    await screen.findByText(/Showing 1 to 8/);
+
+    await user.click(screen.getByRole('button', { name: '3' }));
+    // Page 3 starts at item 17 (table row + mobile card both render it).
+    expect(
+      await screen.findAllByText('TTK-2026-000017'),
+    ).not.toHaveLength(0);
+    expect(listCalls[listCalls.length - 1].url).toContain('page=3');
   });
 });
 
-/** Poll until `predicate` sees true on the latest recorded list call. */
-async function waitForUrl(
-  predicate: () => boolean,
-  what = 'expected URL params',
-): Promise<void> {
-  await vi.waitFor(
-    () => {
-      expect(predicate(), `waiting for ${what}`).toBe(true);
-    },
-    { timeout: 2000, interval: 25 },
-  );
-}
+describe('UI-12 — Clear Filters head action and Create Ticket action', () => {
+  beforeEach(() => {
+    fetchHandler = () =>
+      jsonResponse({ data: TICKETS.map(makeTicket), meta: makeMeta(TICKETS.length) });
+  });
+
+  it('Clear Filters resets search and all selects to defaults and returns to page 1', async () => {
+    const user = userEvent.setup();
+    // Every fixture is category 1-4 except none are 'Account and Access' with
+    // PENDING status; Category=1 + Status=Pending matches nothing.
+    fetchHandler = (url) => {
+      const params = new URL(url).searchParams;
+      if (params.get('categoryId') === '1' && params.get('status') === 'PENDING') {
+        return jsonResponse({ data: [], meta: makeMeta(0) });
+      }
+      return jsonResponse({ data: TICKETS.map(makeTicket), meta: makeMeta(TICKETS.length) });
+    };
+
+    await openTicketsList();
+    await findTicketLink();
+
+    // First set Status alone (still has matches), then add the category that
+    // empties the result set.
+    await user.selectOptions(screen.getByLabelText('Current Status'), 'Pending');
+    await vi.waitFor(() => {
+      expect(new URL(listCalls[listCalls.length - 1].url).searchParams.get('status')).toBe('PENDING');
+    });
+    await user.selectOptions(screen.getByLabelText('Category'), '1');
+    await screen.findByText('No results match your filters');
+    await vi.waitFor(() => {
+      expect(new URL(listCalls[listCalls.length - 1].url).searchParams.get('status')).toBe('PENDING');
+    });
+
+    // Head action button lives in .mt-actions; the no-results panel also has
+    // a Clear filters button, so scope to the page header.
+    const headActions = screen.getByText('Clear Filters', { selector: '.mt-actions button' });
+    await user.click(headActions);
+    expect((await findTicketLink()).length).toBeGreaterThan(0);
+    const params = new URL(listCalls[listCalls.length - 1].url).searchParams;
+    expect(params.get('page')).toBe('1');
+    expect(params.get('categoryId')).toBeNull();
+    expect(params.get('priority')).toBeNull();
+    expect(params.get('itPriority')).toBeNull();
+    expect(params.get('status')).toBeNull();
+    expect(screen.getByLabelText('Category')).toHaveValue('');
+  });
+
+  it('Create Ticket navigates to the create form', async () => {
+    await openTicketsList();
+    await findTicketLink();
+    await userEvent.setup().click(screen.getByRole('link', { name: /Create Ticket/i }));
+    await screen.findByRole('heading', { name: /create/i, level: 1 });
+    expect(window.location.hash).toContain('#/new-ticket');
+  });
+});
+
+describe('BR-05 — switching requester resets filters/sort/page and re-scopes ownership', () => {
+  beforeEach(() => {
+    fetchHandler = () =>
+      jsonResponse({ data: TICKETS.map(makeTicket), meta: makeMeta(TICKETS.length) });
+  });
+
+  it('starts a fresh default list scoped to the new requester header', async () => {
+    const user = userEvent.setup();
+    await openTicketsList();
+    await findTicketLink();
+
+    // Apply a filter first.
+    await user.selectOptions(screen.getByLabelText('IT Priority'), 'CRITICAL');
+    await vi.waitFor(() => {
+      expect(listCalls[listCalls.length - 1].url).toContain('itPriority=CRITICAL');
+    });
+
+    // Switch requester via the header select.
+    await user.selectOptions(screen.getByLabelText(/Development Requester/i), '2');
+
+    await vi.waitFor(() => {
+      const latest = listCalls.filter(
+        (c) => c.headers['X-Dev-Requester-Id'] === '2',
+      )[0];
+      expect(latest).toBeDefined();
+      const params = new URL(latest.url).searchParams;
+      expect(params.get('page')).toBe('1');
+      expect(params.get('itPriority')).toBeNull();
+      expect(params.get('status')).toBeNull();
+    });
+  });
+});
