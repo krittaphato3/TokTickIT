@@ -50,6 +50,7 @@ The stakeholders (CPE 334 course) want a realistic first slice of the TokTickIT 
 - **FR-15 — Empty and Failure States.** The UI renders distinct states: initial load (skeleton), loading, empty list ("No tickets yet"), no-results ("No results match"), validation errors, submitting (busy), success, and failure (friendly message + retry). Form input is preserved on failure.
 - **FR-16 — Accessibility and Responsiveness.** The UI is keyboard-operable, labeled, non-color-dependent for errors/badges, and renders correctly at desktop (≥992px), tablet (768–991px), and mobile (<768px) with no horizontal scroll on mobile (see ui-spec.md).
 - **FR-17 — Related System Selection.** A requester must associate a related system with a ticket during creation. Available systems are fetched from `GET /api/related-systems`. The server validates that the provided ID references an existing RelatedSystem record; a missing or invalid ID is rejected with 400.
+- **FR-18 — Extended List Fields and Filters (My Tickets v2).** `GET /api/tickets` additionally returns each ticket's IT Priority (nullable) and Ticket Owner display name (nullable), plus the extended Current Status. The list endpoint accepts two new optional filters, `itPriority` and `status`, both validated against their enums (invalid values → 400). Search matches ticket number OR title OR description case-insensitively, and `sortBy` additionally accepts `ticketNumber`. The screen is a faithful port of the approved reference illustration `docs/mockups/my-tickets-v032.html` (see ui-spec.md §10).
 
 ## 5. Business Rules
 
@@ -72,6 +73,8 @@ The stakeholders (CPE 334 course) want a realistic first slice of the TokTickIT 
 - **BR-17 — Lab 3 Authentication Transition.** The current `Requester` model and `X-Dev-Requester-Id` header are strictly for Lab 2 testing. The database schema is designed to accommodate Lab 3 by adding `passwordHash` and `role` columns directly to the `Requester` table via a future Prisma migration, without altering the core Ticket/Attachment relationships or requiring a schema rewrite.
 - **BR-18 — Safe Filename and Storage Behavior.** To prevent path traversal and filename collisions, the server must never use the user-supplied `fileName` for disk storage. The server must generate a cryptographically secure random identifier (e.g., using `crypto.randomUUID()`) for the `storedName` on disk, while retaining the original `fileName` in the database strictly for the `Content-Disposition` download header.
 - **BR-19 — Related System Validation.** `relatedSystemId` is required and must reference an existing RelatedSystem. A missing or invalid ID is rejected with 400 with a field-level error on `relatedSystemId`.
+- **BR-20 — IT Priority and Owner Display Rules.** `itPriority` and `ownerName` are nullable display fields set by IT staff tooling, not by the requester. A null `ownerName` renders as muted "Unassigned"; a null `itPriority` renders as neutral "Unset". The `itPriority` filter matches only tickets whose stored `itPriority` equals the given value — it never falls back to matching the requested priority.
+- **BR-21 — Extended Status Filter Semantics.** The `status` filter accepts any value of the extended Status enum (`NEW`, `OPEN`, `PENDING`, `IN_PROGRESS`, `RESOLVED`) and combines with all other criteria via AND (extending BR-08). Ticket creation still always produces `NEW` (BR-02 unchanged); status transitions remain out of scope.
 
 ## 6. UI Specification Summary
 
@@ -157,12 +160,13 @@ Each criterion is stated in Given-When-Then form. All ACs are machine-verifiable
 - **AC-20 — Accessibility.** Given the UI is exercised with a keyboard and a screen reader, then all form fields have visible labels and `aria-describedby` error wiring, focus is visibly indicated, validation errors and badges convey meaning without color alone, and all interactive controls are keyboard-operable.
 - **AC-21 — Dev identity edge cases.** Given a request to any `/api/tickets*` endpoint, then a missing `X-Dev-Requester-Id` header returns 400, an unknown requester id returns 401, and an inactive requester id returns 403, each with a clear error message.
 - **AC-22 — Related system selection.** Given a requester creating a ticket with a valid `relatedSystemId` referencing an existing RelatedSystem record, then the created ticket includes that related system in its detail response; given a missing or invalid ID, the server returns 400 with a field-level error.
+- **AC-23 — Extended list fields and filters (My Tickets v2).** Given tickets with varying IT priorities, owners, and statuses, then `GET /api/tickets` returns `itPriority` and `ownerName` (nullable) per item; combining `itPriority` + `status` (+ other criteria) filters with AND semantics; an invalid enum value for either new filter returns 400; searching by ticket number matches case-insensitively; sorting by `ticketNumber` orders correctly; the UI renders the 9-column fluid table, extended badges, and pagination exactly as in `docs/mockups/my-tickets-v032.html`.
 
 ## 10. Definition of Done
 
 The sprint is done when **all** of the following hold:
 
-- [ ] All FR-01 through FR-17 are implemented and demonstrable end-to-end.
+- [ ] All FR-01 through FR-18 are implemented and demonstrable end-to-end.
 - [ ] All AC-01 through AC-22 pass; every AC has at least one passing automated test (see tests.md traceability matrix).
 - [ ] The API enforces ownership on every ticket/attachment operation (no test can leak another requester's data).
 - [ ] All planned tests in tests.md are green: server unit + API (Vitest/Supertest), client UI (Vitest + Testing Library), and E2E (Playwright), including responsive checks.
@@ -191,3 +195,5 @@ The sprint is done when **all** of the following hold:
 | D-13 | The Development Requester selection may persist in localStorage; switching always resets list context. | Good UX while preserving per-requester data isolation in the UI; the server never persists the "current" requester. |
 | D-14 | `/api/health`, `/api/categories`, `/api/requesters`, `/api/related-systems` are header-free. | They expose no requester-owned data; keeps the existing Lab 1 health/categories contract unchanged. |
 | D-15 | Related Systems are a seeded lookup table; every ticket references exactly one via a required one-to-many FK (labsheet 4.4 / 5.1 / 6). | Real service desks track affected systems; the lookup table is simple to seed and query; one-to-many keeps the common "ticket affects a single system" case simple while allowing a system to appear on many tickets. |
+| D-16 | `itPriority` and `ownerName` are nullable, denormalized display columns on Ticket (no IT Staff foreign key this sprint). | The v2 screen needs to display IT-side data the requester model cannot provide; a real IT Staff relation arrives in a later lab, and nullable columns keep the migration purely additive with zero impact on existing endpoints or tests. |
+| D-17 | The Status enum is extended in place (NEW + OPEN, PENDING, IN_PROGRESS, RESOLVED) rather than introducing a second field. | One status axis keeps BR-02 ("new tickets are NEW"), filtering, and badge rendering coherent; extending a PostgreSQL enum is additive and requires no backfill because every existing row is already NEW. |

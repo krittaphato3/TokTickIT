@@ -1,6 +1,6 @@
 # CPE 334 Lab 2 — TokTickIT Requester Ticketing MVP: Test Plan
 
-- **Status:** Draft v1.0 — Issue #13 rows (**UT-01, API-01..06, API-21, API-22, API-23, API-24**), Issue #14 rows (**UI-01, UI-02, UI-03**), Issue #15 rows (**UT-02, UT-03, API-07..API-11, API-20**) and Issue #16 rows (**UI-04, UI-05, UI-06, UI-10, UI-11**) are **Pass**; all other rows remain **Pending** until their owning issue is implemented.
+- **Status:** Draft v1.0 — Issue #13 rows (**UT-01, API-01..06, API-21, API-22, API-23, API-24**), Issue #14 rows (**UI-01, UI-02, UI-03**), Issue #15 rows (**UT-02, UT-03, API-07..API-11, API-20**) and Issue #16 rows (**UI-04, UI-05, UI-06, UI-10, UI-11**) are **Pass**; Issue #30 rows (**API-26..28, UI-13..15**) were added for My Tickets v2 and remain **Pending** until implemented; all other unlisted rows remain **Pending** until their owning issue is implemented.
 - **Companion documents:** [`specification.md`](./specification.md), [`api-spec.md`](./api-spec.md), [`ui-spec.md`](./ui-spec.md)
 
 ---
@@ -55,6 +55,9 @@ Test files live under `server/tests/lab-02/` and `client/tests/lab-02/`. API and
 | API-23 | API | FR-17, BR-19, AC-22 | Create ticket with a valid `relatedSystemId`; response includes `relatedSystem` | 201; relatedSystem matches the provided ID | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
 | API-24 | API | FR-17, BR-19, AC-22 | Create ticket with a missing or invalid `relatedSystemId` | 400 field error (`Related system is required` / `Related system does not exist`) | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
 | API-25 | API | FR-17, AC-22 | Detail and list responses include `relatedSystem` | relatedSystem present in both 200 responses | `server/tests/lab-02/ticket-detail.api.test.ts` | Pending |
+| API-26 | API | FR-18, BR-20, BR-21, AC-23 | List items return nullable `itPriority`/`ownerName` + extended status; combined `itPriority` + `status` (+ category) filters AND-combine; invalid enum value for either new filter → 400 | Exact-match rows only; null fields returned as null; invalid `itPriority`/`status` → 400 | `server/tests/lab-02/my-tickets.api.test.ts` | Pending |
+| API-27 | API | FR-18, BR-07, AC-23 | Search matches ticket number case-insensitively (`search=ttk-…`); still matches title/description as before | Only ticket(s) whose ticketNumber contains the term are returned | `server/tests/lab-02/my-tickets.api.test.ts` | Pending |
+| API-28 | API | FR-18, BR-09, AC-23 | `sortBy=ticketNumber&sortDir=asc/desc` orders by ticket number; invalid `sortBy=ticketNo` → 400 | Rows ordered lexicographically per direction; invalid value rejected with 400 | `server/tests/lab-02/my-tickets.api.test.ts` | Pending |
 
 ### 2.3 UI (client, component tests with mocked API)
 
@@ -73,6 +76,9 @@ Test files live under `server/tests/lab-02/` and `client/tests/lab-02/`. API and
 | UI-10 | UI | BR-13, AC-18 | Create/list/download failure preserves input and offers retry | Inline alert + retry; form values intact after failure | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
 | UI-11 | UI | FR-16, AC-20 | Accessibility: required asterisk, `aria-describedby` error wiring, visible focus on keyboard nav | Assertions on `aria-invalid`, `aria-describedby`, focus outline visibility, label associations | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
 | UI-12 | UI | FR-17, AC-22 | Related system select renders seeded options; selection sends correct `relatedSystemId` in create payload; detail shows the chip | Options loaded from API; selected ID sent in request; detail shows related system chip | `client/tests/lab-02/ui/createTicket.test.tsx` | Pending |
+| UI-13 | UI | FR-18, BR-20/21, AC-23 | New IT Priority / Current Status filters issue correct `itPriority`/`status` params; any filter change resets page to 1; search placeholder is "Search by ticket number or summary." | Requests carry the new params exactly when set; page reset asserted on change | `client/tests/lab-02/MyTickets.test.tsx` | Pending |
+| UI-14 | UI | FR-18, FR-16, AC-20/23 | Sortable headers cycle asc/desc with stacked carets and `aria-sort`; switching column applies its natural default direction (Ticket No. → asc, dates → desc) | aria-sort toggling asserted per click; direction defaults asserted on column switch | `client/tests/lab-02/MyTickets.test.tsx` | Pending |
+| UI-15 | UI | FR-04, AC-11/23 | Pagination footer "Showing X to Y of Z tickets" (aria-live polite); window 1–5 + ellipsis + last page; active page solid green with aria-current; bounds disabled; page change scrolls to top | Window shapes and showing text asserted against stubbed multi-page meta | `client/tests/lab-02/MyTickets.test.tsx` | Pending |
 
 ### 2.4 E2E (client, Playwright)
 
@@ -113,12 +119,13 @@ Every AC (specification.md §9) maps to at least one planned test:
 | AC-20 Accessibility | UI-11 |
 | AC-21 Dev identity edge cases (400/401/403) | API-01, API-02, API-03 |
 | AC-22 Related system selection | API-22, API-23, API-24, API-25, UI-12, E2E-06 |
+| AC-23 Extended list fields/filters (v2) | API-26, API-27, API-28, UI-13, UI-14, UI-15 |
 
 ## 4. Responsive and Visual Checklist (manual pass)
 
 Performed against the running app at the three breakpoints in ui-spec.md §7 (desktop ≥ 992px, tablet 768–991px, mobile < 768px):
 
-- [ ] My Tickets renders as a 7-column table on desktop (Ticket #, Title, Category, Priority, Status, Related Systems, Created); reduced columns on tablet; stacked cards on mobile.
+- [ ] My Tickets renders the 9-column v2 fluid table on desktop/tablet (Ticket No., Created Date, Summary, Category, Requested Priority, IT Priority, Current Status, Ticket Owner, Last Updated); stacked cards on mobile.
 - [ ] Create Ticket form is two-column on desktop/tablet, stacked full-width on mobile.
 - [ ] No horizontal scroll or clipped content at any breakpoint (verify with `document.documentElement.scrollWidth <= innerWidth`).
 - [ ] Touch targets ≥ 44×44px on mobile (buttons, pagination, attachment actions, nav).
@@ -129,7 +136,7 @@ Performed against the running app at the three breakpoints in ui-spec.md §7 (de
 - [ ] Focus ring visible on keyboard navigation; contrast of body text and primary buttons ≥ 4.5:1.
 - [ ] Priority/status badges show text labels (never color-only); Critical badge distinct from High.
 - [ ] Empty vs no-results states visually distinct with correct CTAs.
-- [ ] Pagination shows "Showing X–Y of Z"; Prev/Next disabled at bounds.
+- [ ] Pagination shows "Showing X to Y of Z tickets"; Prev/Next disabled at bounds.
 - [ ] Attachment chips show all five states (Active / Uploading / Invalid / Removed / Unavailable).
 
 ## 5. Test Commands
@@ -240,7 +247,7 @@ Deviations / notes:
 ## 7. Known Limitations
 
 - **Identity is simulated.** Tests assert per-requester isolation via `X-Dev-Requester-Id`, which is a testing mechanism, not real authentication; real auth is out of scope and untested.
-- **Status is fixed at New.** No lifecycle tests exist because no lifecycle exists this sprint; the `Status` enum will be extended by a later migration.
+- **Status is fixed at New on creation.** The Status enum now also contains OPEN/PENDING/IN_PROGRESS/RESOLVED (My Tickets v2), but no transitions exist this sprint — tickets are only ever created as NEW and the extended values appear solely in seeded demo data and filters (BR-02, D-17).
 - **Search is substring-based** (ILIKE), not full-text; precision/recall characteristics differ from a production search engine.
 - **Attachments are stored on local disk** (`server/uploads/`); durability, virus scanning, and object storage are out of scope.
 - **No server-side idempotency.** Duplicate-submission prevention is client-side; a network retry can legitimately create two tickets (documented decision D-06).

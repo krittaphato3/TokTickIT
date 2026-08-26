@@ -199,13 +199,15 @@ Returns all seeded Related Systems, ordered by id. This is a public endpoint (no
 |---|---|---|---|
 | `page` | integer | 1 | ≥ 1 |
 | `pageSize` | integer | 10 | 1–50 |
-| `search` | string | — | trimmed; case-insensitive substring over title OR description; empty/absent = no search |
+| `search` | string | — | trimmed; case-insensitive substring over ticketNumber OR title OR description (v2); empty/absent = no search |
 | `categoryId` | integer | — | must reference an existing Category |
 | `priority` | enum | — | `LOW`, `MEDIUM`, `HIGH`, `CRITICAL` |
-| `sortBy` | enum | `createdAt` | `createdAt`, `updatedAt`, `title`, `priority` |
+| `itPriority` | enum (v2) | — | `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`; exact match on the stored IT priority, never falls back to the requested priority (BR-20) |
+| `status` | enum (v2) | — | `NEW`, `OPEN`, `PENDING`, `IN_PROGRESS`, `RESOLVED` (BR-21) |
+| `sortBy` | enum | `createdAt` | `createdAt`, `updatedAt`, `title`, `priority`, `ticketNumber` (v2) |
 | `sortDir` | enum | `desc` | `asc`, `desc` |
 
-Semantics (BR-07 … BR-10): all criteria combine with **AND**; `priority` sorts by rank (Critical 4 > High 3 > Medium 2 > Low 1); only the active requester's tickets are ever counted or returned.
+Semantics (BR-07 … BR-10, BR-20, BR-21): all criteria combine with **AND**; `priority` and `itPriority` sort/filter by rank (Critical 4 > High 3 > Medium 2 > Low 1); only the active requester's tickets are ever counted or returned.
 
 **`200 OK`:**
 
@@ -219,6 +221,8 @@ Semantics (BR-07 … BR-10): all criteria combine with **AND**; `priority` sorts
       "description": "Screen stays black after the latest OS update.",
       "status": "NEW",
       "priority": "HIGH",
+      "itPriority": "HIGH",
+      "ownerName": "Sarah Johnson",
       "category": { "id": 2, "name": "Hardware" },
       "relatedSystem": { "id": 3, "name": "Printer" },
       "createdAt": "2026-08-18T09:30:00.000Z",
@@ -244,8 +248,10 @@ Empty result sets return `data: []` and `totalItems: 0` (see empty-state handlin
 |---|---|---|
 | `page` < 1 or non-integer | 400 | `page must be an integer >= 1` |
 | `pageSize` outside 1–50 | 400 | `pageSize must be between 1 and 50` |
-| Invalid `sortBy` / `sortDir` | 400 | `sortBy must be one of createdAt, updatedAt, title, priority` / `sortDir must be asc or desc` |
+| Invalid `sortBy` / `sortDir` | 400 | `sortBy must be one of createdAt, updatedAt, title, priority, ticketNumber` / `sortDir must be asc or desc` |
 | Invalid `priority` filter | 400 | `priority must be one of LOW, MEDIUM, HIGH, CRITICAL` |
+| Invalid `itPriority` filter (v2) | 400 | `itPriority must be one of LOW, MEDIUM, HIGH, CRITICAL` |
+| Invalid `status` filter (v2) | 400 | `status must be one of NEW, OPEN, PENDING, IN_PROGRESS, RESOLVED` |
 | `categoryId` references a nonexistent Category | 400 | `categoryId does not reference an existing category` |
 | Header errors | 400/401/403 | see §1.1 |
 | Unexpected server error | 500 | generic message |
