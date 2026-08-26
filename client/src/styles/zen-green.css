@@ -32,6 +32,23 @@ body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:va
 .tok-req-caption{font-size:.8125rem;color:var(--tok-text-muted)}
 .tok-req-select:focus-visible,.tok-nav a:focus-visible{outline:none;box-shadow:var(--tok-ring);border-color:var(--tok-primary)}
 
+/* ============ Profile dropdown (mockup: AccountSelection_Demo) ============ */
+.tok-profile{position:relative;flex:none}
+.tok-profile-btn{display:inline-flex;align-items:center;gap:.5rem;background:none;border:none;cursor:pointer;
+  color:var(--tok-text);font-weight:600;font-size:.9375rem;padding:.4rem .625rem;border-radius:.5rem}
+.tok-profile-btn:hover{background:#F2F2F2}
+.tok-profile-btn svg{color:var(--tok-secondary)}
+.tok-profile-btn:focus-visible{outline:3px solid rgba(0,107,60,.28);outline-offset:2px;border-radius:.5rem}
+.tok-profile-caret{font-size:.8rem;color:var(--tok-text)}
+.tok-profile-menu{position:absolute;right:0;top:calc(100% + 8px);min-width:300px;background:var(--tok-surface);
+  border:1px solid var(--tok-border);border-radius:.625rem;padding:.5rem;box-shadow:0 8px 24px rgba(30,42,37,.14);z-index:200}
+.tok-profile-head{font-size:.78rem;color:var(--tok-text-muted);padding:.375rem .625rem .25rem;text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+.tok-profile-account{font-weight:600;color:var(--tok-text);background:var(--tok-primary-soft);
+  border-radius:.5rem;padding:.625rem .75rem;word-break:break-word;font-size:.875rem}
+.tok-profile-item{display:block;width:100%;text-align:left;margin-top:.375rem;padding:.5625rem .625rem;border:none;
+  border-radius:.5rem;background:none;color:var(--tok-primary);font-weight:600;cursor:pointer}
+.tok-profile-item:hover{background:var(--tok-primary-soft)}
+
 /* ============ PAGE FRAME ============ */
 .tok-main{max-width:1200px;margin:0 auto;padding:1.5rem 1rem 3rem}
 @media (min-width:992px){.tok-main{padding:1.75rem 1.5rem 3rem}}

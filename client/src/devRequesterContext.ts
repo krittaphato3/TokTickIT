@@ -8,6 +8,9 @@ export interface DevRequesterState {
   activeRequester: Requester | null;
   status: DevRequesterStatus;
   selectRequester: (id: number) => void;
+  // Clears the active requester (profile "Change requester" action) and any
+  // persisted selection, returning the UI to the unselected state.
+  clearRequester: () => void;
   retry: () => void;
 }
 

@@ -3,6 +3,7 @@ import type { Category } from './api';
 import { checkSystem } from './api';
 import { DevRequesterProvider } from './DevRequesterProvider';
 import RequesterSelector from './RequesterSelector';
+import ProfileHeader from './ProfileHeader';
 import CreateTicketPage from './components/CreateTicketPage';
 import MyTicketsPage from './components/MyTicketsPage';
 import { useDevRequester } from './devRequesterContext';
@@ -95,6 +96,7 @@ function AppHeader({
         </a>
       </nav>
       <RequesterSelector />
+      <ProfileHeader onClear={() => onNavigate('#/tickets')} />
     </header>
   );
 }
