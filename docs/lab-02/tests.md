@@ -1,6 +1,6 @@
 # CPE 334 Lab 2 — TokTickIT Requester Ticketing MVP: Test Plan
 
-- **Status:** Draft v1.0 — Issue #13 rows (**UT-01, API-01..06, API-21, API-22, API-23, API-24**), Issue #14 rows (**UI-01, UI-02, UI-03**) and Issue #15 rows (**UT-02, UT-03, API-07..API-11, API-20**) are **Pass**; all other rows remain **Pending** until their owning issue is implemented.
+- **Status:** Draft v1.0 — Issue #13 rows (**UT-01, API-01..06, API-21, API-22, API-23, API-24**), Issue #14 rows (**UI-01, UI-02, UI-03**), Issue #15 rows (**UT-02, UT-03, API-07..API-11, API-20**) and Issue #16 rows (**UI-04, UI-05, UI-06, UI-10, UI-11**) are **Pass**; all other rows remain **Pending** until their owning issue is implemented.
 - **Companion documents:** [`specification.md`](./specification.md), [`api-spec.md`](./api-spec.md), [`ui-spec.md`](./ui-spec.md)
 
 ---
@@ -64,14 +64,14 @@ Test files live under `server/tests/lab-02/` and `client/tests/lab-02/`. API and
 | UI-02 | UI | BR-12, AC-05 | Submit button busy/disabled while request in flight; rapid double-click | Exactly one create call; button shows "Submitting…" and ignores repeat clicks | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
 | UI-03 | UI | FR-01, AC-01 | Successful create with mocked API | Navigates to detail / shows success with generated ticket number | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
 | UI-03a (extra) | UI | AC-20 | Visible labels wired via for/id; aria-invalid + aria-describedby on invalid fields; focus moves to first invalid field; attachment picker allowlist/5 MB/5-cap client rules | Label/control wiring asserted; error slot referenced by aria-describedby; picker rejects bad type, > 5 MB, 6th file | `client/tests/lab-02/CreateTicket.test.tsx` | Pass |
-| UI-04 | UI | FR-04/15, AC-11/18 | My Tickets renders skeleton while loading, then rows; failure shows error + Try again | Loading skeleton visible; rows render; error banner + retry re-fetches | `client/tests/lab-02/ui/ticketList.test.tsx` | Pending |
-| UI-05 | UI | FR-15, AC-17 | Empty list vs no-results states | "No tickets yet" + CTA when zero tickets; "No results match your filters" + Clear filters when filters match nothing | `client/tests/lab-02/ui/ticketList.test.tsx` | Pending |
-| UI-06 | UI | FR-05/06/07, AC-08/09/10 | Search, category/priority filters, sort control issue correct API params; Clear filters resets | Requests carry `search`/`categoryId`/`priority`/`sortBy`/`sortDir`; clear resets to defaults | `client/tests/lab-02/ui/ticketList.test.tsx` | Pending |
+| UI-04 | UI | FR-04/15, AC-11/18 | My Tickets renders skeleton while loading, then rows; failure shows error + Try again | Loading skeleton visible; rows render; error banner + retry re-fetches | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
+| UI-05 | UI | FR-15, AC-17 | Empty list vs no-results states | "No tickets yet" + CTA when zero tickets; "No results match your filters" + Clear filters when filters match nothing | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
+| UI-06 | UI | FR-05/06/07, AC-08/09/10 | Search, category/priority filters, sort control issue correct API params; Clear filters resets | Requests carry `search`/`categoryId`/`priority`/`sortBy`/`sortDir`; clear resets to defaults | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
 | UI-07 | UI | FR-13, AC-16 | Requester switch reloads list and clears search/filters/pagination | All list API calls after switch use new `X-Dev-Requester-Id`; context reset; caption visible | `client/tests/lab-02/ui/requesterSelector.test.tsx` | Pending |
 | UI-08 | UI | FR-09/13, AC-13/14 | Attachment picker: oversize/unsupported file errors inline; 5-limit disables picker | Per-file invalid chip + message; "limit reached" caption; no upload attempted | `client/tests/lab-02/ui/attachments.test.tsx` | Pending |
 | UI-09 | UI | FR-12, AC-15 | Remove attachment flow with inline confirm; chip becomes Removed | Confirm dialog; after remove, chip grayed + "Removed" badge; download action gone | `client/tests/lab-02/ui/attachments.test.tsx` | Pending |
-| UI-10 | UI | BR-13, AC-18 | Create/list/download failure preserves input and offers retry | Inline alert + retry; form values intact after failure | `client/tests/lab-02/ui/ticketList.test.tsx` | Pending |
-| UI-11 | UI | FR-16, AC-20 | Accessibility: required asterisk, `aria-describedby` error wiring, visible focus on keyboard nav | Assertions on `aria-invalid`, `aria-describedby`, focus outline visibility, label associations | `client/tests/lab-02/ui/a11y.test.tsx` | Pending |
+| UI-10 | UI | BR-13, AC-18 | Create/list/download failure preserves input and offers retry | Inline alert + retry; form values intact after failure | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
+| UI-11 | UI | FR-16, AC-20 | Accessibility: required asterisk, `aria-describedby` error wiring, visible focus on keyboard nav | Assertions on `aria-invalid`, `aria-describedby`, focus outline visibility, label associations | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
 | UI-12 | UI | FR-17, AC-22 | Related system select renders seeded options; selection sends correct `relatedSystemId` in create payload; detail shows the chip | Options loaded from API; selected ID sent in request; detail shows related system chip | `client/tests/lab-02/ui/createTicket.test.tsx` | Pending |
 
 ### 2.4 E2E (client, Playwright)
@@ -202,6 +202,39 @@ Deviations / notes:
 - Fixture tickets use reserved `TTK-<year>-9xxxxx` numbers so they never collide with sequence-issued numbers; the suite sweeps that band on start to self-heal after interrupted runs.
 
 _Peer-review addendum (PR #27):_ the reviewer asked whether `%`, `_`, and `\` are escaped before ILIKE. Verification found the page query escaped correctly but the count path (Prisma `contains`) did not, so a term containing `%` or `_` behaved as a wildcard in `totalItems` while matching literally in `data`. Fixed by sharing one escaped ILIKE fragment (`buildIlikePattern` → `buildSearchFilter`) across the page query and the count; a wildcard-consistency test was added (red: `expected 3 to be 1`, green after fix). Suite now 60/60.
+
+### Issue #16 — My Tickets UI (UI-04, UI-05, UI-06, UI-10, UI-11)
+
+_Issue #16 (My Tickets UI) recorded 2026-08-25._
+
+Commands executed (from `client/`):
+
+```bash
+npx vitest run tests/lab-02/MyTickets.test.tsx
+npx vitest run          # full client suite
+npm run build           # typecheck/build gate
+```
+
+Outcomes:
+
+| Test ID | Outcome | Notes |
+|---|---|---|
+| UI-04 | Pass | Exactly 3 shimmer skeleton rows while in flight; rows + "Showing X–Y of Z" after resolve; every list call carries `X-Dev-Requester-Id`; error banner (`role="alert"`) with Try again re-fetches the current params |
+| UI-05 | Pass | "No tickets yet" + "Create your first ticket" CTA at zero tickets/defaults; distinct "No results match your filters" when a non-default category matches nothing (stub returns empty only for that categoryId) |
+| UI-06 | Pass | Search debounced 300ms into exactly one request; categoryId/priority/sort select map to correct params incl. all six sort labels; Clear filters appears only when non-default and restores defaults |
+| UI-10 | Pass | Failure preserves filter inputs; retry re-fetches with the same search param and clears the banner |
+| UI-11 | Pass | All six column headers with `scope="col"`; text-label badges for all four priorities + status New (dot glyph); monospace ticket-number links with accessible names; `aria-live="polite"` busy region; `aria-current="page"` on pagination |
+
+Totals: **13/13 passing in MyTickets.test.tsx** (the 5 planned test IDs plus pagination bounds/window and BR-05 requester-switch coverage); full client suite **29/29 across 6 files**; build gate clean. The red→green cycle was real: the initial red phase had **11/11 tests failing** on the missing `MyTicketsPage` module/route (placeholder still rendered), before implementation turned them green.
+
+Deviations / notes:
+
+- Test file placed at `client/tests/lab-02/MyTickets.test.tsx` per protocol §4 mandatory path; the tests.md Automated Test File column for UI-04/05/06/10/11 was repointed from the original `ui/ticketList.test.tsx` / `ui/a11y.test.tsx` plan.
+- ui-spec §10 corrected from a 7-column table (with Related System filter/column) to the shipped 6-column contract — matching Issue #16 scope, the approved mockup, and the GET /api/tickets API, which exposes no relatedSystemId filter; §7 desktop wording updated to 6 columns accordingly.
+- BR-05 requester-switch reset was added after QA review: the list screen is keyed by active requester id in App.tsx, so switching remounts with defaults instead of refetching the previous requester's filters/page (which could render a blank stale-page state).
+- Pagination numbered-button window capped at 5 whenever totalPages > 5 after QA review (totalPages = 6 previously rendered six buttons); shapes are now `1 … x y z … N` with first/last caps always present.
+- Evidence screenshots in `artifacts/lab-02/screenshots/my-tickets/` (desktop/tablet/mobile + state-initial/state-api-failure/state-no-results/state-empty) captured against the live seeded stack via `client/scripts/my-tickets-shots.mjs`.
+
 
 
 ## 7. Known Limitations
