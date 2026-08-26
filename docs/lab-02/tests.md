@@ -281,7 +281,7 @@ Deviations / notes:
 - **Search scope:** now ticketNumber OR title OR description (api-spec §3.2), with the shared escaped-ILIKE fragment unchanged so rows and `totalItems` cannot diverge.
 - **`itPriority` filter never falls back** to the requested priority (BR-20): a ticket whose IT priority is NULL is only matched by the absence of the filter.
 - **Loading behavior:** sort/filter/pagination refreshes keep the table mounted (`status` stays `ready` during background refetch) so the header the user just clicked is never detached mid-interaction; the skeleton appears only on the initial load and after an error retry.
-- **Demo seed:** Alpha = 42 tickets (6 pages at pageSize 8), Beta/Gamma/Delta = 10 each, statuses spread across the extended enum, `itPriority` sometimes equal/different/null, `ownerName` from the fixed pool with some null. Seed wipes the dev-requesters' demo band and stray manual tickets so re-runs converge; the E2E suite creates its fixtures as Dev User Delta so the Alpha/Beta counts stay deterministic for the responsive/ownership assertions.
+- **Demo seed:** Alpha = 42 tickets (5 pages at pageSize 10), Beta/Gamma/Delta = 10 each, statuses spread across the extended enum, `itPriority` sometimes equal/different/null, `ownerName` from the fixed pool with some null. Seed wipes the dev-requesters' demo band and stray manual tickets so re-runs converge; the E2E suite creates its fixtures as Dev User Delta so the Alpha/Beta counts stay deterministic for the responsive/ownership assertions.
 - **E2E evidence screenshots** refreshed in `artifacts/lab-02/screenshots/my-tickets/` (desktop-1280, tablet-800, mobile-375 + state-initial/api-failure/no-results/empty) against the rebuilt Docker stack.
 
 ## 7. Known Limitations

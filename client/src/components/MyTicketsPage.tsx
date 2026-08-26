@@ -31,7 +31,9 @@ const NATURAL_DIR: Record<SortBy, SortDir> = {
 
 const DEFAULT_SORT: SortState = { key: 'createdAt', dir: 'desc' };
 
-const PAGE_SIZE = 8;
+// Issue #30 follow-up: the list shows 10 tickets per page (the API default),
+// so the seeded 42-ticket Alpha set spans 5 pages.
+const PAGE_SIZE = 10;
 const SEARCH_DEBOUNCE_MS = 300;
 
 const STATUS_LABELS: Array<{ value: TicketStatus | ''; label: string }> = [

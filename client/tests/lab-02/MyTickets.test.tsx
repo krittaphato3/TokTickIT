@@ -390,8 +390,11 @@ describe('UI-13 — nine-column table with sortable headers cycling aria-sort', 
 });
 
 describe('UI-14 — pagination window, showing text, bounds, scroll reset', () => {
-  // 55 tickets → 6 pages; exercises both ellipsis shapes.
-  const MANY = SeedMany(57);
+  // Issue #30 follow-up: page size is now 10. 57 tickets -> 6 pages (all
+  // listed, no ellipsis); 85 tickets -> 9 pages (ellipsis shapes).
+  const PAGE = 10;
+  const SIX = SeedMany(57);
+  const NINE = SeedMany(85);
 
   function SeedMany(count: number): SeedTicket[] {
     return Array.from({ length: count }, (_, i) => {
@@ -409,25 +412,26 @@ describe('UI-14 — pagination window, showing text, bounds, scroll reset', () =
     });
   }
 
-  function manyPage(url: string) {
-    const params = new URL(url).searchParams;
-    const page = Number(params.get('page') ?? '1');
-    const start = (page - 1) * 8;
-    const slice = MANY.slice(start, start + 8);
-    return jsonResponse({
-      data: slice.map(makeTicket),
-      meta: makeMeta(MANY.length, page, 8),
-    });
+  function paged(items: SeedTicket[]) {
+    return (url: string) => {
+      const params = new URL(url).searchParams;
+      const page = Number(params.get('page') ?? '1');
+      const start = (page - 1) * PAGE;
+      const slice = items.slice(start, start + PAGE);
+      return jsonResponse({
+        data: slice.map(makeTicket),
+        meta: makeMeta(items.length, page, PAGE),
+      });
+    };
   }
 
-  it('shows "Showing 1 to 8 of 57 tickets" with window 1..5 … 8', async () => {
-    fetchHandler = manyPage;
+  it('shows "Showing 1 to 10 of 57 tickets" with all six pages listed', async () => {
+    fetchHandler = paged(SIX);
     await openTicketsList();
-    expect(await screen.findByText(/Showing 1 to 8 of 57 tickets/)).toBeInTheDocument();
+    expect(await screen.findByText(/Showing 1 to 10 of 57 tickets/)).toBeInTheDocument();
 
     const nav = screen.getByRole('navigation', { name: /pagination/i });
     const buttons = within(nav).getAllByRole('button');
-    // The ellipsis is a non-interactive <span>, so it is not a button.
     expect(buttons.map((b) => b.textContent)).toEqual([
       '‹ Previous',
       '1',
@@ -435,10 +439,10 @@ describe('UI-14 — pagination window, showing text, bounds, scroll reset', () =
       '3',
       '4',
       '5',
-      '8',
+      '6',
       'Next ›',
     ]);
-    expect(within(nav).getByText('…')).toBeInTheDocument();
+    expect(within(nav).queryByText('…')).not.toBeInTheDocument();
     expect(within(nav).getByRole('button', { name: '1' })).toHaveAttribute(
       'aria-current',
       'page',
@@ -446,44 +450,69 @@ describe('UI-14 — pagination window, showing text, bounds, scroll reset', () =
     expect(within(nav).getByRole('button', { name: '‹ Previous' })).toBeDisabled();
   });
 
-  it('mid-window shows exactly five numbered buttons around the current page', async () => {
+  it('last page of the 57 set shows the remainder and disables Next', async () => {
     const user = userEvent.setup();
-    fetchHandler = manyPage;
+    fetchHandler = paged(SIX);
     await openTicketsList();
-    await screen.findByText(/Showing 1 to 8/);
+    await screen.findByText(/Showing 1 to 10/);
+
+    await user.click(screen.getByRole('button', { name: '6' }));
+    expect(await screen.findByText(/Showing 51 to 57 of 57 tickets/)).toBeInTheDocument();
+    const lastNav = screen.getByRole('navigation', { name: /pagination/i });
+    expect(within(lastNav).getByRole('button', { name: 'Next ›' })).toBeDisabled();
+  });
+
+  it('85 tickets (9 pages) show window 1..5 … 9 with active page aria-current', async () => {
+    fetchHandler = paged(NINE);
+    await openTicketsList();
+    expect(await screen.findByText(/Showing 1 to 10 of 85 tickets/)).toBeInTheDocument();
+
+    const nav = screen.getByRole('navigation', { name: /pagination/i });
+    const buttons = within(nav).getAllByRole('button');
+    expect(buttons.map((b) => b.textContent)).toEqual([
+      '‹ Previous',
+      '1',
+      '2',
+      '3',
+      '4',
+      '5',
+      '9',
+      'Next ›',
+    ]);
+    expect(within(nav).getByText('…')).toBeInTheDocument();
+    expect(within(nav).getByRole('button', { name: '1' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  });
+
+  it('mid/last window of the 9-page set shapes correctly', async () => {
+    const user = userEvent.setup();
+    fetchHandler = paged(NINE);
+    await openTicketsList();
+    await screen.findByText(/Showing 1 to 10 of 85/);
 
     await user.click(screen.getByRole('button', { name: 'Next ›' }));
-    expect(await screen.findByText(/Showing 9 to 16 of 57 tickets/)).toBeInTheDocument();
-    const nav = screen.getByRole('navigation', { name: /pagination/i });
-    const numbers = within(nav)
-      .getAllByRole('button')
-      .map((b) => b.textContent)
-      .filter((t) => /^\d+$/.test(t));
-    expect(numbers).toEqual(['1', '2', '3', '4', '5', '8']);
-    expect(within(nav).getByText('…')).toBeInTheDocument();
+    expect(await screen.findByText(/Showing 11 to 20 of 85 tickets/)).toBeInTheDocument();
 
-    expect(within(nav).getByRole('button', { name: 'Next ›' })).toBeEnabled();
-    // Last page holds only the remainder: item 57 alone.
-    await user.click(within(nav).getByRole('button', { name: '8' }));
-    expect(await screen.findByText(/Showing 57 to 57 of 57 tickets/)).toBeInTheDocument();
+    await user.click(within(screen.getByRole('navigation', { name: /pagination/i })).getByRole('button', { name: '9' }));
+    expect(await screen.findByText(/Showing 81 to 85 of 85 tickets/)).toBeInTheDocument();
     const lastNav = screen.getByRole('navigation', { name: /pagination/i });
     expect(
       within(lastNav).getAllByRole('button').map((b) => b.textContent),
-    ).toEqual(['‹ Previous', '1', '4', '5', '6', '7', '8', 'Next ›']);
+    ).toEqual(['‹ Previous', '1', '5', '6', '7', '8', '9', 'Next ›']);
     expect(within(lastNav).getByRole('button', { name: 'Next ›' })).toBeDisabled();
   });
 
   it('changing page requests the right slice from the API', async () => {
     const user = userEvent.setup();
-    fetchHandler = manyPage;
+    fetchHandler = paged(NINE);
     await openTicketsList();
-    await screen.findByText(/Showing 1 to 8/);
+    await screen.findByText(/Showing 1 to 10/);
 
     await user.click(screen.getByRole('button', { name: '3' }));
-    // Page 3 starts at item 17 (table row + mobile card both render it).
-    expect(
-      await screen.findAllByText('TTK-2026-000017'),
-    ).not.toHaveLength(0);
+    // Page 3 of the 85 set starts at item 21 (table row + mobile card both render it).
+    expect(await screen.findAllByText('TTK-2026-000021')).not.toHaveLength(0);
     expect(listCalls[listCalls.length - 1].url).toContain('page=3');
   });
 });

@@ -12,7 +12,7 @@ test('E2E-02: Beta never sees Alpha tickets; switching reloads only own data', a
   await expect(page.getByRole('heading', { name: /my tickets/i, level: 1 })).toBeVisible();
 
   // Alpha (default) shows the seeded demo set.
-  await expect(page.getByText(/Showing 1 to 8 of 42 tickets/)).toBeVisible();
+  await expect(page.getByText(/Showing 1 to 10 of 42 tickets/)).toBeVisible();
   const alphaRow = page.getByRole('link', { name: 'TTK-2026-800000' });
   await expect(alphaRow).toBeVisible();
 

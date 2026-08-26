@@ -112,7 +112,7 @@ async function seedDemoTickets(): Promise<void> {
     throw new Error('Categories/related systems must be seeded before demo tickets');
   }
 
-  // Alpha must end up with exactly 42 tickets (pageSize 8 -> 6 pages); the
+  // Alpha must end up with exactly 42 tickets (pageSize 10 -> 5 pages); the
   // other requesters get ~10 each.
   const plans: Array<{ requesterId: number; count: number }> = [
     { requesterId: 1, count: 42 },

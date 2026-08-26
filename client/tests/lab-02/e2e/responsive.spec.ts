@@ -13,7 +13,7 @@ test('E2E-04 mobile: stacked cards, no horizontal scroll, 44px targets', async (
 }) => {
   await page.setViewportSize(MOBILE);
   await page.goto('/#/tickets');
-  await expect(page.getByText(/Showing 1 to 8 of 42 tickets/)).toBeVisible();
+  await expect(page.getByText(/Showing 1 to 10 of 42 tickets/)).toBeVisible();
 
   // Cards instead of the table.
   await expect(page.locator('.m-card').first()).toBeVisible();
@@ -36,7 +36,7 @@ test('E2E-04 tablet: filter card and content stay usable, no overflow', async ({
 }) => {
   await page.setViewportSize(TABLET);
   await page.goto('/#/tickets');
-  await expect(page.getByText(/Showing 1 to 8 of 42 tickets/)).toBeVisible();
+  await expect(page.getByText(/Showing 1 to 10 of 42 tickets/)).toBeVisible();
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
@@ -53,7 +53,7 @@ test('E2E-04 desktop: full nine-column table and two-column form', async ({
 }) => {
   await page.setViewportSize(DESKTOP);
   await page.goto('/#/tickets');
-  await expect(page.getByText(/Showing 1 to 8 of 42 tickets/)).toBeVisible();
+  await expect(page.getByText(/Showing 1 to 10 of 42 tickets/)).toBeVisible();
   await expect(page.locator('thead th')).toHaveCount(9);
   for (const header of [
     'Ticket No.',
