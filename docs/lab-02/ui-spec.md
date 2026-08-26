@@ -137,28 +137,44 @@ The Dev Requester selector stays visible at all breakpoints (compact on mobile).
 
 ## 10. Ticket list (My Tickets v2)
 
-The screen is a faithful port of the approved reference illustration [`docs/mockups/my-tickets-v032.html`](../mockups/my-tickets-v032.html). Structure, styling, badge colors, pagination window, state copy, and responsive behavior follow that file exactly; this section is the normative summary.
+The list shows **only the active Development Requester's own tickets**: every search term, filter, sort key, and page is applied within that requester's tickets (BR-06/BR-22), so switching requesters in the header selector reloads a completely independent list with search/filters/sort/page reset (BR-05).
 
-**Page head:** h1 "My Tickets", subtitle "View and track all of your support requests.", right side Clear Filters (secondary, refresh icon) + Create Ticket (primary, plus icon).
+**Page head:** left-aligned h1 "My Tickets" with subtitle "View and track all of your support requests." in muted text; on the right, two actions: **Clear Filters** (secondary style, refresh icon) and **Create Ticket** (primary style, plus icon). Below 768px the actions stack full-width under the title with 44px minimum height.
 
-**Filter card (grid):**
-- Search input with magnifier icon, placeholder "Search by ticket number or summary...", and a clear (×) button when non-empty. Debounced (300ms); matches ticket number OR title OR description.
-- Labeled selects: **Category** ("All Categories" + 4 seeded), **Requested Priority**, **IT Priority**, **Current Status** — wired to `categoryId`, `priority`, `itPriority`, `status`. Any change resets page to 1.
-- Top-right **Clear Filters** resets search, filters to defaults and re-requests page 1; an inline "Clear filters" secondary button also appears in the no-results state.
+**Filter card:** one white card containing a five-column grid (search field widest, then four equal selects); below 992px it becomes two columns with the search spanning both, below 768px everything stacks in a single column:
+- **Search input** — magnifier icon inside the left edge, placeholder "Search by ticket number or summary...", and a round clear (×) button appearing at the right edge only while the field is non-empty. Keystrokes are debounced at 300ms before re-requesting; matching is case-insensitive across ticket number OR title OR description. Clearing via × refocuses the input.
+- **Category** select — "All Categories" default plus the four seeded categories.
+- **Requested Priority** / **IT Priority** selects — each defaults to "All Priorities" plus Low/Medium/High/Critical.
+- **Current Status** select — "All Statuses" default plus Open/Pending/In Progress/Resolved.
+Any select change or committed search resets the page to 1. **Clear Filters** (page head) and the inline **Clear filters** button (no-results state) reset search and all four filters to their defaults and re-request page 1.
 
-**Desktop ≥768px fluid table (zero horizontal scroll):** width 100%; thead cells nowrap; tbody cells wrap normally with compact paddings. Columns exactly (9): Ticket No. (monospace green link) · Created Date · Summary · Category · Requested Priority (badge) · IT Priority (badge) · Current Status (badge) · Ticket Owner · Last Updated. Sortable headers show stacked carets (▲/▼ SVG pair) on Ticket No., Created Date, Last Updated and set `aria-sort="ascending"/"descending"`; clicking cycles direction; switching columns resets to its sensible default (`ticketNumber asc`, dates `desc`). Hover row highlight pale green.
+**Fluid table ≥768px (zero horizontal scroll):** the table spans 100% of its card width (`table-layout: auto`); header cells never wrap while body cells wrap normally with compact paddings (~0.69rem vertical). Columns exactly nine, in order:
 
-**Tablet 768–991px:** ALL nine columns remain visible with reduced paddings/type (thead/td 0.75rem); wrapping allowed; never hide a column, never scroll horizontally.
+| # | Column | Content | Sortable |
+|---|---|---|---|
+| 1 | Ticket No. | monospace green link → detail view | yes |
+| 2 | Created Date | local date + time | yes |
+| 3 | Summary | ticket title, wraps | no |
+| 4 | Category | plain text | no |
+| 5 | Requested Priority | badge (§11) | no |
+| 6 | IT Priority | badge (§11), "Unset" when null (BR-20) | no |
+| 7 | Current Status | badge (§11) | no |
+| 8 | Ticket Owner | plain text, muted "Unassigned" when null (BR-20) | no |
+| 9 | Last Updated | local date + time | yes |
 
-**Mobile < 768px cards:** table hidden; each ticket = card with row 1 (ticket link + created date), bold summary, a three-badge row (Requested Priority · IT Priority · Current Status), and meta rows "Category · Owner" and "Updated <date>". Touch targets ≥ 44px (card link min-height 44px, page buttons 44px, selects/inputs min-height 44px, stacked single-column filter card). No horizontal scroll.
+Sortable headers render a stacked caret pair (small up-triangle above down-triangle; the active direction fills with `--tok-primary`) and expose `aria-sort="ascending"` / `"descending"`. Clicking the active column flips its direction; switching columns applies the new column's sensible default — Ticket No. ascending, either date descending. Rows highlight pale green on hover.
 
-**Pagination footer:** left "Showing X to Y of Z tickets" (`aria-live="polite"`); right ‹ Previous / numbered buttons (window 1–5 + ellipsis + last page when totalPages > 7; active page solid green with `aria-current="page"`; bounds disabled) / Next ›. Page change scrolls the list back to the top.
+**Tablet 768–991px:** all nine columns stay visible; header/body type drops to 0.75rem with reduced paddings, badge text shrinks slightly, and long ticket numbers may wrap. Hiding columns or introducing horizontal scroll at this width is a defect.
+
+**Mobile < 768px cards:** the table is replaced by vertically stacked cards, each showing: row 1 = ticket-number link + created date (right-aligned, muted); bold summary line; a three-badge row (Requested Priority · IT Priority · Current Status); meta lines "Category · Owner" and "Updated <date>". The card link has a 44px minimum tap height; filter inputs/selects and pagination buttons are also ≥44px tall. No horizontal scroll at any mobile width.
+
+**Pagination footer:** card footer split left/right. Left: "Showing X to Y of Z tickets" marked `aria-live="polite"` so screen readers announce page changes (renders "Showing 0 to 0 of 0 tickets" for empty results). Right: a `<nav>` pager with ‹ Previous, numbered buttons, then Next ›. Numbered windows: pages 1–5 listed when ≤7 total; otherwise `1 2 3 4 5 … last`, `1 … x-1 x x+1 … last`, or `1 … last-4 … last` depending on position. The active page is solid green with `aria-current="page"`; Previous/Next disable at the bounds. A page change scrolls the list back to the top.
 
 **Live states (distinct):**
-- **Loading** — shimmer skeleton rows.
-- **No tickets yet** (zero tickets, no filters) — heading + copy + "Create your first ticket" primary button.
-- **No results match your filters** (filters match nothing) — heading + copy + "Clear filters" secondary button.
-- **Failure** — alert banner "We couldn't load your tickets. Your filters are preserved." + tertiary "Try again"; all filter state is preserved across retry.
+- **Loading** — three shimmer skeleton rows (gradient bars animating left-to-right).
+- **No tickets yet** (zero tickets for this requester, no filters active) — heading + explanation copy + "Create your first ticket" primary button linking to the create form.
+- **No results match your filters** (tickets exist but criteria match nothing) — different heading + copy + "Clear filters" secondary button.
+- **Failure** — alert banner (role="alert") "We couldn't load your tickets. Your filters are preserved." + tertiary "Try again"; every filter, sort, and page value survives the failure and is reused verbatim on retry.
 
 ---
 

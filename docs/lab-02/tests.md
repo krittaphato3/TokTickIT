@@ -1,6 +1,6 @@
 # CPE 334 Lab 2 — TokTickIT Requester Ticketing MVP: Test Plan
 
-- **Status:** Draft v1.0 — Issue #13 rows (**UT-01, API-01..06, API-21, API-22, API-23, API-24**), Issue #14 rows (**UI-01, UI-02, UI-03**), Issue #15 rows (**UT-02, UT-03, API-07..API-11, API-20**) and Issue #16 rows (**UI-04, UI-05, UI-06, UI-10, UI-11**) are **Pass**; Issue #30 rows (**API-26..28, UI-13..15**) were added for My Tickets v2 and remain **Pending** until implemented; all other unlisted rows remain **Pending** until their owning issue is implemented.
+- **Status:** Draft v1.0 — Issue #13 rows (**UT-01, API-01..06, API-21, API-22, API-23, API-24**), Issue #14 rows (**UI-01, UI-02, UI-03**), Issue #15 rows (**UT-02, UT-03, API-07..API-11, API-20**) and Issue #16 rows (**UI-04, UI-05, UI-06, UI-10, UI-11**) are **Pass**; Issue #30 rows (**API-26..28, UI-13..15**) were added for My Tickets v2 (note: the prompt's proposed IDs API-22..24 / UI-12 were already allocated to Related System tests, so the next free numbers were used) and remain **Pending** until implemented; all other unlisted rows remain **Pending** until their owning issue is implemented.
 - **Companion documents:** [`specification.md`](./specification.md), [`api-spec.md`](./api-spec.md), [`ui-spec.md`](./ui-spec.md)
 
 ---

@@ -242,6 +242,8 @@ Semantics (BR-07 … BR-10, BR-20, BR-21): all criteria combine with **AND**; `p
 
 Empty result sets return `data: []` and `totalItems: 0` (see empty-state handling in ui-spec.md).
 
+`itPriority` and `ownerName` are nullable display fields owned by IT staff tooling; they are `null` until set and never influence requester-facing `priority` filtering or sorting (BR-20). Ownership is unchanged: results are always scoped to the requester identified by `X-Dev-Requester-Id` (BR-06) — every filter, search term, sort, and page is applied *within* that requester's tickets, so one requester can never see another requester's tickets through any combination of parameters.
+
 **Error cases:**
 
 | Case | Status | Error |
