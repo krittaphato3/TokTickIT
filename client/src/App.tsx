@@ -256,6 +256,10 @@ function Shell() {
           )}
         </>
       )}
+      <footer className="tok-app-footer">
+        <span>TokTickIT — Requester Ticketing MVP</span>
+        <span>Zen Green Theme · Lab 2</span>
+      </footer>
     </div>
   );
 }

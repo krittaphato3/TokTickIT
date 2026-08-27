@@ -7,7 +7,7 @@
   max-width: 1280px;
   margin: 0 auto;
   padding: 1.5rem 1rem 24px;
-  min-height: calc(100vh - 56px);
+  min-height: calc(100vh - 106px);
   display: flex;
   flex-direction: column;
 }
@@ -77,16 +77,15 @@
   text-decoration: underline;
 }
 
-/* ---------- Single unified card (toolbar + table) ---------- */
+/* ---------- Single unified card (toolbar + table) — hugs content, no dead gap ---------- */
 .mt-single-card {
+  width: 100%;
   background: var(--tok-surface);
   border: 1px solid var(--tok-border-soft);
-  border-radius: 0.75rem;
+  border-radius: 12px;
   box-shadow: var(--shadow-card, 0 1px 3px rgba(30, 42, 37, 0.08));
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
+  margin-bottom: 24px;
 }
 .mt-filter-section {
   padding: 16px 20px;
@@ -106,18 +105,13 @@
   align-items: end;
 }
 .mt-table-section {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
+  display: block;
 }
 .mt-table-card.mt-table-section {
   background: transparent;
   border: none;
   border-radius: 0;
   box-shadow: none;
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
 }
 
 /* ---------- Filter card (standalone fallback) ---------- */
@@ -359,7 +353,7 @@ td.mt-sum {
   border-color: var(--tok-border-soft);
 }
 
-/* ---------- Table footer / pagination ---------- */
+/* ---------- Table footer / pagination — sits directly under table ---------- */
 .mt-foot {
   display: flex;
   align-items: center;
@@ -367,14 +361,14 @@ td.mt-sum {
   gap: 1rem;
   flex-wrap: wrap;
   padding: 12px 20px;
-  border-top: 1px solid var(--tok-border-soft);
+  border-top: 1px solid var(--tok-border);
   background: var(--tok-surface);
-  margin-top: auto;
+  margin-top: 0;
 }
 .mt-single-card .mt-foot {
   padding: 12px 20px;
-  margin-top: auto;
-  border-top: 1px solid var(--tok-border-soft);
+  margin-top: 0;
+  border-top: 1px solid var(--tok-border);
 }
 .mt-showing {
   font-size: 0.8125rem;
@@ -582,4 +576,12 @@ td.mt-sum {
     min-width: 44px;
     height: 44px;
   }
+}
+@media (min-width: 992px) and (max-height: 800px) {
+  .mt-page { padding-top: 12px; }
+  .mt-head { margin: 8px 0 10px; }
+  .mt-filter-card.mt-filter-section { padding: 12px 16px; gap: 0.75rem; }
+  .mt-table-card thead th { padding: 6px 10px; font-size: 0.75rem; }
+  .mt-table-card tbody td { padding: 8px 12px; font-size: 0.75rem; }
+  .mt-foot { padding: 8px 16px; }
 }
