@@ -72,14 +72,14 @@ export default function TicketDetailPage({ ticketNumber, onBack }: { ticketNumbe
     }
   }
 
-  if (status === 'loading') return <main className="tok-main"><div className="tt-skeleton" /><p aria-busy="true">Loading…</p></main>;
-  if (status === 'error') return <main className="tok-main"><div role="alert">{error}</div><button onClick={load}>Retry</button><p>Testing only — not real authentication</p></main>;
+  if (status === 'loading') return <main className="mt-page td-page"><div className="tt-skeleton" /><p aria-busy="true">Loading…</p></main>;
+  if (status === 'error') return <main className="mt-page td-page"><div role="alert">{error}</div><button onClick={load}>Retry</button></main>;
   if (!ticket) return null;
 
   const attCount = ticket.attachments?.length ?? 0;
 
   return (
-    <main className="tok-main td-wrap">
+    <main className="mt-page td-page">
       <div className="td-crumbrow">
         <span className="td-crumbs">My Tickets&nbsp;&nbsp;/&nbsp;&nbsp;<b className="mono">{ticketNumber}</b></span>
         <button className="tok-btn secondary" onClick={() => onBack?.()}>← Back to My Tickets</button>
@@ -144,8 +144,6 @@ export default function TicketDetailPage({ ticketNumber, onBack }: { ticketNumbe
         <div className="td-event"><span className="td-dot"></span>Status changed Open → In Progress<span className="time">Aug 26, 2026 09:10 AM</span></div>
         <div className="td-event"><span className="td-dot"></span>Attachment added: {attCount > 0 ? 'macros-error.png' : 'none'}<span className="time">Aug 26, 2026 12:40 AM</span></div>
       </section>
-
-      <p style={{ marginTop: 16, fontSize: '.8125rem', color: '#5C6B64' }}>Testing only — not real authentication</p>
     </main>
   );
 }

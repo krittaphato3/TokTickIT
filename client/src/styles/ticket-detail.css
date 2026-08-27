@@ -1,9 +1,10 @@
-/* Ticket Detail trimmed mockup — header card + tabs */
-.td-wrap{max-width:1200px;margin:0 auto;padding:24px 24px 48px}
-.td-crumbrow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+/* Ticket Detail trimmed mockup — header card + tabs — uses shared page container (mt-page) */
+.mt-page.td-page{padding-top:24px;padding-bottom:48px}
+@media (max-width:767px){.mt-page.td-page{padding-top:16px}}
+.td-crumbrow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;width:100%}
 .td-crumbs{font-size:.875rem;color:var(--tok-text-muted)}
 .td-crumbs b{color:var(--tok-text)}
-.td-card{background:var(--tok-surface);border:1px solid #E3E8E5;border-radius:12px;box-shadow:0 1px 3px rgba(30,42,37,.08);padding:24px;margin-bottom:20px}
+.td-card{background:var(--tok-surface);border:1px solid #E3E8E5;border-radius:12px;box-shadow:0 1px 3px rgba(30,42,37,.08);padding:24px;margin-bottom:20px;width:100%}
 .td-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
 .td-field label{display:block;font-weight:700;font-size:.85rem;margin-bottom:6px}
 .td-ro{background:var(--tok-field-readonly);border:1px solid #D9E2DD;border-radius:8px;padding:9px 12px;font-size:.9rem;min-height:40px;overflow-wrap:break-word}
@@ -19,7 +20,7 @@
 .td-b-high{background:#FBE9E7;color:#C2410C;border-color:#F3C6BD}
 .td-b-critical{background:var(--tok-error);color:#fff}
 .td-b-removed{background:#E7EBE9;color:#43524C}
-.td-tabs{display:flex;gap:4px;border-bottom:1px solid var(--tok-border);margin-bottom:16px;flex-wrap:wrap}
+.td-tabs{display:flex;gap:4px;border-bottom:1px solid var(--tok-border);margin-bottom:16px;flex-wrap:wrap;width:100%}
 .td-tab{display:flex;align-items:center;gap:8px;background:none;border:none;padding:12px 16px;font-size:.92rem;font-weight:600;color:var(--tok-muted);cursor:pointer;border-bottom:3px solid transparent}
 .td-tab .count{background:#E7EBE9;color:#43524C;border-radius:999px;padding:1px 9px;font-size:.75rem}
 .td-tab.active{color:var(--tok-primary);border-bottom-color:var(--tok-primary)}
