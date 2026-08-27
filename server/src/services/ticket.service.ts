@@ -136,9 +136,11 @@ export async function resolveRequester(
 // requester id is asserted server-side (FR-14) and is never returned.
 export async function createTicket(
   prisma: PrismaClient,
-  requesterId: number,
+  requester: { id: number; name: string },
   body: unknown,
 ) {
+  const requesterId = requester.id;
+  const requesterName = requester.name;
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {
     throw new HttpError(400, 'Invalid JSON body');
   }
@@ -263,6 +265,7 @@ export async function createTicket(
         title,
         description,
         priority: priority as Priority,
+        ownerName: requesterName,
         requesterId,
         categoryId: categoryId as number,
         relatedSystemId: relatedSystemId as number,
@@ -277,6 +280,8 @@ export async function createTicket(
       description: ticket.description,
       status: ticket.status,
       priority: ticket.priority,
+      itPriority: ticket.itPriority,
+      ownerName: ticket.ownerName,
       category: { id: ticket.category.id, name: ticket.category.name },
       relatedSystem: ticket.relatedSystem
         ? { id: ticket.relatedSystem.id, name: ticket.relatedSystem.name }
@@ -525,5 +530,50 @@ export async function listTickets(
       hasNextPage: page < totalPages,
       hasPrevPage: page > 1 && totalItems > 0,
     },
+  };
+}
+
+export async function getTicketDetail(
+  prisma: PrismaClient,
+  requesterId: number,
+  ticketNumber: string,
+) {
+  if (!/^TTK-\d{4}-\d{6}$/.test(ticketNumber)) {
+    throw new HttpError(400, 'Invalid ticket number format');
+  }
+  const ticket = await prisma.ticket.findUnique({
+    where: { ticketNumber },
+    include: { category: true, relatedSystem: true, requester: true, attachments: { where: { removedAt: null } } },
+  });
+  if (!ticket) {
+    throw new HttpError(404, `Ticket ${ticketNumber} does not exist`);
+  }
+  if (ticket.requesterId !== requesterId) {
+    throw new HttpError(403, `Ticket ${ticketNumber} does not belong to this requester`);
+  }
+  return {
+    id: ticket.id,
+    ticketNumber: ticket.ticketNumber,
+    title: ticket.title,
+    description: ticket.description,
+    status: ticket.status,
+    priority: ticket.priority,
+    itPriority: ticket.itPriority,
+    ownerName: ticket.ownerName,
+    category: { id: ticket.category.id, name: ticket.category.name },
+    requester: { id: ticket.requester.id, name: ticket.requester.name, email: ticket.requester.email },
+    relatedSystem: ticket.relatedSystem
+      ? { id: ticket.relatedSystem.id, name: ticket.relatedSystem.name }
+      : null,
+    attachments: ticket.attachments.map((a) => ({
+      id: a.id,
+      fileName: a.fileName,
+      mimeType: a.mimeType,
+      sizeBytes: a.sizeBytes,
+      uploadedAt: a.uploadedAt,
+      removedAt: a.removedAt,
+    })),
+    createdAt: ticket.createdAt,
+    updatedAt: ticket.updatedAt,
   };
 }

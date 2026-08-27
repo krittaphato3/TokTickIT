@@ -155,7 +155,7 @@ Returns all seeded Related Systems, ordered by id. This is a public endpoint (no
 | `priority` | no | enum | `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`; defaults to `MEDIUM` |
 | `relatedSystemId` | yes | integer | must reference an existing RelatedSystem |
 
-**`201 Created`** — the created ticket (server assigns `ticketNumber`, `status: NEW`, `createdAt`, `updatedAt`):
+**`201 Created`** — the created ticket (server assigns `ticketNumber`, `status: NEW`, `ownerName` = creating requester's name, `createdAt`, `updatedAt`):
 
 ```json
 {
@@ -165,6 +165,8 @@ Returns all seeded Related Systems, ordered by id. This is a public endpoint (no
   "description": "Screen stays black after the latest OS update.",
   "status": "NEW",
   "priority": "HIGH",
+  "itPriority": null,
+  "ownerName": "Dev User Alpha",
   "category": { "id": 2, "name": "Hardware" },
   "relatedSystem": { "id": 3, "name": "Printer" },
   "createdAt": "2026-08-18T09:30:00.000Z",
@@ -274,6 +276,8 @@ Empty result sets return `data: []` and `totalItems: 0` (see empty-state handlin
   "description": "Screen stays black after the latest OS update.",
   "status": "NEW",
   "priority": "HIGH",
+  "itPriority": null,
+  "ownerName": "Dev User Alpha",
   "category": { "id": 2, "name": "Hardware" },
   "requester": { "id": 1, "name": "Dev User Alpha", "email": "alpha@toktickit.test" },
   "relatedSystem": { "id": 3, "name": "Printer" },

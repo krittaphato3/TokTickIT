@@ -33,7 +33,7 @@ Test files live under `server/tests/lab-02/` and `client/tests/lab-02/`. API and
 | API-01 | API | BR-06, AC-21 | `POST /api/tickets` without `X-Dev-Requester-Id` | 400 + error envelope | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
 | API-02 | API | BR-06, AC-21 | Header with unknown requester id | 401 `Unknown development requester` | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
 | API-03 | API | BR-15, AC-21 | Header with an inactive requester id (seeded Epsilon) | 403 `Requester account is inactive` | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
-| API-04 | API | FR-01/02/03, AC-01/04 | Create valid ticket with explicit priority | 201; `ticketNumber` format; `status NEW`; priority echoed | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
+| API-04 | API | FR-01/02/03, AC-01/04 | Create valid ticket with explicit priority | 201; `ticketNumber` format; `status NEW`; priority echoed; `ownerName` == requester's name and appears in `GET /api/tickets` list | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
 | API-05 | API | FR-01, AC-02/03 | Create with empty title, title > 120 chars, description > 4000 chars, missing categoryId | 400 `Validation failed` + `details` entries per field | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
 | API-06 | API | FR-01, BR-11 | Create with nonexistent categoryId and invalid priority | 400 with field-specific messages | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
 | API-07 | API | FR-04/14, AC-06 | List returns only the active requester's tickets (two requesters seeded with data) | `data` contains only requester A tickets; `totalItems` counts only A's | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |

@@ -80,8 +80,11 @@ body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:va
 .tok-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem 1.5rem}
 @media (max-width:767.98px){.tok-grid-2{grid-template-columns:1fr}}
 /* ============ CREATE TICKET DENSIFICATION (fits 1280x800 / 1366x768) ============ */
-.tok-main.tok-create-page{max-width:1200px;margin:0 auto;padding:12px 24px 0;min-height:calc(100vh - 106px);display:flex;flex-direction:column}
-.tok-create-card{padding:20px 28px 16px !important;border-radius:12px !important;margin-bottom:12px !important;flex:0 0 auto}
+.tok-main.tok-create-page{width:100%;max-width:1200px;margin:0 auto;padding:12px 24px 0;min-height:calc(100vh - 106px);display:flex;flex-direction:column}
+@media (max-width:767.98px){ .tok-main.tok-create-page{width:100%;padding:12px 16px 0} }
+.tok-create-card{width:100% !important;max-width:1080px !important;margin-left:auto !important;margin-right:auto !important;padding:20px 28px 16px !important;border-radius:12px !important;margin-bottom:12px !important;flex:0 0 auto}
+@media (min-width:768px) and (max-width:991.98px){ .tok-create-card{max-width:760px !important} }
+@media (max-width:767.98px){ .tok-create-card{max-width:100% !important} }
 .tok-create-card .tok-section-label{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--tok-secondary);margin:0 0 10px;font-weight:700}
 .tok-create-card .tok-divider{border:0 !important;border-top:0 !important;margin:14px 0 !important;height:0}
 .tok-create-card .tok-grid-2{gap:14px 20px !important}
@@ -171,6 +174,7 @@ body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:va
 
 /* ============ REQUESTER SELECTION POLISH (Spec 3 — densified centered) ============ */
 .tok-selection-page{
+  width:100%;
   min-height:calc(100vh - 106px);
   display:flex;
   flex-direction:column;
