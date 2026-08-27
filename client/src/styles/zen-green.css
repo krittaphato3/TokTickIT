@@ -59,6 +59,9 @@ body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:va
 .tok-breadcrumb .sep{margin:0 .375rem;color:var(--tok-border)}
 .tok-breadcrumb .current{color:var(--tok-text);font-weight:600}
 .tok-page-title{font-size:1.5rem;font-weight:700;margin:0 0 1.25rem}
+/* Create Ticket densified head overrides */
+.tok-main.tok-create-page .tok-breadcrumb{font-size:.8125rem;margin:0}
+.tok-main.tok-create-page .tok-page-title{font-size:1.35rem;margin:4px 0 12px;line-height:1.2}
 
 /* ============ CARD + SECTIONS ============ */
 .tok-card{background:var(--tok-surface);border:1px solid var(--tok-border-soft);border-radius:var(--tok-radius-card);box-shadow:var(--tok-shadow);padding:2rem}
@@ -67,6 +70,41 @@ body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:va
 .tok-divider{border:0;border-top:1px dashed var(--tok-border);margin:1.625rem 0}
 .tok-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem 1.5rem}
 @media (max-width:767.98px){.tok-grid-2{grid-template-columns:1fr}}
+/* ============ CREATE TICKET DENSIFICATION (fits 1280x800 / 1366x768) ============ */
+.tok-main.tok-create-page{max-width:1200px;margin:0 auto;padding:12px 24px 0;min-height:calc(100vh - 60px);display:flex;flex-direction:column}
+.tok-create-card{padding:20px 28px 16px !important;border-radius:12px !important;margin-bottom:16px !important;flex:0 0 auto}
+.tok-create-card .tok-section-label{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--tok-secondary);margin:0 0 10px;font-weight:700}
+.tok-create-card .tok-divider{border:0 !important;border-top:0 !important;margin:14px 0 !important;height:0}
+.tok-create-card .tok-grid-2{gap:14px 20px !important}
+.tok-create-card .tok-label{font-size:.875rem;margin-bottom:4px !important}
+.tok-create-card .tok-input,.tok-create-card .tok-select{height:42px !important;min-height:42px !important;padding:.5rem .75rem !important;font-size:.9375rem}
+.tok-create-card .tok-textarea{min-height:78px !important;max-height:140px !important;resize:vertical !important;line-height:1.5}
+.tok-create-card .tok-hint{margin-top:4px !important;font-size:.8125rem !important}
+.tok-create-card .tok-dropzone{padding:16px !important;font-size:.875rem !important;min-height:0 !important}
+.tok-create-card .tok-dropzone svg{width:20px !important;height:20px !important;margin-bottom:2px !important}
+.tok-create-card .tok-dropzone .tok-formats{margin-top:4px !important;font-size:.75rem !important}
+.tok-create-card .tok-actions{border-top:1px solid var(--tok-border-soft) !important;margin-top:14px !important;padding-top:12px !important;margin-bottom:0 !important;display:flex;justify-content:flex-end;gap:.75rem}
+.tok-create-card .tok-actions .tok-btn{min-height:40px !important;height:40px !important;padding:0 1.25rem !important}
+.tok-create-card .tok-actions .tok-btn.secondary,.tok-create-card .tok-actions .tok-btn.primary{font-size:.9375rem}
+.tok-create-card .tok-field{margin-bottom:8px !important}
+.tok-create-card .tok-field[style]{margin-bottom:10px !important}
+@media (max-width:767.98px){
+  .tok-main.tok-create-page{padding:8px 16px 0}
+  .tok-create-card{padding:16px 18px 12px !important}
+  .tok-create-card .tok-input,.tok-create-card .tok-select{height:44px !important;min-height:44px !important}
+  .tok-create-card .tok-actions .tok-btn{height:44px !important;min-height:44px !important}
+}
+@media (min-width:992px) and (max-height:800px){
+  .tok-main.tok-create-page{padding-top:4px !important}
+  .tok-create-card{padding:8px 16px 6px !important}
+  .tok-create-card .tok-textarea{min-height:46px !important;max-height:78px !important}
+  .tok-create-card .tok-dropzone{padding:8px !important}
+  .tok-create-card .tok-actions{padding-top:4px !important; margin-top:6px !important}
+  .tok-create-card .tok-section-label{margin:0 0 3px !important}
+  .tok-create-card .tok-divider{margin:4px 0 !important}
+  .tok-create-card .tok-grid-2{gap:6px 12px !important}
+  .tok-create-card .tok-field{margin-bottom:4px !important}
+}
 
 /* ============ FIELDS ============ */
 .tok-label{display:block;font-size:.875rem;font-weight:600;color:var(--tok-text);margin-bottom:.375rem}
@@ -121,26 +159,27 @@ body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:va
 .tok-spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:tokspin .7s linear infinite}
 @keyframes tokspin{to{transform:rotate(360deg)}}
 
-/* ============ REQUESTER SELECTION POLISH (Spec Part 2) ============ */
+/* ============ REQUESTER SELECTION POLISH (Spec 3 — densified centered) ============ */
 .tok-selection-page{
-  min-height:calc(100vh - 60px);
+  min-height:calc(100vh - 56px);
   display:flex;
   flex-direction:column;
   justify-content:center;
   align-items:center;
   padding:32px 16px;
-  background:var(--tok-page-bg);
+  background: radial-gradient(1200px 400px at 50% 0%, #EAF6EF 0%, #F5F7F6 60%);
 }
 .tok-selection-shell{
   width:100%;
-  max-width:960px;
+  max-width:680px;
   display:flex;
   flex-direction:column;
   align-items:stretch;
 }
 .tok-selection-shell .tok-breadcrumb{
   width:100%;
-  margin-bottom:12px;
+  align-self:stretch;
+  margin-bottom:10px;
 }
 .tok-selection-card{
   width:100%;
@@ -149,7 +188,8 @@ body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:va
   border:1px solid var(--tok-border-soft);
   border-radius:var(--tok-radius-card);
   box-shadow:var(--tok-shadow);
-  padding:48px 56px;
+  padding:36px 44px 0;
+  overflow:hidden;
 }
 .tok-selection-icon{
   width:72px;
@@ -163,9 +203,8 @@ body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:va
 }
 .tok-selection-title{
   text-align:center;
-  margin-top:1.125rem;
-  margin-bottom:.5rem;
-  font-size:clamp(1.4rem, 2.5vw, 1.75rem);
+  margin:16px 0 8px;
+  font-size:1.6rem;
   font-weight:700;
   line-height:1.2;
 }
@@ -173,14 +212,14 @@ body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:va
   text-align:center;
   color:var(--tok-text-muted);
   line-height:1.7;
-  max-width:62ch;
+  max-width:54ch;
   margin:0 auto;
-  font-size:.9375rem;
+  font-size:.95rem;
 }
 .tok-selection-divider{
   border:0;
   border-top:1px solid var(--tok-border-soft);
-  margin:28px 0;
+  margin:22px 0;
 }
 .tok-selection-card .tok-label{
   width:100%;
@@ -198,9 +237,9 @@ body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:va
   gap:.625rem;
   align-items:flex-start;
   border-radius:8px;
-  padding:14px 16px;
+  padding:13px 16px;
   font-size:.9rem;
-  margin-top:16px;
+  margin-top:14px;
 }
 .tok-selection-callout{
   background:var(--tok-primary-soft);
@@ -216,24 +255,29 @@ body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:va
   display:flex;
   justify-content:flex-end;
   gap:.625rem;
-  margin-top:32px;
+  margin:24px -44px 0;
+  padding:16px 44px;
   border-top:1px solid var(--tok-border);
-  padding-top:20px;
+  background:var(--tok-surface);
+  border-radius:0 0 var(--tok-radius-card) var(--tok-radius-card);
 }
 .tok-selection-footer .tok-btn{
   min-height:44px;
+  height:44px;
 }
 
-/* Tablet 768-991 */
+/* Tablet 768-991 — keep same centered width */
 @media (min-width:768px) and (max-width:991.98px){
-  .tok-selection-shell{max-width:760px}
-  .tok-selection-card{padding:36px 32px}
+  .tok-selection-shell{max-width:680px}
+  .tok-selection-card{padding:36px 44px 0}
 }
 /* Mobile <768 */
 @media (max-width:767.98px){
   .tok-selection-shell{max-width:100%}
-  .tok-selection-card{padding:24px 18px}
+  .tok-selection-card{padding:24px 18px 0}
   .tok-selection-footer{
+    margin:24px -18px 0;
+    padding:16px 18px;
     flex-direction:column-reverse;
     gap:10px;
   }
@@ -259,5 +303,5 @@ body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:va
 }
 /* Ensure selection card padding wins over generic .tok-card at mobile (same specificity, order matters) */
 @media (max-width:767.98px){
-  .tok-card.tok-selection-card{padding:24px 18px !important}
+  .tok-card.tok-selection-card{padding:24px 18px 0 !important}
 }

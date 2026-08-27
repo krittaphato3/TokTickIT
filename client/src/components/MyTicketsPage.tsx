@@ -426,7 +426,8 @@ export default function MyTicketsPage({ onNavigate }: { onNavigate?: (hash: stri
         </div>
       </div>
 
-      <section className="mt-filter-card" aria-label="Search and filters">
+      <div className="mt-single-card">
+      <section className="mt-filter-card mt-filter-section" aria-label="Search and filters">
         <div>
           <label className="mt-f-label" htmlFor="mt-search">
             Search by ticket number or summary
@@ -520,7 +521,7 @@ export default function MyTicketsPage({ onNavigate }: { onNavigate?: (hash: stri
         </div>
       </section>
 
-      <section className="mt-table-card" aria-label="My tickets list">
+      <section className="mt-table-card mt-table-section" aria-label="My tickets list">
         {status === 'loading' && (
           <div data-testid="skeleton-row-container" className="mt-skeleton" role="status" aria-label="Loading tickets">
             <div data-testid="skeleton-row" className="sk-row" />
@@ -632,6 +633,7 @@ export default function MyTicketsPage({ onNavigate }: { onNavigate?: (hash: stri
           </div>
         )}
       </section>
+      </div>
     </main>
   );
 }

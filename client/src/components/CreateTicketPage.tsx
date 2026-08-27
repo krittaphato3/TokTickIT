@@ -143,14 +143,14 @@ export default function CreateTicketPage({
 
   if (loadState === 'loading') {
     return (
-      <main className="tok-main" aria-busy="true">
+      <main className="tok-main tok-create-page" aria-busy="true">
         <nav className="tok-breadcrumb" aria-label="Breadcrumb">
           <a href="#/tickets">My Tickets</a>
           <span className="sep">/</span>
           <span className="current">New</span>
         </nav>
         <h1 className="tok-page-title">Create Ticket</h1>
-        <div className="tok-card" aria-busy="true">
+        <div className="tok-card tok-create-card" aria-busy="true">
           <div className="tt-skeleton tt-skeleton-lg" />
           <div className="tt-skeleton" />
           <div className="tt-skeleton tt-skeleton-sm" />
@@ -161,7 +161,7 @@ export default function CreateTicketPage({
 
   if (loadState === 'error') {
     return (
-      <main className="tok-main">
+      <main className="tok-main tok-create-page">
         <nav className="tok-breadcrumb" aria-label="Breadcrumb">
           <a href="#/tickets">My Tickets</a>
           <span className="sep">/</span>
@@ -179,7 +179,7 @@ export default function CreateTicketPage({
   }
 
   return (
-    <main className="tok-main">
+    <main className="tok-main tok-create-page">
       <nav className="tok-breadcrumb" aria-label="Breadcrumb">
         <a href="#/tickets">My Tickets</a>
         <span className="sep">/</span>
@@ -187,7 +187,7 @@ export default function CreateTicketPage({
       </nav>
       <h1 className="tok-page-title">Create Ticket</h1>
 
-      <form className="tok-card" onSubmit={handleSubmit} noValidate>
+      <form className="tok-card tok-create-card" onSubmit={handleSubmit} noValidate>
         {/* Hidden-by-default alert slot; surfaces on success/failure. */}
         {createdNumber && (
           <div className="tok-alert success" role="status" data-alert="success">
@@ -367,7 +367,7 @@ export default function CreateTicketPage({
               className="tok-textarea"
               id="description"
               placeholder="What happened, when, and what you already tried…"
-              rows={4}
+              rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               aria-describedby={

@@ -6,7 +6,10 @@
 .mt-page {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 1.5rem 1rem 3rem;
+  padding: 1.5rem 1rem 24px;
+  min-height: calc(100vh - 56px);
+  display: flex;
+  flex-direction: column;
 }
 
 /* ---------- Page head ---------- */
@@ -16,7 +19,7 @@
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
-  margin-bottom: 1.25rem;
+  margin: 20px 0 14px;
 }
 .mt-head h1 {
   font-size: 1.5rem;
@@ -74,7 +77,50 @@
   text-decoration: underline;
 }
 
-/* ---------- Filter card ---------- */
+/* ---------- Single unified card (toolbar + table) ---------- */
+.mt-single-card {
+  background: var(--tok-surface);
+  border: 1px solid var(--tok-border-soft);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-card, 0 1px 3px rgba(30, 42, 37, 0.08));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+}
+.mt-filter-section {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--tok-border-soft);
+}
+/* When filter is inside single card, strip its outer card visuals */
+.mt-filter-card.mt-filter-section {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  margin-bottom: 0;
+  padding: 16px 20px;
+  display: grid;
+  grid-template-columns: minmax(200px, 1.6fr) repeat(4, minmax(130px, 1fr));
+  gap: 1rem;
+  align-items: end;
+}
+.mt-table-section {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+.mt-table-card.mt-table-section {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- Filter card (standalone fallback) ---------- */
 .mt-filter-card {
   background: var(--tok-surface);
   border: 1px solid var(--tok-border-soft);
@@ -209,12 +255,15 @@ th[aria-sort='descending'] .mt-sic .mt-dn {
   fill: var(--tok-primary);
 }
 .mt-table-card tbody td {
-  padding: 0.6875rem 0.625rem;
+  padding: 13px 16px;
   border-bottom: 1px solid var(--tok-border-soft);
   font-size: 0.8125rem;
   vertical-align: middle;
   white-space: normal; /* body wraps so the table never scrolls sideways */
   overflow-wrap: break-word;
+}
+.mt-single-card .mt-table-card tbody td {
+  padding: 13px 16px;
 }
 .mt-table-card tbody tr:hover {
   background: var(--tok-primary-soft);
@@ -317,9 +366,15 @@ td.mt-sum {
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
-  padding: 0.875rem 1rem;
+  padding: 12px 20px;
   border-top: 1px solid var(--tok-border-soft);
   background: var(--tok-surface);
+  margin-top: auto;
+}
+.mt-single-card .mt-foot {
+  padding: 12px 20px;
+  margin-top: auto;
+  border-top: 1px solid var(--tok-border-soft);
 }
 .mt-showing {
   font-size: 0.8125rem;
