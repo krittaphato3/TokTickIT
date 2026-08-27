@@ -81,7 +81,7 @@ export default function TicketDetailPage({ ticketNumber, onBack }: { ticketNumbe
   return (
     <main className="mt-page td-page">
       <div className="td-crumbrow">
-        <span className="td-crumbs">My Tickets&nbsp;&nbsp;/&nbsp;&nbsp;<b className="mono">{ticketNumber}</b></span>
+        <span className="td-crumbs"><a href="#/tickets" onClick={(e) => { e.preventDefault(); onBack?.(); }}>My Tickets</a>&nbsp;&nbsp;/&nbsp;&nbsp;<b className="mono">{ticketNumber}</b></span>
         <button className="tok-btn secondary" onClick={() => onBack?.()}>← Back to My Tickets</button>
       </div>
 
