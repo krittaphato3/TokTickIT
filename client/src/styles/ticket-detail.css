@@ -3,6 +3,8 @@
 @media (max-width:767px){.mt-page.td-page{padding-top:16px}}
 .td-crumbrow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;width:100%}
 .td-crumbs{font-size:.875rem;color:var(--tok-text-muted)}
+.td-crumbs a{color:var(--tok-text-muted);text-decoration:none}
+.td-crumbs a:hover{color:var(--tok-primary);text-decoration:underline}
 .td-crumbs b{color:var(--tok-text)}
 .td-card{background:var(--tok-surface);border:1px solid #E3E8E5;border-radius:12px;box-shadow:0 1px 3px rgba(30,42,37,.08);padding:24px;margin-bottom:20px;width:100%}
 .td-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
