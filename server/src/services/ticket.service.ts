@@ -140,7 +140,6 @@ export async function createTicket(
   body: unknown,
 ) {
   const requesterId = requester.id;
-  const requesterName = requester.name;
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {
     throw new HttpError(400, 'Invalid JSON body');
   }
@@ -265,12 +264,11 @@ export async function createTicket(
         title,
         description,
         priority: priority as Priority,
-        ownerName: requesterName,
         requesterId,
         categoryId: categoryId as number,
         relatedSystemId: relatedSystemId as number,
       },
-      include: { category: true, relatedSystem: true },
+      include: { category: true, relatedSystem: true, requester: true },
     });
 
     return {
@@ -282,6 +280,8 @@ export async function createTicket(
       priority: ticket.priority,
       itPriority: ticket.itPriority,
       ownerName: ticket.ownerName,
+      owner: null,
+      requester: { id: ticket.requester.id, name: ticket.requester.name, email: ticket.requester.email },
       category: { id: ticket.category.id, name: ticket.category.name },
       relatedSystem: ticket.relatedSystem
         ? { id: ticket.relatedSystem.id, name: ticket.relatedSystem.name }
@@ -515,6 +515,7 @@ export async function listTickets(
       priority: ticket.priority,
       itPriority: ticket.itPriority,
       ownerName: ticket.ownerName,
+      owner: ticket.ownerName ? { name: ticket.ownerName } : null,
       category: { id: ticket.category.id, name: ticket.category.name },
       relatedSystem: ticket.relatedSystem
         ? { id: ticket.relatedSystem.id, name: ticket.relatedSystem.name }
@@ -560,6 +561,7 @@ export async function getTicketDetail(
     priority: ticket.priority,
     itPriority: ticket.itPriority,
     ownerName: ticket.ownerName,
+    owner: ticket.ownerName ? { name: ticket.ownerName } : null,
     category: { id: ticket.category.id, name: ticket.category.name },
     requester: { id: ticket.requester.id, name: ticket.requester.name, email: ticket.requester.email },
     relatedSystem: ticket.relatedSystem

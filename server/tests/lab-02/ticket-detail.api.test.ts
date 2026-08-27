@@ -26,7 +26,7 @@ async function createOwnedTicket(requesterId: number) {
       title: 'Detail probe ticket',
       description: 'Detailed description here',
       priority: 'HIGH',
-      ownerName: pr.name,
+      ownerName: null,
       requesterId,
       categoryId: cat.id,
       relatedSystemId: sys.id,

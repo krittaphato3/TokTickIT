@@ -97,7 +97,7 @@ export default function TicketDetailPage({ ticketNumber, onBack }: { ticketNumbe
           <div className="td-field"><label>IT Priority</label><div className="td-ro">{ticket.itPriority ? <PriBadge priority={ticket.itPriority} /> : <span className="td-muted">Unset</span>}</div></div>
           <div className="td-field"><label>Current Status</label><div className="td-ro"><StatusBadge status={ticket.status} /></div></div>
 
-          <div className="td-field"><label>Ticket Owner</label><div className="td-ro">{ticket.ownerName ?? <span className="td-muted">Unassigned</span>}</div></div>
+          <div className="td-field"><label>Ticket Owner</label><div className="td-ro">{((ticket as unknown as { owner?: { name: string } | null }).owner?.name ?? ticket.ownerName) ? ((ticket as unknown as { owner?: { name: string } | null }).owner?.name ?? ticket.ownerName) : <span className="td-muted">Unassigned</span>}</div></div>
           <div className="td-field td-span3"><label>Summary</label><div className="td-ro">{ticket.title}</div></div>
 
           <div className="td-field td-span4"><label>Description</label>
@@ -138,7 +138,7 @@ export default function TicketDetailPage({ ticketNumber, onBack }: { ticketNumbe
 
       <section id="log" className={`td-panel ${activeTab === 'log' ? 'active' : ''}`}>
         <div className="td-event"><span className="td-dot"></span>Ticket created by {ticket.requester?.name ?? 'Dev User Alpha'}<span className="time">{fmtDate(ticket.createdAt)}</span></div>
-        <div className="td-event"><span className="td-dot"></span>Ticket Owner set to {ticket.ownerName ?? ticket.requester?.name}<span className="time">{fmtDate(ticket.createdAt)}</span></div>
+        <div className="td-event"><span className="td-dot"></span>Ticket Owner set to {((ticket as unknown as { owner?: { name: string } | null }).owner?.name ?? ticket.ownerName) ?? 'Unassigned'}<span className="time">{fmtDate(ticket.createdAt)}</span></div>
         <div className="td-event"><span className="td-dot"></span>Requested Priority set to {ticket.priority}<span className="time">{fmtDate(ticket.createdAt)}</span></div>
         <div className="td-event"><span className="td-dot"></span>Status changed New → Open<span className="time">Aug 26, 2026 08:00 AM</span></div>
         <div className="td-event"><span className="td-dot"></span>Status changed Open → In Progress<span className="time">Aug 26, 2026 09:10 AM</span></div>

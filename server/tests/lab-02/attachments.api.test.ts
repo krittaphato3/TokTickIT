@@ -38,7 +38,7 @@ async function createOwnedTicket(requesterId: number) {
       ticketNumber,
       title: 'Attachment probe',
       priority: 'MEDIUM',
-      ownerName: pr.name,
+      ownerName: null,
       requesterId,
       categoryId: cat.id,
       relatedSystemId: sys.id,

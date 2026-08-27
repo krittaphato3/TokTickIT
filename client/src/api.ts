@@ -48,6 +48,7 @@ export interface Ticket {
   // Issue #30 — IT-side display fields (BR-20); null until IT staff set them.
   itPriority: Priority | null;
   ownerName: string | null;
+  owner: { name: string } | null;
   category: { id: number; name: string };
   relatedSystem: { id: number; name: string };
   createdAt: string;
