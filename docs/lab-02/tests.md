@@ -33,7 +33,7 @@ Test files live under `server/tests/lab-02/` and `client/tests/lab-02/`. API and
 | API-01 | API | BR-06, AC-21 | `POST /api/tickets` without `X-Dev-Requester-Id` | 400 + error envelope | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
 | API-02 | API | BR-06, AC-21 | Header with unknown requester id | 401 `Unknown development requester` | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
 | API-03 | API | BR-15, AC-21 | Header with an inactive requester id (seeded Epsilon) | 403 `Requester account is inactive` | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
-| API-04 | API | FR-01/02/03, AC-01/04 | Create valid ticket with explicit priority | 201; `ticketNumber` format; `status NEW`; priority echoed; `ownerName` == requester's name and appears in `GET /api/tickets` list | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
+| API-04 | API | FR-01/02/03, AC-01/04 | Create valid ticket with explicit priority | 201; `ticketNumber` format; `status NEW`; priority echoed; `owner` / `ownerName` null (Unassigned) and `requester` == active requester appears in `POST` and `GET /api/tickets` list | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
 | API-05 | API | FR-01, AC-02/03 | Create with empty title, title > 120 chars, description > 4000 chars, missing categoryId | 400 `Validation failed` + `details` entries per field | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
 | API-06 | API | FR-01, BR-11 | Create with nonexistent categoryId and invalid priority | 400 with field-specific messages | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
 | API-07 | API | FR-04/14, AC-06 | List returns only the active requester's tickets (two requesters seeded with data) | `data` contains only requester A tickets; `totalItems` counts only A's | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
@@ -41,23 +41,23 @@ Test files live under `server/tests/lab-02/` and `client/tests/lab-02/`. API and
 | API-09 | API | FR-06, AC-09 | `categoryId` + `priority` filters combine with AND | Only tickets matching both returned | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
 | API-10 | API | FR-07, AC-10 | Sort by `title asc` and `priority desc`; invalid `sortBy`/`sortDir` | Correct ordering incl. priority rank; 400 on invalid values | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
 | API-11 | API | FR-04, AC-11 | Pagination: 25 tickets, page 2 of default 10; `page=0`; `pageSize=51`; `categoryId` filter that doesn't exist | Correct slice + `meta` totals; 400 on invalid page/pageSize/filter | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
-| API-12 | API | FR-08/14, AC-07 | Detail by ticketNumber: owned → 200 with requester + attachments; other-owner → 403; nonexistent → 404; malformed number → 400 | Documented status codes and messages; no data leak on 403 | `server/tests/lab-02/ticket-detail.api.test.ts` | Pending |
-| API-13 | API | FR-09, AC-12 | Upload a valid 1 KB PNG to an owned ticket | 201 metadata; file stored; metadata matches | `server/tests/lab-02/attachments.api.test.ts` | Pending |
-| API-14 | API | FR-09, AC-13 | Upload a file > 5 MB | 413; no metadata persisted | `server/tests/lab-02/attachments.api.test.ts` | Pending |
-| API-15 | API | FR-09, AC-13 | Upload a disallowed type (e.g., `.exe`) | 415; no metadata persisted | `server/tests/lab-02/attachments.api.test.ts` | Pending |
-| API-16 | API | FR-09, AC-14 | Upload a 6th attachment to a ticket with 5 active | 400 limit-reached message | `server/tests/lab-02/attachments.api.test.ts` | Pending |
-| API-17 | API | FR-12, AC-15 | Soft-remove an attachment, then attempt download and re-remove | 200 with `removedAt` set; download 404 `Attachment has been removed`; re-remove 404; DB row persists with `removedAt` | `server/tests/lab-02/attachments.api.test.ts` | Pending |
-| API-18 | API | FR-11/14, AC-12/07 | Download returns byte-identical stream with correct `Content-Type`/`Content-Disposition`; requester B downloading A's attachment | 200 + headers + identical bytes; 403 for B | `server/tests/lab-02/attachments.api.test.ts` | Pending |
-| API-19 | API | FR-10, AC-15 | Detail response excludes removed attachments | `attachments` lists active only; `removedAt` not null entries absent | `server/tests/lab-02/ticket-detail.api.test.ts` | Pending |
+| API-12 | API | FR-08/14, AC-07 | Detail by ticketNumber: owned → 200 with requester + attachments; other-owner → 403; nonexistent → 404; malformed number → 400 | Documented status codes and messages; no data leak on 403 | `server/tests/lab-02/ticket-detail.api.test.ts` | Pass |
+| API-13 | API | FR-09, AC-12 | Upload a valid 1 KB PNG to an owned ticket | 201 metadata; file stored; metadata matches | `server/tests/lab-02/attachments.api.test.ts` | Pass |
+| API-14 | API | FR-09, AC-13 | Upload a file > 5 MB | 413; no metadata persisted | `server/tests/lab-02/attachments.api.test.ts` | Pass |
+| API-15 | API | FR-09, AC-13 | Upload a disallowed type (e.g., `.exe`) | 415; no metadata persisted | `server/tests/lab-02/attachments.api.test.ts` | Pass |
+| API-16 | API | FR-09, AC-14 | Upload a 6th attachment to a ticket with 5 active | 400 limit-reached message | `server/tests/lab-02/attachments.api.test.ts` | Pass |
+| API-17 | API | FR-12, AC-15 | Soft-remove an attachment, then attempt download and re-remove | 200 with `removedAt` set; download 404 `Attachment has been removed`; re-remove 404; DB row persists with `removedAt` | `server/tests/lab-02/attachments.api.test.ts` | Pass |
+| API-18 | API | FR-11/14, AC-12/07 | Download returns byte-identical stream with correct `Content-Type`/`Content-Disposition`; requester B downloading A's attachment | 200 + headers + identical bytes; 403 for B | `server/tests/lab-02/attachments.api.test.ts` | Pass |
+| API-19 | API | FR-10, AC-15 | Detail response excludes removed attachments | `attachments` lists active only; `removedAt` not null entries absent | `server/tests/lab-02/ticket-detail.api.test.ts` | Pass |
 | API-20 | API | BR-13, AC-18 | Simulated DB failure on list endpoint (mock/stub) | 500 with generic message, no stack trace in body | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
 | API-21 | API | FR-13, BR-05 | `GET /api/requesters` returns only active requesters ordered by id (5 seeded: 4 active + 1 inactive Epsilon excluded) | 200; 4 active returned; inactive excluded | `server/tests/lab-02/api/requesters.test.ts` | Pass |
 | API-22 | API | FR-17, AC-22 | `GET /api/related-systems` returns all 7 seeded systems ordered by id | 200; 7 systems returned | `server/tests/lab-02/api/relatedSystems.test.ts` | Pass |
 | API-23 | API | FR-17, BR-19, AC-22 | Create ticket with a valid `relatedSystemId`; response includes `relatedSystem` | 201; relatedSystem matches the provided ID | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
 | API-24 | API | FR-17, BR-19, AC-22 | Create ticket with a missing or invalid `relatedSystemId` | 400 field error (`Related system is required` / `Related system does not exist`) | `server/tests/lab-02/create-ticket.api.test.ts` | Pass |
-| API-25 | API | FR-17, AC-22 | Detail and list responses include `relatedSystem` | relatedSystem present in both 200 responses | `server/tests/lab-02/ticket-detail.api.test.ts` | Pending |
-| API-26 | API | FR-18, BR-20, BR-21, AC-23 | List items return nullable `itPriority`/`ownerName` + extended status; combined `itPriority` + `status` (+ category) filters AND-combine; invalid enum value for either new filter → 400 | Exact-match rows only; null fields returned as null; invalid `itPriority`/`status` → 400 | `server/tests/lab-02/my-tickets.api.test.ts` | Pending |
-| API-27 | API | FR-18, BR-07, AC-23 | Search matches ticket number case-insensitively (`search=ttk-…`); still matches title/description as before | Only ticket(s) whose ticketNumber contains the term are returned | `server/tests/lab-02/my-tickets.api.test.ts` | Pending |
-| API-28 | API | FR-18, BR-09, AC-23 | `sortBy=ticketNumber&sortDir=asc/desc` orders by ticket number; invalid `sortBy=ticketNo` → 400 | Rows ordered lexicographically per direction; invalid value rejected with 400 | `server/tests/lab-02/my-tickets.api.test.ts` | Pending |
+| API-25 | API | FR-17, AC-22 | Detail and list responses include `relatedSystem` | relatedSystem present in both 200 responses | `server/tests/lab-02/ticket-detail.api.test.ts` | Pass |
+| API-26 | API | FR-18, BR-20, BR-21, AC-23 | List items return nullable `itPriority`/`ownerName` + extended status; combined `itPriority` + `status` (+ category) filters AND-combine; invalid enum value for either new filter → 400 | Exact-match rows only; null fields returned as null; invalid `itPriority`/`status` → 400 | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
+| API-27 | API | FR-18, BR-07, AC-23 | Search matches ticket number case-insensitively (`search=ttk-…`); still matches title/description as before | Only ticket(s) whose ticketNumber contains the term are returned | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
+| API-28 | API | FR-18, BR-09, AC-23 | `sortBy=ticketNumber&sortDir=asc/desc` orders by ticket number; invalid `sortBy=ticketNo` → 400 | Rows ordered lexicographically per direction; invalid value rejected with 400 | `server/tests/lab-02/my-tickets.api.test.ts` | Pass |
 
 ### 2.3 UI (client, component tests with mocked API)
 
@@ -71,14 +71,14 @@ Test files live under `server/tests/lab-02/` and `client/tests/lab-02/`. API and
 | UI-05 | UI | FR-15, AC-17 | Empty list vs no-results states | "No tickets yet" + CTA when zero tickets; "No results match your filters" + Clear filters when filters match nothing | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
 | UI-06 | UI | FR-05/06/07, AC-08/09/10 | Search, category/priority filters, sort control issue correct API params; Clear filters resets | Requests carry `search`/`categoryId`/`priority`/`sortBy`/`sortDir`; clear resets to defaults | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
 | UI-07 | UI | FR-13, AC-16 | Requester switch reloads list and clears search/filters/pagination | All list API calls after switch use new `X-Dev-Requester-Id`; context reset; caption visible | `client/tests/lab-02/ui/requesterSelector.test.tsx` | Pending |
-| UI-08 | UI | FR-09/13, AC-13/14 | Attachment picker: oversize/unsupported file errors inline; 5-limit disables picker | Per-file invalid chip + message; "limit reached" caption; no upload attempted | `client/tests/lab-02/ui/attachments.test.tsx` | Pending |
-| UI-09 | UI | FR-12, AC-15 | Remove attachment flow with inline confirm; chip becomes Removed | Confirm dialog; after remove, chip grayed + "Removed" badge; download action gone | `client/tests/lab-02/ui/attachments.test.tsx` | Pending |
+| UI-08 | UI | FR-09/13, AC-13/14 | Attachment picker: oversize/unsupported file errors inline; 5-limit disables picker | Per-file invalid chip + message; "limit reached" caption; no upload attempted | `client/tests/lab-02/AttachmentSection.test.tsx` | Pass |
+| UI-09 | UI | FR-12, AC-15 | Remove attachment flow with inline confirm; chip becomes Removed | Confirm dialog; after remove, chip grayed + "Removed" badge; download action gone | `client/tests/lab-02/AttachmentSection.test.tsx` | Pass |
 | UI-10 | UI | BR-13, AC-18 | Create/list/download failure preserves input and offers retry | Inline alert + retry; form values intact after failure | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
 | UI-11 | UI | FR-16, AC-20 | Accessibility: required asterisk, `aria-describedby` error wiring, visible focus on keyboard nav | Assertions on `aria-invalid`, `aria-describedby`, focus outline visibility, label associations | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
 | UI-12 | UI | FR-17, AC-22 | Related system select renders seeded options; selection sends correct `relatedSystemId` in create payload; detail shows the chip | Options loaded from API; selected ID sent in request; detail shows related system chip | `client/tests/lab-02/ui/createTicket.test.tsx` | Pending |
-| UI-13 | UI | FR-18, BR-20/21, AC-23 | New IT Priority / Current Status filters issue correct `itPriority`/`status` params; any filter change resets page to 1; search placeholder is "Search by ticket number or summary." | Requests carry the new params exactly when set; page reset asserted on change | `client/tests/lab-02/MyTickets.test.tsx` | Pending |
-| UI-14 | UI | FR-18, FR-16, AC-20/23 | Sortable headers cycle asc/desc with stacked carets and `aria-sort`; switching column applies its natural default direction (Ticket No. → asc, dates → desc) | aria-sort toggling asserted per click; direction defaults asserted on column switch | `client/tests/lab-02/MyTickets.test.tsx` | Pending |
-| UI-15 | UI | FR-04, AC-11/23 | Pagination footer "Showing X to Y of Z tickets" (aria-live polite); window 1–5 + ellipsis + last page; active page solid green with aria-current; bounds disabled; page change scrolls to top | Window shapes and showing text asserted against stubbed multi-page meta | `client/tests/lab-02/MyTickets.test.tsx` | Pending |
+| UI-13 | UI | FR-18, BR-20/21, AC-23 | New IT Priority / Current Status filters issue correct `itPriority`/`status` params; any filter change resets page to 1; search placeholder is "Search by ticket number or summary." | Requests carry the new params exactly when set; page reset asserted on change | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
+| UI-14 | UI | FR-18, FR-16, AC-20/23 | Sortable headers cycle asc/desc with stacked carets and `aria-sort`; switching column applies its natural default direction (Ticket No. → asc, dates → desc) | aria-sort toggling asserted per click; direction defaults asserted on column switch | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
+| UI-15 | UI | FR-04, AC-11/23 | Pagination footer "Showing X to Y of Z tickets" (aria-live polite); window 1–5 + ellipsis + last page; active page solid green with aria-current; bounds disabled; page change scrolls to top | Window shapes and showing text asserted against stubbed multi-page meta | `client/tests/lab-02/MyTickets.test.tsx` | Pass |
 
 ### 2.4 E2E (client, Playwright)
 
@@ -283,6 +283,42 @@ Deviations / notes:
 - **Loading behavior:** sort/filter/pagination refreshes keep the table mounted (`status` stays `ready` during background refetch) so the header the user just clicked is never detached mid-interaction; the skeleton appears only on the initial load and after an error retry.
 - **Demo seed:** Alpha = 42 tickets (5 pages at pageSize 10), Beta/Gamma/Delta = 10 each, statuses spread across the extended enum, `itPriority` sometimes equal/different/null, `ownerName` from the fixed pool with some null. Seed wipes the dev-requesters' demo band and stray manual tickets so re-runs converge; the E2E suite creates its fixtures as Dev User Delta so the Alpha/Beta counts stay deterministic for the responsive/ownership assertions.
 - **E2E evidence screenshots** refreshed in `artifacts/lab-02/screenshots/my-tickets/` (desktop-1280, tablet-800, mobile-375 + state-initial/api-failure/no-results/empty) against the rebuilt Docker stack.
+
+### Issue #17 — Ticket Detail and Attachment lifecycle (API-12, API-13..19, API-25, UI-08, UI-09)
+
+Commands executed:
+
+```bash
+cd server && npm test           # 82/82 across 12 files
+cd server && npm run build      # typecheck gate
+cd client && npx vitest run tests/lab-02/RequesterTicketDetail.test.tsx tests/lab-02/AttachmentSection.test.tsx tests/lab-02/MyTickets.test.tsx tests/lab-02/CreateTicket.test.tsx  # 32/32 (19 MyTickets + 9 CreateTicket + 4 new)
+cd client && npm run build      # typecheck + Vite build
+```
+
+Outcomes:
+
+| Test ID | Outcome | Notes |
+|---|---|---|
+| API-12 | Pass | Owned 200 with requester + active attachments; other owner 403 no leak; 404 nonexistent; 400 malformed; includes relatedSystem (API-25) |
+| API-13 | Pass | Valid 1KB PNG 201, disk file stored with random storedName, metadata matches |
+| API-14 | Pass | >5MB 413, no metadata, partial file discarded |
+| API-15 | Pass | .exe/.svg 415, no metadata |
+| API-16 | Pass | 6th on 5-active 400 limit message |
+| API-17 | Pass | Soft-remove sets removedAt; download after 404 removed; re-remove 404 already removed; row persists |
+| API-18 | Pass | Download byte-identical with Content-Type + Content-Disposition; cross-requester 403 |
+| API-19 | Pass | Detail excludes removed attachments |
+| API-25 | Pass | Detail includes relatedSystem |
+| UI-08 | Pass | Picker shows inline errors for oversize/unsupported; 5-limit disables with caption |
+| UI-09 | Pass | Remove inline confirm -> grayed strikethrough Removed badge; download gone |
+
+Totals: server **82/82**, client **32/32** for covered suites; builds clean. Red→green verified: attachments routes first returned 404 (no route), detail excluded-removed passed before but attachments failed 8/8.
+
+Deviations / notes:
+- Multer memory storage + 5 MB limit; 413 translated via app error middleware (LIMIT_FILE_SIZE). 415 via handler check against allowlist.
+- File stored under server/uploads/ with crypto.randomUUID() storedName; original fileName only in Content-Disposition.
+- Download validates removedAt and ownership before streaming; re-remove returns 404 already removed.
+- AttachmentSection keeps local removed set so chip stays visible grayed after soft-remove even though API detail would now exclude it, preserving the "grayed metadata" requirement while API stays spec-compliant (active only).
+- Create pending upload compensation documented in specification.md D-18.
 
 ## 7. Known Limitations
 

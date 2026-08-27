@@ -153,12 +153,14 @@ describe('POST /api/tickets — happy path and defaults (API-04)', () => {
     expect(created).not.toBeNull();
     expect(created!.requesterId).toBe(1);
     expect(created!.relatedSystemId).toBe(printer!.id);
-    // Owner stamping (Lab 2 — owner defaults to creator)
-    expect(res.body.ownerName).toBe('Dev User Alpha');
+    // Lab-pure ownership: Owner is Unassigned (null), Requester is creator
+    expect(res.body.ownerName).toBeNull();
+    expect(res.body.owner).toBeNull();
+    expect(res.body.requester).toEqual(expect.objectContaining({ id: 1, name: 'Dev User Alpha' }));
     expect(res.body.itPriority).toBeNull();
-    expect(created!.ownerName).toBe('Dev User Alpha');
+    expect(created!.ownerName).toBeNull();
 
-    // Verify the owner appears in GET /api/tickets list
+    // Verify the owner appears as Unassigned in GET /api/tickets list
     const listRes = await request(app)
       .get('/api/tickets')
       .set('X-Dev-Requester-Id', '1');
@@ -167,7 +169,8 @@ describe('POST /api/tickets — happy path and defaults (API-04)', () => {
       (t: { ticketNumber: string }) => t.ticketNumber === res.body.ticketNumber,
     );
     expect(listed).toBeDefined();
-    expect(listed.ownerName).toBe('Dev User Alpha');
+    expect(listed.ownerName).toBeNull();
+    expect(listed.owner).toBeNull();
   });
 
   it('AC-04: defaults to MEDIUM priority and NEW status with a related system', async () => {
@@ -200,7 +203,7 @@ describe('POST /api/tickets — happy path and defaults (API-04)', () => {
     });
   });
 
-  it('owner is stamped from X-Dev-Requester-Id (Beta)', async () => {
+  it('owner is Unassigned regardless of X-Dev-Requester-Id (Beta)', async () => {
     const hardware = await prisma.category.findUnique({
       where: { name: 'Hardware' },
     });
@@ -217,21 +220,26 @@ describe('POST /api/tickets — happy path and defaults (API-04)', () => {
       });
     expect(res.status).toBe(201);
     createdTicketNumbers.push(res.body.ticketNumber);
-    expect(res.body.ownerName).toBe('Dev User Beta');
+    expect(res.body.ownerName).toBeNull();
+    expect(res.body.owner).toBeNull();
+    expect(res.body.requester).toEqual(expect.objectContaining({ id: 2, name: 'Dev User Beta' }));
     const listed = await request(app)
       .get('/api/tickets')
       .set('X-Dev-Requester-Id', '2');
     const found = listed.body.data.find(
       (t: { ticketNumber: string }) => t.ticketNumber === res.body.ticketNumber,
     );
-    expect(found.ownerName).toBe('Dev User Beta');
+    expect(found.ownerName).toBeNull();
+    expect(found.owner).toBeNull();
 
-    // Detail also carries owner
+    // Detail also carries Unassigned owner and correct requester
     const detail = await request(app)
       .get(`/api/tickets/${res.body.ticketNumber}`)
       .set('X-Dev-Requester-Id', '2');
     expect(detail.status).toBe(200);
-    expect(detail.body.ownerName).toBe('Dev User Beta');
+    expect(detail.body.ownerName).toBeNull();
+    expect(detail.body.owner).toBeNull();
+    expect(detail.body.requester).toEqual(expect.objectContaining({ id: 2, name: 'Dev User Beta' }));
   });
 });
 

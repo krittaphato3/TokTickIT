@@ -330,7 +330,7 @@ export default function MyTicketsPage({ onNavigate }: { onNavigate?: (hash: stri
             <StatusBadge status={t.status} />
           </td>
           <td>
-            {t.ownerName ?? <span className="mt-muted">Unassigned</span>}
+            {(t.owner?.name ?? t.ownerName) ? (t.owner?.name ?? t.ownerName) : <span className="mt-muted">Unassigned</span>}
           </td>
           <td>{fmtDate(t.updatedAt)}</td>
         </tr>
@@ -369,7 +369,7 @@ export default function MyTicketsPage({ onNavigate }: { onNavigate?: (hash: stri
           </div>
           <div className="meta">
             <span>
-              {t.category.name} · {t.ownerName ?? 'Unassigned'}
+              {t.category.name} · {(t.owner?.name ?? t.ownerName) ?? 'Unassigned'}
             </span>
             <span>Updated {fmtDate(t.updatedAt)}</span>
           </div>

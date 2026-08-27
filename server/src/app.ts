@@ -84,6 +84,11 @@ app.use(
       return;
     }
 
+    if (err && typeof err === 'object' && 'code' in err && (err as { code: string }).code === 'LIMIT_FILE_SIZE') {
+      res.status(413).json({ error: 'File exceeds the 5 MB limit' });
+      return;
+    }
+
     console.error(err);
     res.status(500).json({
       error: 'An unexpected error occurred. Please try again.',

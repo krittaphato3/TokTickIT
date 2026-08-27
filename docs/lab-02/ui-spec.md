@@ -198,12 +198,10 @@ Badges are pill-shaped, always carry their **text label** (non-color indicator):
 
 ## 12. Ticket detail (read-only layout)
 
-- **Header:** ticket number (monospace) + Status badge + Priority badge; page title = ticket title.
-- **Metadata definition list** (read-only fields, §2 styling): Category, Priority, Status, Created, Updated, Requested by (requester name), Related System (chip, or "None" in muted text).
-- **Description:** read-only block on warm ivory (`--tok-field-readonly-warm`) with the same border treatment; "No description provided" muted text when empty.
-- **Attachments section:** "Attachments (n)" + "Add attachment" (picker, §5). Each active attachment = chip row: icon, file name (download link), size, upload date, "Remove" (destructive, with inline confirm: "Remove this attachment?" → Confirm/Cancel). Removed attachments render grayed + strikethrough + "Removed" badge and are not downloadable.
-- **Navigation:** "Back to My Tickets" (tertiary).
-- The page is fully read-only for ticket fields: no edit/delete actions exist for the ticket itself this sprint.
+- **Header card** — responsive read-only grid (4 cols desktop ≥992px, 2 tablet, 1 mobile): Ticket No. (monospace), Ticket Date, Category, Related System, Requester (creator, `requester.name`), Requested Priority (badge), IT Priority (badge / Unset), Current Status (badge, human label e.g. "In Progress"), Ticket Owner (`owner?.name` or muted "Unassigned" — never falls back to Requester, BR-20), Summary (span 3), Description (full width, warm ivory `--tok-field-readonly-warm`, "No description provided" muted when empty), Resolution Summary (full width, muted "No resolution summary available yet.").
+- **Breadcrumb row:** full container width, space-between — breadcrumb `My Tickets / <ticketNumber>` flush left (My Tickets is a link to `#/tickets`), `← Back to My Tickets` secondary button flush right, `margin-bottom: 16px`.
+- **Tab shell** below the card (`role=tablist`, `aria-selected`, arrow-key navigation): Public Comments (3), Attachments (n), Service Actions (1), Event Log (6). Attachments tab embeds the existing functional `AttachmentSection` (upload, download, soft-remove). Other tabs are static mock rows with captions "UI preview only — …" / "Read-only preview — …" and disabled Post Comment button — no API calls.
+- The page is fully read-only for ticket fields: no edit/delete actions exist for the ticket itself this sprint. Breadcrumb and Back button both navigate to My Tickets.
 
 ---
 

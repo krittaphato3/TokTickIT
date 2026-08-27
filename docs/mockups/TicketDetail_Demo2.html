@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<!-- TicketDetail_Demo2.html — Trimmed reference mockup: Requester Ticket Detail page body only (no app shell chrome) -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ticket Details — TokTickIT</title>
+<style>
+  :root{
+    --tok-primary:#006B3C; --tok-secondary:#0B7A46; --tok-primary-soft:#EAF6EF;
+    --tok-page-bg:#F5F7F6; --tok-surface:#FFFFFF; --tok-text:#1E2A25;
+    --tok-muted:#5C6B64; --tok-border:#C9D4CE; --tok-error:#B3261E;
+    --tok-readonly:#F0F3F1; --tok-warm:#FAF6EF;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--tok-page-bg);color:var(--tok-text);font-size:16px;line-height:1.5}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+
+  .wrap{max-width:1200px;margin:0 auto;padding:24px 24px 48px}
+  .crumbrow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+  .crumbs{font-size:.875rem;color:var(--tok-muted)}
+  .crumbs b{color:var(--tok-text)}
+  .btn{padding:9px 18px;border-radius:8px;font-weight:600;font-size:.9rem;cursor:pointer}
+  .btn.secondary{background:#fff;border:1px solid var(--tok-border);color:var(--tok-primary)}
+  .btn.secondary:hover{background:var(--tok-primary-soft)}
+  .btn.primary{background:var(--tok-primary);border:1px solid var(--tok-primary);color:#fff}
+  .btn.primary:disabled{opacity:.5;cursor:not-allowed}
+
+  /* Badges */
+  .badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 12px;font-size:.78rem;font-weight:600;border:1px solid transparent}
+  .b-status{background:var(--tok-primary-soft);color:var(--tok-primary);border-color:#BFE0CE}
+  .b-low{background:#EAF6EF;color:#1E7A46;border-color:#BFE0CE}
+  .b-medium{background:#FFF4E5;color:#9A5B00;border-color:#F0D9B5}
+  .b-high{background:#FBE9E7;color:#C2410C;border-color:#F3C6BD}
+  .b-critical{background:var(--tok-error);color:#fff}
+  .b-role-req{background:var(--tok-primary-soft);color:var(--tok-primary)}
+  .b-role-it{background:#FFF4E5;color:#9A5B00}
+  .b-removed{background:#E7EBE9;color:#43524C}
+
+  /* Header card */
+  .card{background:var(--tok-surface);border:1px solid #E3E8E5;border-radius:12px;box-shadow:0 1px 3px rgba(30,42,37,.08);padding:24px;margin-bottom:20px}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .field label{display:block;font-weight:700;font-size:.85rem;margin-bottom:6px}
+  .ro{background:var(--tok-readonly);border:1px solid #D9E2DD;border-radius:8px;padding:9px 12px;font-size:.9rem;min-height:40px}
+  .ro.warm{background:var(--tok-warm)}
+  .span3{grid-column:span 3}.span4{grid-column:1/-1}
+  .muted{color:var(--tok-muted)}
+
+  /* Tabs */
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--tok-border);margin-bottom:16px;flex-wrap:wrap}
+  .tab{display:flex;align-items:center;gap:8px;background:none;border:none;padding:12px 16px;font-size:.92rem;font-weight:600;color:var(--tok-muted);cursor:pointer;border-bottom:3px solid transparent}
+  .tab .count{background:#E7EBE9;color:#43524C;border-radius:999px;padding:1px 9px;font-size:.75rem}
+  .tab.active{color:var(--tok-primary);border-bottom-color:var(--tok-primary)}
+  .tab.active .count{background:var(--tok-primary);color:#fff}
+  .panel{display:none}.panel.active{display:block}
+
+  /* Comments */
+  .composer{display:flex;gap:10px;margin-bottom:8px}
+  .composer input{flex:1;border:1px solid var(--tok-border);border-radius:8px;padding:10px 14px;font-size:.92rem}
+  .caption{color:var(--tok-muted);font-size:.8125rem}
+  .comment{display:flex;gap:12px;padding:14px 4px;border-bottom:1px solid #EDF1EE}
+  .avatar{flex:0 0 38px;width:38px;height:38px;border-radius:50%;background:var(--tok-primary-soft);color:var(--tok-primary);display:grid;place-items:center;font-weight:700;font-size:.85rem}
+  .chead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .chead .name{font-weight:700;font-size:.9rem}
+  .chead .time{margin-left:auto;color:var(--tok-muted);font-size:.8rem}
+  .ctext{font-size:.9rem;margin-top:4px}
+
+  /* Attachment chips */
+  .chip{display:flex;align-items:center;gap:12px;border:1px solid var(--tok-border);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#fff}
+  .chip .fico{width:36px;height:36px;border-radius:8px;background:var(--tok-primary-soft);color:var(--tok-primary);display:grid;place-items:center;font-size:.8rem;font-weight:700}
+  .chip .meta{font-size:.8rem;color:var(--tok-muted)}
+  .chip .acts{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .linkbtn{background:none;border:none;color:var(--tok-primary);font-weight:600;font-size:.85rem;cursor:pointer}
+  .linkbtn.danger{color:var(--tok-error)}
+  .chip.removed{opacity:.6;background:#F4F4F4}
+  .chip.removed .fname{text-decoration:line-through}
+
+  /* Actions + event log */
+  .action{display:flex;gap:12px;padding:12px 4px;border-bottom:1px solid #EDF1EE;font-size:.9rem}
+  .event{display:flex;gap:12px;padding:10px 4px;font-size:.88rem;align-items:flex-start}
+  .dot{flex:0 0 10px;width:10px;height:10px;border-radius:50%;background:var(--tok-secondary);margin-top:6px}
+  .event .time{margin-left:auto;color:var(--tok-muted);font-size:.8rem;white-space:nowrap}
+
+  @media (max-width:991px){.grid{grid-template-columns:repeat(2,1fr)}.span3{grid-column:1/-1}}
+  @media (max-width:767px){.grid{grid-template-columns:1fr}.composer{flex-direction:column}.chead .time{margin-left:0;width:100%}.crumbrow{flex-direction:column;align-items:flex-start}}
+</style>
+</head>
+<body>
+
+<main class="wrap">
+  <div class="crumbrow">
+    <span class="crumbs">My Tickets&nbsp;&nbsp;/&nbsp;&nbsp;<b class="mono">TTK-2026-000040</b></span>
+    <button class="btn secondary">← Back to My Tickets</button>
+  </div>
+
+  <section class="card">
+    <div class="grid">
+      <div class="field"><label>Ticket No.</label><div class="ro mono">TTK-2026-000040</div></div>
+      <div class="field"><label>Ticket Date</label><div class="ro">Aug 26, 2026 12:31 AM</div></div>
+      <div class="field"><label>Category</label><div class="ro">Software</div></div>
+      <div class="field"><label>Related System</label><div class="ro">Active Directory</div></div>
+
+      <div class="field"><label>Requester</label><div class="ro">Dev User Alpha</div></div>
+      <div class="field"><label>Requested Priority</label><div class="ro"><span class="badge b-low">Low</span></div></div>
+      <div class="field"><label>IT Priority</label><div class="ro"><span class="badge b-medium">Medium</span></div></div>
+      <div class="field"><label>Current Status</label><div class="ro"><span class="badge b-status">In Progress</span></div></div>
+
+      <div class="field"><label>Ticket Owner</label><div class="ro">Dev User Alpha</div></div>
+      <div class="field span3"><label>Summary</label><div class="ro">Spreadsheet macros blocked</div></div>
+
+      <div class="field span4"><label>Description</label>
+        <div class="ro warm">Demo ticket 41 for My Tickets v2 — spreadsheet macros blocked.</div>
+      </div>
+      <div class="field span4"><label>Resolution Summary</label>
+        <div class="ro muted">No resolution summary available yet.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-p="comments" role="tab" aria-selected="true">💬 Public Comments <span class="count">3</span></button>
+    <button class="tab" data-p="attachments" role="tab" aria-selected="false">📎 Attachments <span class="count">2</span></button>
+    <button class="tab" data-p="actions" role="tab" aria-selected="false">🛠 Service Actions <span class="count">1</span></button>
+    <button class="tab" data-p="log" role="tab" aria-selected="false">🕒 Event Log <span class="count">6</span></button>
+  </div>
+
+  <section id="comments" class="panel active">
+    <div class="composer">
+      <input placeholder="Type your comment here…" aria-label="Add comment">
+      <button class="btn primary" disabled>➤ Post Comment</button>
+    </div>
+    <p class="caption" style="margin-bottom:12px">UI preview only — commenting arrives in a later lab.</p>
+    <div class="comment"><span class="avatar">DA</span>
+      <div><div class="chead"><span class="name">Dev User Alpha</span><span class="badge b-role-req">Requester</span><span class="time">Aug 27, 2026 11:45 AM</span></div>
+      <p class="ctext">Thank you for the update. Please let me know if you need any additional information.</p></div>
+    </div>
+    <div class="comment"><span class="avatar">MB</span>
+      <div><div class="chead"><span class="name">Michael Brown</span><span class="badge b-role-it">IT Support</span><span class="time">Aug 27, 2026 10:30 AM</span></div>
+      <p class="ctext">We are investigating the macro policy on your device. We'll update you shortly.</p></div>
+    </div>
+    <div class="comment"><span class="avatar">DA</span>
+      <div><div class="chead"><span class="name">Dev User Alpha</span><span class="badge b-role-req">Requester</span><span class="time">Aug 26, 2026 09:20 AM</span></div>
+      <p class="ctext">Just adding that this issue occurs even when I close all other applications.</p></div>
+    </div>
+  </section>
+
+  <section id="attachments" class="panel">
+    <div class="chip"><span class="fico">PNG</span>
+      <div><div class="fname" style="font-weight:600">macros-error.png</div><div class="meta">48 KB · uploaded Aug 26, 2026 12:40 AM</div></div>
+      <span class="acts"><button class="linkbtn">Download</button><button class="linkbtn danger">Remove</button></span>
+    </div>
+    <div class="chip removed"><span class="fico">XLS</span>
+      <div><div class="fname" style="font-weight:600">budget-sheet.xlsx</div><div class="meta">112 KB · uploaded Aug 26, 2026 12:41 AM</div></div>
+      <span class="acts"><span class="badge b-removed">Removed</span></span>
+    </div>
+  </section>
+
+  <section id="actions" class="panel">
+    <p class="caption" style="margin-bottom:8px">Read-only preview — service actions arrive in a later lab.</p>
+    <div class="action"><span>🛠</span><div><b>Macro security scan run; policy settings reset.</b><div class="muted" style="font-size:.8rem">Michael Brown · Aug 27, 2026 10:15 AM</div></div></div>
+  </section>
+
+  <section id="log" class="panel">
+    <div class="event"><span class="dot"></span>Ticket created by Dev User Alpha<span class="time">Aug 26, 2026 12:31 AM</span></div>
+    <div class="event"><span class="dot"></span>Ticket Owner set to Dev User Alpha<span class="time">Aug 26, 2026 12:31 AM</span></div>
+    <div class="event"><span class="dot"></span>Requested Priority set to Low<span class="time">Aug 26, 2026 12:31 AM</span></div>
+    <div class="event"><span class="dot"></span>Status changed New → Open<span class="time">Aug 26, 2026 08:00 AM</span></div>
+    <div class="event"><span class="dot"></span>Status changed Open → In Progress<span class="time">Aug 26, 2026 09:10 AM</span></div>
+    <div class="event"><span class="dot"></span>Attachment added: macros-error.png<span class="time">Aug 26, 2026 12:40 AM</span></div>
+  </section>
+</main>
+
+<script>
+  document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(x => { x.classList.remove("active"); x.setAttribute("aria-selected","false"); });
+    document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+    t.classList.add("active"); t.setAttribute("aria-selected","true");
+    document.getElementById(t.dataset.p).classList.add("active");
+  }));
+</script>
+</body>
+</html>
