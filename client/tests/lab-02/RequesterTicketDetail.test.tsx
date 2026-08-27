@@ -46,20 +46,27 @@ describe('RequesterTicketDetail', () => {
     window.location.hash = '#/tickets/TTK-2026-000042';
     render(<App />);
     expect((await screen.findAllByText('TTK-2026-000042')).length).toBeGreaterThan(0);
+    // title now lives in Summary grid field (no standalone h1)
     expect(screen.getByText('Laptop will not boot')).toBeInTheDocument();
     expect(screen.getByText('Detailed desc')).toBeInTheDocument();
-    // badge text
+    // badge text in grid (Current Status)
     expect(screen.getByText('New')).toBeInTheDocument();
-    // definition list items
     expect(screen.getByText('Hardware')).toBeInTheDocument();
-    // description block should have warm ivory class/background
     const desc = screen.getByText('Detailed desc');
     expect(desc.closest('.tok-desc-warm') || desc.closest('[data-warm]') || document.querySelector('.tok-desc-warm')).toBeTruthy();
-    // attachments count
     expect(screen.getByText(/Attachments \(1\)/)).toBeInTheDocument();
     expect(screen.getByText('shot.png')).toBeInTheDocument();
-    // back link
-    expect(screen.getByRole('link', { name: /Back to My Tickets/i })).toBeInTheDocument();
+    // Back button (now button aligned to breadcrumb, not link)
+    expect(screen.getByRole('button', { name: /Back to My Tickets/i })).toBeInTheDocument();
+    // breadcrumb still shows ticket number
+    expect(screen.getAllByText(/My Tickets/).length).toBeGreaterThan(0);
+    // all four tabs render
+    expect(screen.getByRole('tab', { name: /Public Comments/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Service Actions/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Event Log/ })).toBeInTheDocument();
+    // mock tab captions present in DOM (even when tab not active)
+    expect(screen.getByText(/UI preview only — commenting arrives in a later lab/)).toBeInTheDocument();
+    expect(screen.getByText(/Read-only preview — service actions arrive in a later lab/)).toBeInTheDocument();
   });
 
   it('shows fallback when description empty and caption', async () => {
