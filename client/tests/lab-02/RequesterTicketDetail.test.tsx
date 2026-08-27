@@ -14,7 +14,8 @@ const TICKET = {
   status: 'NEW',
   priority: 'HIGH',
   itPriority: null,
-  ownerName: 'Dev User Alpha',
+  ownerName: null,
+  owner: null,
   category: { id: 1, name: 'Hardware' },
   requester: { id: 1, name: 'Dev User Alpha', email: 'alpha@toktickit.test' },
   relatedSystem: { id: 1, name: 'Printer' },
@@ -60,6 +61,11 @@ describe('RequesterTicketDetail', () => {
     expect(screen.getByRole('button', { name: /Back to My Tickets/i })).toBeInTheDocument();
     // breadcrumb still shows ticket number
     expect(screen.getAllByText(/My Tickets/).length).toBeGreaterThan(0);
+    // Lab-pure ownership: Requester shows creator, Ticket Owner shows Unassigned
+    expect(screen.getByText('Requester')).toBeInTheDocument();
+    expect(screen.getByText('Ticket Owner')).toBeInTheDocument();
+    expect(screen.getByText('Unassigned')).toBeInTheDocument();
+    expect(screen.getAllByText('Dev User Alpha').length).toBeGreaterThan(0);
     // all four tabs render
     expect(screen.getByRole('tab', { name: /Public Comments/ })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Service Actions/ })).toBeInTheDocument();
