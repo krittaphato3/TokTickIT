@@ -155,7 +155,7 @@ Returns all seeded Related Systems, ordered by id. This is a public endpoint (no
 | `priority` | no | enum | `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`; defaults to `MEDIUM` |
 | `relatedSystemId` | yes | integer | must reference an existing RelatedSystem |
 
-**`201 Created`** — the created ticket (server assigns `ticketNumber`, `status: NEW`, `ownerName` = creating requester's name, `createdAt`, `updatedAt`):
+**`201 Created`** — the created ticket (server assigns `ticketNumber`, `status: NEW`, `createdAt`, `updatedAt`; Ticket Owner remains `null` / Unassigned — set only by IT Staff in a later lab; `requester` is the creator):
 
 ```json
 {
@@ -166,7 +166,9 @@ Returns all seeded Related Systems, ordered by id. This is a public endpoint (no
   "status": "NEW",
   "priority": "HIGH",
   "itPriority": null,
-  "ownerName": "Dev User Alpha",
+  "ownerName": null,
+  "owner": null,
+  "requester": { "id": 1, "name": "Dev User Alpha", "email": "alpha@toktickit.test" },
   "category": { "id": 2, "name": "Hardware" },
   "relatedSystem": { "id": 3, "name": "Printer" },
   "createdAt": "2026-08-18T09:30:00.000Z",
@@ -244,7 +246,7 @@ Semantics (BR-07 … BR-10, BR-20, BR-21): all criteria combine with **AND**; `p
 
 Empty result sets return `data: []` and `totalItems: 0` (see empty-state handling in ui-spec.md).
 
-`itPriority` and `ownerName` are nullable display fields owned by IT staff tooling; they are `null` until set and never influence requester-facing `priority` filtering or sorting (BR-20). Ownership is unchanged: results are always scoped to the requester identified by `X-Dev-Requester-Id` (BR-06) — every filter, search term, sort, and page is applied *within* that requester's tickets, so one requester can never see another requester's tickets through any combination of parameters.
+`itPriority` and Ticket Owner (`owner` / `ownerName`) are nullable display fields set only when IT Staff claims the ticket in a later lab; tickets created in Lab 2 are Unassigned (`owner` null, rendered muted "Unassigned") and never influence requester-facing `priority` filtering or sorting (BR-20). `requester` is the creator and drives all ownership checks. Results are always scoped to the requester identified by `X-Dev-Requester-Id` (BR-06) — every filter, search term, sort, and page is applied *within* that requester's tickets, so one requester can never see another requester's tickets through any combination of parameters.
 
 **Error cases:**
 
@@ -266,7 +268,7 @@ Empty result sets return `data: []` and `totalItems: 0` (see empty-state handlin
 
 `ticketNumber` must match the format `TTK-\d{4}-\d{6}`.
 
-**`200 OK`** — ticket plus requester and **active** attachments (removed attachments are excluded):
+**`200 OK`** — ticket plus requester and **active** attachments (removed attachments are excluded). Ticket Owner is `null` for Lab 2 creations (Unassigned); `requester` is the creator:
 
 ```json
 {
@@ -277,7 +279,8 @@ Empty result sets return `data: []` and `totalItems: 0` (see empty-state handlin
   "status": "NEW",
   "priority": "HIGH",
   "itPriority": null,
-  "ownerName": "Dev User Alpha",
+  "ownerName": null,
+  "owner": null,
   "category": { "id": 2, "name": "Hardware" },
   "requester": { "id": 1, "name": "Dev User Alpha", "email": "alpha@toktickit.test" },
   "relatedSystem": { "id": 3, "name": "Printer" },
