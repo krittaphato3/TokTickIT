@@ -6,6 +6,7 @@ import ProfileHeader from './ProfileHeader';
 import RequesterSelection from './components/RequesterSelection';
 import CreateTicketPage from './components/CreateTicketPage';
 import MyTicketsPage from './components/MyTicketsPage';
+import TicketDetailPage from './components/TicketDetailPage';
 import { useDevRequester } from './devRequesterContext';
 
 // UI states: idle, loading, success, error.
@@ -109,8 +110,9 @@ function AppHeader({
             </a>
           </nav>
         </div>
-        <div className="ms-auto d-flex align-items-center flex-shrink-0">
-          <ProfileHeader onOpenProfile={() => onNavigate('#/select-requester')} />
+        <div className="ms-auto d-flex align-items-center flex-shrink-0" style={{gap:'0.75rem'}}>
+          <span style={{fontSize:'0.8125rem', color:'#5C6B64'}}>Testing only — not real authentication</span>
+          <ProfileHeader />
         </div>
       </div>
     </header>
@@ -178,26 +180,7 @@ function HomeScreen() {
 }
 
 function TicketDetail({ ticketNumber }: { ticketNumber: string }) {
-  return (
-    <main className="tok-main">
-      <nav className="tok-breadcrumb" aria-label="Breadcrumb">
-        <a href="#/tickets">My Tickets</a>
-        <span className="sep">/</span>
-        <span className="current">{ticketNumber}</span>
-      </nav>
-      <h1 className="tok-page-title">Ticket Detail</h1>
-      <p>
-        Official number:{' '}
-        <strong className="tt-ticket-number">{ticketNumber}</strong>
-      </p>
-      <p className="text-muted">
-        Full read-only detail arrives with Issues #17/#18.
-      </p>
-      <a className="btn btn-link px-0" href="#/tickets">
-        Back to My Tickets
-      </a>
-    </main>
-  );
+  return <TicketDetailPage ticketNumber={ticketNumber} onBack={() => { window.location.hash = '#/tickets'; }} />;
 }
 
 function Shell() {
