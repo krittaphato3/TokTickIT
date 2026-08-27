@@ -1,4 +1,4 @@
-import type { PrismaClient, Priority } from '@prisma/client';
+import type { PrismaClient, Priority, Status } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 
 // HTTP error carrying a status code, a safe message, and optional field-level
@@ -41,9 +41,24 @@ export function compareByPriority(
   );
 }
 
-const SORT_FIELDS = ['createdAt', 'updatedAt', 'title', 'priority'] as const;
+const SORT_FIELDS = [
+  'createdAt',
+  'updatedAt',
+  'title',
+  'priority',
+  'ticketNumber',
+] as const;
 type SortField = (typeof SORT_FIELDS)[number];
 const SORT_DIRECTIONS = ['asc', 'desc'] as const;
+// Issue #30 — extended status axis (BR-21). NEW is kept first so the create
+// default remains the enum's origin; POST /api/tickets still writes NEW.
+export const STATUSES = [
+  'NEW',
+  'OPEN',
+  'PENDING',
+  'IN_PROGRESS',
+  'RESOLVED',
+] as const;
 
 // UT-03 — normalizes the search query param: trim + lowercase, or null when
 // absent/blank so the list query carries no search filter at all.
@@ -63,17 +78,19 @@ export function buildIlikePattern(term: string | null | undefined): string | nul
   return `%${normalized.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
 }
 
-// Prisma WHERE fragment for BR-07: case-insensitive substring over title OR
-// description with the same wildcard escaping as the raw page query (Prisma's
-// contains has no ESCAPE support, so the fragment is written as raw SQL).
-// Returns null when there is no effective search term.
+// Prisma WHERE fragment for BR-07 (extended in Issue #30): case-insensitive
+// substring over ticketNumber OR title OR description with the same wildcard
+// escaping as the raw page query (Prisma's contains has no ESCAPE support, so
+// the fragment is written as raw SQL). Returns null when there is no
+// effective search term.
 export function buildSearchFilter(
   term: string | null | undefined,
 ): Prisma.Sql | null {
   const pattern = buildIlikePattern(term);
   if (!pattern) return null;
   return Prisma.sql` AND (
-    t."title" ILIKE ${pattern}
+    t."ticketNumber" ILIKE ${pattern}
+    OR t."title" ILIKE ${pattern}
     OR COALESCE(t."description", '') ILIKE ${pattern}
   )`;
 }
@@ -119,9 +136,11 @@ export async function resolveRequester(
 // requester id is asserted server-side (FR-14) and is never returned.
 export async function createTicket(
   prisma: PrismaClient,
-  requesterId: number,
+  requester: { id: number; name: string },
   body: unknown,
 ) {
+  const requesterId = requester.id;
+  const requesterName = requester.name;
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {
     throw new HttpError(400, 'Invalid JSON body');
   }
@@ -246,6 +265,7 @@ export async function createTicket(
         title,
         description,
         priority: priority as Priority,
+        ownerName: requesterName,
         requesterId,
         categoryId: categoryId as number,
         relatedSystemId: relatedSystemId as number,
@@ -260,6 +280,8 @@ export async function createTicket(
       description: ticket.description,
       status: ticket.status,
       priority: ticket.priority,
+      itPriority: ticket.itPriority,
+      ownerName: ticket.ownerName,
       category: { id: ticket.category.id, name: ticket.category.name },
       relatedSystem: ticket.relatedSystem
         ? { id: ticket.relatedSystem.id, name: ticket.relatedSystem.name }
@@ -312,11 +334,39 @@ export function validateListParams(query: Record<string, unknown>) {
     priority = rawPriority as Priority;
   }
 
+  // Issue #30 (BR-20) — IT Priority filter: exact enum match on the stored
+  // itPriority; never falls back to the requested priority. Absent or empty
+  // means "no filter".
+  const rawItPriority = query.itPriority as string | undefined;
+  let itPriority: Priority | undefined;
+  if (rawItPriority !== undefined && rawItPriority !== '') {
+    if (!(PRIORITIES as readonly string[]).includes(rawItPriority)) {
+      throw new HttpError(
+        400,
+        'itPriority must be one of LOW, MEDIUM, HIGH, CRITICAL',
+      );
+    }
+    itPriority = rawItPriority as Priority;
+  }
+
+  // Issue #30 (BR-21) — extended status filter over the full Status enum.
+  const rawStatus = query.status as string | undefined;
+  let status: Status | undefined;
+  if (rawStatus !== undefined && rawStatus !== '') {
+    if (!(STATUSES as readonly string[]).includes(rawStatus)) {
+      throw new HttpError(
+        400,
+        'status must be one of NEW, OPEN, PENDING, IN_PROGRESS, RESOLVED',
+      );
+    }
+    status = rawStatus as Status;
+  }
+
   const rawSortBy = query.sortBy as string | undefined;
   if (rawSortBy !== undefined && !(SORT_FIELDS as readonly string[]).includes(rawSortBy)) {
     throw new HttpError(
       400,
-      'sortBy must be one of createdAt, updatedAt, title, priority',
+      'sortBy must be one of createdAt, updatedAt, title, priority, ticketNumber',
     );
   }
 
@@ -325,7 +375,7 @@ export function validateListParams(query: Record<string, unknown>) {
     throw new HttpError(400, 'sortDir must be asc or desc');
   }
 
-  return { page, pageSize };
+  return { page, pageSize, itPriority, status };
 }
 
 // GET /api/tickets (api-spec §3.2). The base query is always scoped to the
@@ -337,7 +387,7 @@ export async function listTickets(
   requesterId: number,
   query: Record<string, unknown>,
 ) {
-  const { page, pageSize } = validateListParams(query);
+  const { page, pageSize, itPriority, status } = validateListParams(query);
 
   const categoryIdRaw = query.categoryId as string | undefined;
   let categoryIdFilter: number | null = null;
@@ -383,6 +433,18 @@ export async function listTickets(
       ? Prisma.empty
       : Prisma.sql` AND t."priority"::text = ${priorityValue}`;
 
+  // Issue #30 — v2 filters (BR-20/21). Exact enum matches that AND-combine
+  // with search/category/priority; itPriority never falls back to the
+  // requested priority.
+  const itPriorityCondition =
+    itPriority === undefined
+      ? Prisma.empty
+      : Prisma.sql` AND t."itPriority"::text = ${itPriority}`;
+  const statusCondition =
+    status === undefined
+      ? Prisma.empty
+      : Prisma.sql` AND t."status"::text = ${status}`;
+
   const sortBy = ((query.sortBy as SortField | undefined) ?? 'createdAt') as SortField;
   const directionSql = query.sortDir === 'asc' ? Prisma.sql`ASC` : Prisma.sql`DESC`;
 
@@ -403,9 +465,11 @@ export async function listTickets(
           END`
       : sortBy === 'title'
         ? Prisma.sql`t."title"`
-        : sortBy === 'updatedAt'
-          ? Prisma.sql`t."updatedAt"`
-          : Prisma.sql`t."createdAt"`;
+        : sortBy === 'ticketNumber'
+          ? Prisma.sql`t."ticketNumber"`
+          : sortBy === 'updatedAt'
+            ? Prisma.sql`t."updatedAt"`
+            : Prisma.sql`t."createdAt"`;
 
   // The page-id selection and the count share the identical WHERE fragments
   // and read one consistent snapshot; a failure inside the transaction
@@ -414,7 +478,7 @@ export async function listTickets(
     prisma.$queryRaw<{ id: number }[]>`
       SELECT t.id
       FROM "Ticket" AS t
-      WHERE t."requesterId" = ${requesterId}${searchCondition}${categoryCondition}${priorityCondition}
+      WHERE t."requesterId" = ${requesterId}${searchCondition}${categoryCondition}${priorityCondition}${itPriorityCondition}${statusCondition}
       ORDER BY ${rankColumn} ${directionSql}, t."createdAt" DESC, t.id DESC
       LIMIT ${pageSize}
       OFFSET ${(page - 1) * pageSize}
@@ -422,7 +486,7 @@ export async function listTickets(
     prisma.$queryRaw<{ count: bigint }[]>`
       SELECT COUNT(*)::bigint AS count
       FROM "Ticket" AS t
-      WHERE t."requesterId" = ${requesterId}${searchCondition}${categoryCondition}${priorityCondition}
+      WHERE t."requesterId" = ${requesterId}${searchCondition}${categoryCondition}${priorityCondition}${itPriorityCondition}${statusCondition}
     `,
   ]).then(
     ([rows, counted]) =>
@@ -449,6 +513,8 @@ export async function listTickets(
       description: ticket.description,
       status: ticket.status,
       priority: ticket.priority,
+      itPriority: ticket.itPriority,
+      ownerName: ticket.ownerName,
       category: { id: ticket.category.id, name: ticket.category.name },
       relatedSystem: ticket.relatedSystem
         ? { id: ticket.relatedSystem.id, name: ticket.relatedSystem.name }
@@ -464,5 +530,50 @@ export async function listTickets(
       hasNextPage: page < totalPages,
       hasPrevPage: page > 1 && totalItems > 0,
     },
+  };
+}
+
+export async function getTicketDetail(
+  prisma: PrismaClient,
+  requesterId: number,
+  ticketNumber: string,
+) {
+  if (!/^TTK-\d{4}-\d{6}$/.test(ticketNumber)) {
+    throw new HttpError(400, 'Invalid ticket number format');
+  }
+  const ticket = await prisma.ticket.findUnique({
+    where: { ticketNumber },
+    include: { category: true, relatedSystem: true, requester: true, attachments: { where: { removedAt: null } } },
+  });
+  if (!ticket) {
+    throw new HttpError(404, `Ticket ${ticketNumber} does not exist`);
+  }
+  if (ticket.requesterId !== requesterId) {
+    throw new HttpError(403, `Ticket ${ticketNumber} does not belong to this requester`);
+  }
+  return {
+    id: ticket.id,
+    ticketNumber: ticket.ticketNumber,
+    title: ticket.title,
+    description: ticket.description,
+    status: ticket.status,
+    priority: ticket.priority,
+    itPriority: ticket.itPriority,
+    ownerName: ticket.ownerName,
+    category: { id: ticket.category.id, name: ticket.category.name },
+    requester: { id: ticket.requester.id, name: ticket.requester.name, email: ticket.requester.email },
+    relatedSystem: ticket.relatedSystem
+      ? { id: ticket.relatedSystem.id, name: ticket.relatedSystem.name }
+      : null,
+    attachments: ticket.attachments.map((a) => ({
+      id: a.id,
+      fileName: a.fileName,
+      mimeType: a.mimeType,
+      sizeBytes: a.sizeBytes,
+      uploadedAt: a.uploadedAt,
+      removedAt: a.removedAt,
+    })),
+    createdAt: ticket.createdAt,
+    updatedAt: ticket.updatedAt,
   };
 }

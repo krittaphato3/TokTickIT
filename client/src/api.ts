@@ -34,15 +34,20 @@ export interface CreateTicketInput {
   relatedSystemId: number;
 }
 
-// The create/list/detail response shape (api-spec §3.1). Only the fields the
-// UI consumes are declared; unknown extra fields are ignored.
+// The create/list/detail response shape (api-spec §3.1/§3.2). Only the fields
+// the UI consumes are declared; unknown extra fields are ignored.
+export type TicketStatus = 'NEW' | 'OPEN' | 'PENDING' | 'IN_PROGRESS' | 'RESOLVED';
+
 export interface Ticket {
   id: number;
   ticketNumber: string;
   title: string;
   description: string | null;
-  status: 'NEW';
+  status: TicketStatus;
   priority: Priority;
+  // Issue #30 — IT-side display fields (BR-20); null until IT staff set them.
+  itPriority: Priority | null;
+  ownerName: string | null;
   category: { id: number; name: string };
   relatedSystem: { id: number; name: string };
   createdAt: string;
@@ -119,7 +124,12 @@ export async function createTicket(
 // Search/filter params are appended only when set; sort is always sent
 // explicitly (the UI's default "newest first" maps to sortBy=createdAt
 // &sortDir=desc, matching the server default). Page/pageSize are always sent.
-export type SortBy = 'createdAt' | 'updatedAt' | 'title' | 'priority';
+export type SortBy =
+  | 'createdAt'
+  | 'updatedAt'
+  | 'title'
+  | 'priority'
+  | 'ticketNumber';
 export type SortDir = 'asc' | 'desc';
 
 export interface TicketListParams {
@@ -128,6 +138,8 @@ export interface TicketListParams {
   search?: string;
   categoryId?: number;
   priority?: Priority;
+  itPriority?: Priority;
+  status?: TicketStatus;
   sortBy?: SortBy;
   sortDir?: SortDir;
 }
@@ -159,6 +171,9 @@ export async function getTickets(
   if (params.categoryId !== undefined)
     search.set('categoryId', String(params.categoryId));
   if (params.priority !== undefined) search.set('priority', params.priority);
+  if (params.itPriority !== undefined)
+    search.set('itPriority', params.itPriority);
+  if (params.status !== undefined) search.set('status', params.status);
   if (params.sortBy !== undefined) search.set('sortBy', params.sortBy);
   if (params.sortDir !== undefined) search.set('sortDir', params.sortDir);
 

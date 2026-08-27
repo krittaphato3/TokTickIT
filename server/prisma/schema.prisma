@@ -9,6 +9,10 @@ datasource db {
 
 enum Status {
   NEW
+  OPEN
+  PENDING
+  IN_PROGRESS
+  RESOLVED
 }
 
 enum Priority {
@@ -41,6 +45,8 @@ model Ticket {
   description   String?  @db.Text
   status        Status   @default(NEW)
   priority      Priority @default(MEDIUM)
+  itPriority    Priority?
+  ownerName     String?
   requesterId    Int
   categoryId     Int
   relatedSystemId Int

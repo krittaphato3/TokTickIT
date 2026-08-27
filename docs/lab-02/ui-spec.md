@@ -135,25 +135,46 @@ The Dev Requester selector stays visible at all breakpoints (compact on mobile).
 
 ---
 
-## 10. Ticket list (My Tickets)
+## 10. Ticket list (My Tickets v2)
 
-**Toolbar (above the list):**
-- Search box with magnifier icon and a clear (×) button when non-empty. Debounced (300ms); submits `search` on change.
-- Filters: Category select (All Categories + 4 seeded: Account and Access, Hardware, Software, Network), Priority select (All Priorities + 4). Selecting Category or Priority immediately re-requests with `categoryId` / `priority`.
-- Sort control: options map to API params — "Newest first" (`createdAt desc`), "Oldest first" (`createdAt asc`), "Title A–Z" (`title asc`), "Title Z–A" (`title desc`), "Priority: high first" (`priority desc`), "Priority: low first" (`priority asc`).
-- **Clear filters** (secondary, appears only when search/filters/sort differ from defaults): resets search, filters, and sort to defaults and re-requests page 1.
+The list shows **only the active Development Requester's own tickets**: every search term, filter, sort key, and page is applied within that requester's tickets (BR-06/BR-22), so switching requesters in the header selector reloads a completely independent list with search/filters/sort/page reset (BR-05).
 
-**Desktop ≥992px table columns:** Ticket # (monospace link) · Title · Category (chip) · Priority (badge) · Status (badge) · Created (local date + time) — 6 columns. Sortable headers: Title, Priority, Created (cycle asc/desc on click; a column's first click uses its natural direction: Title → asc, Priority → desc/high first, Created → desc/newest first). Rows are links to the detail view; hover row highlight (pale green).
+**Page head:** left-aligned h1 "My Tickets" with subtitle "View and track all of your support requests." in muted text; on the right, two actions: **Clear Filters** (secondary style, refresh icon) and **Create Ticket** (primary style, plus icon). Below 768px the actions stack full-width under the title with 44px minimum height.
 
-**Tablet 768–991px:** the Category column is hidden; the category chip renders inline inside the title cell instead.
+**Filter card:** one white card containing a five-column grid (search field widest, then four equal selects); below 992px it becomes two columns with the search spanning both, below 768px everything stacks in a single column:
+- **Search input** — magnifier icon inside the left edge, placeholder "Search by ticket number or summary...", and a round clear (×) button appearing at the right edge only while the field is non-empty. Keystrokes are debounced at 300ms before re-requesting; matching is case-insensitive across ticket number OR title OR description. Clearing via × refocuses the input.
+- **Category** select — "All Categories" default plus the four seeded categories.
+- **Requested Priority** / **IT Priority** selects — each defaults to "All Priorities" plus Low/Medium/High/Critical.
+- **Current Status** select — "All Statuses" default plus Open/Pending/In Progress/Resolved.
+Any select change or committed search resets the page to 1. **Clear Filters** (page head) and the inline **Clear filters** button (no-results state) reset search and all four filters to their defaults and re-request page 1.
 
-**Mobile < 768px cards:** each ticket = card link with ticket number + title, badges row (Priority badge · Status badge · Category chip), and Created date. Tap anywhere opens detail. Touch targets ≥ 44px. No horizontal scroll.
+**Fluid table ≥768px (zero horizontal scroll):** the table spans 100% of its card width (`table-layout: auto`); header cells never wrap while body cells wrap normally with compact paddings (~0.69rem vertical). Columns exactly nine, in order:
 
-**Pagination:** "Showing 1–10 of 42" + Prev / numbered pages (max 5 with ellipsis) / Next. Page change resets scroll to top of the list.
+| # | Column | Content | Sortable |
+|---|---|---|---|
+| 1 | Ticket No. | monospace green link → detail view | yes |
+| 2 | Created Date | local date + time | yes |
+| 3 | Summary | ticket title, wraps | no |
+| 4 | Category | plain text | no |
+| 5 | Requested Priority | badge (§11) | no |
+| 6 | IT Priority | badge (§11), "Unset" when null (BR-20) | no |
+| 7 | Current Status | badge (§11) | no |
+| 8 | Ticket Owner | plain text, muted "Unassigned" when null (BR-20) | no |
+| 9 | Last Updated | local date + time | yes |
 
-**Empty states (distinct, AC-17):**
-- **No tickets yet** — illustration + heading + "Create your first ticket" primary button (requester has zero tickets, no filters).
-- **No results match your filters** — different heading + "Clear filters" secondary button (tickets exist but search/filters match nothing).
+Sortable headers render a stacked caret pair (small up-triangle above down-triangle; the active direction fills with `--tok-primary`) and expose `aria-sort="ascending"` / `"descending"`. Clicking the active column flips its direction; switching columns applies the new column's sensible default — Ticket No. ascending, either date descending. Rows highlight pale green on hover.
+
+**Tablet 768–991px:** all nine columns stay visible; header/body type drops to 0.75rem with reduced paddings, badge text shrinks slightly, and long ticket numbers may wrap. Hiding columns or introducing horizontal scroll at this width is a defect.
+
+**Mobile < 768px cards:** the table is replaced by vertically stacked cards, each showing: row 1 = ticket-number link + created date (right-aligned, muted); bold summary line; a three-badge row (Requested Priority · IT Priority · Current Status); meta lines "Category · Owner" and "Updated <date>". The card link has a 44px minimum tap height; filter inputs/selects and pagination buttons are also ≥44px tall. No horizontal scroll at any mobile width.
+
+**Pagination footer:** card footer split left/right. Left: "Showing X to Y of Z tickets" marked `aria-live="polite"` so screen readers announce page changes (renders "Showing 0 to 0 of 0 tickets" for empty results). Right: a `<nav>` pager with ‹ Previous, numbered buttons, then Next ›. Numbered windows: pages 1–5 listed when ≤7 total; otherwise `1 2 3 4 5 … last`, `1 … x-1 x x+1 … last`, or `1 … last-4 … last` depending on position. The active page is solid green with `aria-current="page"`; Previous/Next disable at the bounds. A page change scrolls the list back to the top.
+
+**Live states (distinct):**
+- **Loading** — three shimmer skeleton rows (gradient bars animating left-to-right).
+- **No tickets yet** (zero tickets for this requester, no filters active) — heading + explanation copy + "Create your first ticket" primary button linking to the create form.
+- **No results match your filters** (tickets exist but criteria match nothing) — different heading + copy + "Clear filters" secondary button.
+- **Failure** — alert banner (role="alert") "We couldn't load your tickets. Your filters are preserved." + tertiary "Try again"; every filter, sort, and page value survives the failure and is reused verbatim on retry.
 
 ---
 
@@ -163,11 +184,15 @@ Badges are pill-shaped, always carry their **text label** (non-color indicator):
 
 | Badge | Style |
 |---|---|
-| Priority Low | neutral gray-green: bg `#E7EBE9`, text `#43524C` |
-| Priority Medium | amber: bg `#FFF4E5`, text `#9A5B00` |
-| Priority High | orange-red: bg `#FBE9E7`, text `#C2410C` |
-| Priority Critical | solid `--tok-error`, white text, with "!" glyph |
+| Priority Low | pale green: bg `--tok-success-soft` (#EAF6EF), text `--tok-success`, border #CBE7D4 |
+| Priority Medium / Pending | amber: bg `--tok-warning-soft` (#FFF4E5), text #9A5B00, border #F0D9B5 |
+| Priority High | pale red: bg `--tok-error-soft` (#FDECEA), text `--tok-error`, border #F3C4BE |
+| Priority Critical | solid `--tok-error`, white text, with "! " glyph prefix |
 | Status New | pale green: bg `--tok-primary-soft`, text `--tok-primary`, with dot glyph |
+| Status Open | pale blue: bg `--tok-info-soft` (#E9F0FB), text `--tok-info` (#1D5FBF), border #C9DAF3 |
+| Status In Progress | pale green: bg `--tok-success-soft`, text `--tok-success`, border #CBE7D4 |
+| Status Resolved | teal-green: bg #E6F4EE, text `--tok-secondary`, border #C4E4D4 |
+| Neutral Unset / Unassigned | muted text ("Unset" pill for null itPriority; muted plain text "Unassigned" for null ownerName) |
 
 ---
 

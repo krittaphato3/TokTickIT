@@ -155,7 +155,7 @@ Returns all seeded Related Systems, ordered by id. This is a public endpoint (no
 | `priority` | no | enum | `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`; defaults to `MEDIUM` |
 | `relatedSystemId` | yes | integer | must reference an existing RelatedSystem |
 
-**`201 Created`** — the created ticket (server assigns `ticketNumber`, `status: NEW`, `createdAt`, `updatedAt`):
+**`201 Created`** — the created ticket (server assigns `ticketNumber`, `status: NEW`, `ownerName` = creating requester's name, `createdAt`, `updatedAt`):
 
 ```json
 {
@@ -165,6 +165,8 @@ Returns all seeded Related Systems, ordered by id. This is a public endpoint (no
   "description": "Screen stays black after the latest OS update.",
   "status": "NEW",
   "priority": "HIGH",
+  "itPriority": null,
+  "ownerName": "Dev User Alpha",
   "category": { "id": 2, "name": "Hardware" },
   "relatedSystem": { "id": 3, "name": "Printer" },
   "createdAt": "2026-08-18T09:30:00.000Z",
@@ -199,13 +201,15 @@ Returns all seeded Related Systems, ordered by id. This is a public endpoint (no
 |---|---|---|---|
 | `page` | integer | 1 | ≥ 1 |
 | `pageSize` | integer | 10 | 1–50 |
-| `search` | string | — | trimmed; case-insensitive substring over title OR description; empty/absent = no search |
+| `search` | string | — | trimmed; case-insensitive substring over ticketNumber OR title OR description (v2); empty/absent = no search |
 | `categoryId` | integer | — | must reference an existing Category |
 | `priority` | enum | — | `LOW`, `MEDIUM`, `HIGH`, `CRITICAL` |
-| `sortBy` | enum | `createdAt` | `createdAt`, `updatedAt`, `title`, `priority` |
+| `itPriority` | enum (v2) | — | `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`; exact match on the stored IT priority, never falls back to the requested priority (BR-20) |
+| `status` | enum (v2) | — | `NEW`, `OPEN`, `PENDING`, `IN_PROGRESS`, `RESOLVED` (BR-21) |
+| `sortBy` | enum | `createdAt` | `createdAt`, `updatedAt`, `title`, `priority`, `ticketNumber` (v2) |
 | `sortDir` | enum | `desc` | `asc`, `desc` |
 
-Semantics (BR-07 … BR-10): all criteria combine with **AND**; `priority` sorts by rank (Critical 4 > High 3 > Medium 2 > Low 1); only the active requester's tickets are ever counted or returned.
+Semantics (BR-07 … BR-10, BR-20, BR-21): all criteria combine with **AND**; `priority` and `itPriority` sort/filter by rank (Critical 4 > High 3 > Medium 2 > Low 1); only the active requester's tickets are ever counted or returned.
 
 **`200 OK`:**
 
@@ -219,6 +223,8 @@ Semantics (BR-07 … BR-10): all criteria combine with **AND**; `priority` sorts
       "description": "Screen stays black after the latest OS update.",
       "status": "NEW",
       "priority": "HIGH",
+      "itPriority": "HIGH",
+      "ownerName": "Sarah Johnson",
       "category": { "id": 2, "name": "Hardware" },
       "relatedSystem": { "id": 3, "name": "Printer" },
       "createdAt": "2026-08-18T09:30:00.000Z",
@@ -238,14 +244,18 @@ Semantics (BR-07 … BR-10): all criteria combine with **AND**; `priority` sorts
 
 Empty result sets return `data: []` and `totalItems: 0` (see empty-state handling in ui-spec.md).
 
+`itPriority` and `ownerName` are nullable display fields owned by IT staff tooling; they are `null` until set and never influence requester-facing `priority` filtering or sorting (BR-20). Ownership is unchanged: results are always scoped to the requester identified by `X-Dev-Requester-Id` (BR-06) — every filter, search term, sort, and page is applied *within* that requester's tickets, so one requester can never see another requester's tickets through any combination of parameters.
+
 **Error cases:**
 
 | Case | Status | Error |
 |---|---|---|
 | `page` < 1 or non-integer | 400 | `page must be an integer >= 1` |
 | `pageSize` outside 1–50 | 400 | `pageSize must be between 1 and 50` |
-| Invalid `sortBy` / `sortDir` | 400 | `sortBy must be one of createdAt, updatedAt, title, priority` / `sortDir must be asc or desc` |
+| Invalid `sortBy` / `sortDir` | 400 | `sortBy must be one of createdAt, updatedAt, title, priority, ticketNumber` / `sortDir must be asc or desc` |
 | Invalid `priority` filter | 400 | `priority must be one of LOW, MEDIUM, HIGH, CRITICAL` |
+| Invalid `itPriority` filter (v2) | 400 | `itPriority must be one of LOW, MEDIUM, HIGH, CRITICAL` |
+| Invalid `status` filter (v2) | 400 | `status must be one of NEW, OPEN, PENDING, IN_PROGRESS, RESOLVED` |
 | `categoryId` references a nonexistent Category | 400 | `categoryId does not reference an existing category` |
 | Header errors | 400/401/403 | see §1.1 |
 | Unexpected server error | 500 | generic message |
@@ -266,6 +276,8 @@ Empty result sets return `data: []` and `totalItems: 0` (see empty-state handlin
   "description": "Screen stays black after the latest OS update.",
   "status": "NEW",
   "priority": "HIGH",
+  "itPriority": null,
+  "ownerName": "Dev User Alpha",
   "category": { "id": 2, "name": "Hardware" },
   "requester": { "id": 1, "name": "Dev User Alpha", "email": "alpha@toktickit.test" },
   "relatedSystem": { "id": 3, "name": "Printer" },

@@ -10,9 +10,9 @@ const OUT = resolve('../artifacts/lab-02/screenshots/my-tickets');
 mkdirSync(OUT, { recursive: true });
 
 const shots = [
-  { name: 'desktop-1280', width: 1280, height: 960, ready: 'a.tnum' },
-  { name: 'tablet-800', width: 800, height: 900, ready: 'a.tnum' },
-  { name: 'mobile-375', width: 375, height: 812, ready: 'a.mcard' },
+  { name: 'desktop-1280', width: 1280, height: 960, ready: 'a.mt-tkt-link' },
+  { name: 'tablet-800', width: 800, height: 900, ready: 'a.mt-tkt-link' },
+  { name: 'mobile-375', width: 375, height: 812, ready: '.m-card a.mt-tkt-link' },
 ];
 
 const browser = await chromium.launch();
@@ -35,7 +35,7 @@ try {
       await route.continue();
     });
     await page.goto(`${BASE}/#/tickets`);
-    await page.waitForSelector('.sk-row', { timeout: 5000 });
+    await page.waitForSelector('[data-testid=skeleton-row]', { timeout: 5000 });
     await page.waitForTimeout(300);
     await page.screenshot({ path: resolve(OUT, 'state-initial.png') });
     await page.close();
@@ -46,10 +46,10 @@ try {
   {
     const page = await browser.newPage({ viewport: { width: 1280, height: 960 } });
     await page.goto(`${BASE}/#/tickets`);
-    await page.waitForSelector('a[href*="TTK-"]', { timeout: 10000 });
+    await page.waitForSelector('a.mt-tkt-link', { timeout: 10000 });
     await page.route('**/api/tickets**', (route) => route.abort());
     await page.reload();
-    await page.waitForSelector('.errbar', { timeout: 10000 });
+    await page.waitForSelector('.mt-errbar', { timeout: 10000 });
     await page.waitForTimeout(300);
     await page.screenshot({ path: resolve(OUT, 'state-api-failure.png') });
     await page.close();
@@ -60,22 +60,31 @@ try {
   {
     const page = await browser.newPage({ viewport: { width: 1280, height: 960 } });
     await page.goto(`${BASE}/#/tickets`);
-    await page.waitForSelector('a[href*="TTK-"]', { timeout: 10000 });
-    await page.getByLabel('Search').fill('zzz-no-match');
-    await page.waitForSelector('.state-title', { timeout: 10000 });
+    await page.waitForSelector('a.mt-tkt-link', { timeout: 10000 });
+    await page.getByPlaceholder('Search by ticket number or summary...').fill('zzz-no-match');
+    await page.waitForSelector('.mt-live-state h3', { timeout: 10000 });
     await page.waitForTimeout(300);
     await page.screenshot({ path: resolve(OUT, 'state-no-results.png') });
     await page.close();
     console.log('saved state-no-results.png');
   }
 
-  // state-empty: Dev User Beta has zero tickets -> "No tickets yet" + CTA
+  // state-empty: a requester with zero tickets -> "No tickets yet" + CTA.
+  // Issue #30 seed gives every seeded requester demo tickets, so spin up a
+  // throwaway requester via the API for this shot.
   {
+    const { execFileSync } = await import('node:child_process');
+    execFileSync('docker', [
+      'exec', 'toktickit-postgres', 'psql', '-U', 'toktickit', '-d', 'toktickit_dev', '-c',
+      `INSERT INTO "Requester" (id, name, email, "isActive")
+       VALUES (9001, 'Shot Empty User', 'shot-empty@toktickit.test', true)
+       ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name`,
+    ]);
     const page = await browser.newPage({ viewport: { width: 1280, height: 960 } });
     await page.goto(`${BASE}/#/tickets`);
-    await page.waitForSelector('a[href*="TTK-"]', { timeout: 10000 });
-    await page.getByLabel('Development Requester').selectOption({ label: 'Dev User Beta' });
-    await page.waitForSelector('.state-title', { timeout: 10000 });
+    await page.waitForSelector('a.mt-tkt-link', { timeout: 10000 });
+    await page.getByLabel('Development Requester').selectOption({ label: 'Shot Empty User' });
+    await page.waitForSelector('.mt-live-state h3', { timeout: 10000 });
     await page.waitForTimeout(300);
     await page.screenshot({ path: resolve(OUT, 'state-empty.png') });
     await page.close();

@@ -153,6 +153,21 @@ describe('POST /api/tickets — happy path and defaults (API-04)', () => {
     expect(created).not.toBeNull();
     expect(created!.requesterId).toBe(1);
     expect(created!.relatedSystemId).toBe(printer!.id);
+    // Owner stamping (Lab 2 — owner defaults to creator)
+    expect(res.body.ownerName).toBe('Dev User Alpha');
+    expect(res.body.itPriority).toBeNull();
+    expect(created!.ownerName).toBe('Dev User Alpha');
+
+    // Verify the owner appears in GET /api/tickets list
+    const listRes = await request(app)
+      .get('/api/tickets')
+      .set('X-Dev-Requester-Id', '1');
+    expect(listRes.status).toBe(200);
+    const listed = listRes.body.data.find(
+      (t: { ticketNumber: string }) => t.ticketNumber === res.body.ticketNumber,
+    );
+    expect(listed).toBeDefined();
+    expect(listed.ownerName).toBe('Dev User Alpha');
   });
 
   it('AC-04: defaults to MEDIUM priority and NEW status with a related system', async () => {
@@ -183,6 +198,40 @@ describe('POST /api/tickets — happy path and defaults (API-04)', () => {
       id: printer!.id,
       name: 'Printer',
     });
+  });
+
+  it('owner is stamped from X-Dev-Requester-Id (Beta)', async () => {
+    const hardware = await prisma.category.findUnique({
+      where: { name: 'Hardware' },
+    });
+    const printer = await prisma.relatedSystem.findUnique({
+      where: { name: 'Printer' },
+    });
+    const res = await request(app)
+      .post('/api/tickets')
+      .set('X-Dev-Requester-Id', '2')
+      .send({
+        title: 'Beta owner probe',
+        categoryId: hardware!.id,
+        relatedSystemId: printer!.id,
+      });
+    expect(res.status).toBe(201);
+    createdTicketNumbers.push(res.body.ticketNumber);
+    expect(res.body.ownerName).toBe('Dev User Beta');
+    const listed = await request(app)
+      .get('/api/tickets')
+      .set('X-Dev-Requester-Id', '2');
+    const found = listed.body.data.find(
+      (t: { ticketNumber: string }) => t.ticketNumber === res.body.ticketNumber,
+    );
+    expect(found.ownerName).toBe('Dev User Beta');
+
+    // Detail also carries owner
+    const detail = await request(app)
+      .get(`/api/tickets/${res.body.ticketNumber}`)
+      .set('X-Dev-Requester-Id', '2');
+    expect(detail.status).toBe(200);
+    expect(detail.body.ownerName).toBe('Dev User Beta');
   });
 });
 

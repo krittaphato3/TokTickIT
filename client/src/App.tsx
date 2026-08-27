@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import type { Category } from './api';
 import { checkSystem } from './api';
 import { DevRequesterProvider } from './DevRequesterProvider';
-import RequesterSelector from './RequesterSelector';
+import ProfileHeader from './ProfileHeader';
+import RequesterSelection from './components/RequesterSelection';
 import CreateTicketPage from './components/CreateTicketPage';
 import MyTicketsPage from './components/MyTicketsPage';
 import { useDevRequester } from './devRequesterContext';
@@ -11,15 +12,20 @@ import { useDevRequester } from './devRequesterContext';
 type UiState = 'idle' | 'loading' | 'success' | 'error';
 
 // Hash-based routing keeps the shell dependency-free while giving every
-// screen a shareable URL: #/new-ticket, #/tickets, #/tickets/<number>.
+// screen a shareable URL: #/new-ticket, #/tickets, #/tickets/<number>,
+// #/select-requester.
 export type Route =
   | { name: 'home' }
+  | { name: 'select-requester' }
   | { name: 'new-ticket' }
   | { name: 'tickets' }
   | { name: 'ticket-detail'; ticketNumber: string };
 
 function parseRoute(hash: string): Route {
   const path = hash.replace(/^#/, '');
+  if (path === '/select-requester' || path === '/select-requester/') {
+    return { name: 'select-requester' };
+  }
   if (path === '/new-ticket' || path === '/new-ticket/') {
     return { name: 'new-ticket' };
   }
@@ -33,6 +39,12 @@ function parseRoute(hash: string): Route {
   return { name: 'home' };
 }
 
+const PROTECTED_ROUTES: Route['name'][] = [
+  'new-ticket',
+  'tickets',
+  'ticket-detail',
+];
+
 // Shared top navbar (mockup header + ui-spec §9).
 function AppHeader({
   active,
@@ -43,58 +55,64 @@ function AppHeader({
 }) {
   return (
     <header className="tok-navbar">
-      <a
-        className="tok-brand"
-        href="#/tickets"
-        onClick={(e) => {
-          e.preventDefault();
-          onNavigate('#/tickets');
-        }}
-      >
-        <span className="tok-brand-badge" aria-hidden="true">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+      <div className="container-fluid px-3 px-md-4 d-flex align-items-center flex-nowrap" style={{ minHeight: 56, paddingTop: '.625rem', paddingBottom: '.625rem', gap: '1.25rem' }}>
+        <div className="d-flex align-items-center gap-3 flex-nowrap">
+          <a
+            className="tok-brand"
+            href="#/tickets"
+            onClick={(e) => {
+              e.preventDefault();
+              onNavigate('#/tickets');
+            }}
           >
-            <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z" />
-            <path d="M13 5v2" />
-            <path d="M13 17v2" />
-            <path d="M13 11v2" />
-          </svg>
-        </span>
-        TokTickIT
-      </a>
-      <nav className="tok-nav" aria-label="Primary">
-        <a
-          href="#/new-ticket"
-          className={active === 'new' ? 'active' : ''}
-          aria-current={active === 'new' ? 'page' : undefined}
-          onClick={(e) => {
-            e.preventDefault();
-            onNavigate('#/new-ticket');
-          }}
-        >
-          New Ticket
-        </a>
-        <a
-          href="#/tickets"
-          className={active === 'my-tickets' ? 'active' : ''}
-          aria-current={active === 'my-tickets' ? 'page' : undefined}
-          onClick={(e) => {
-            e.preventDefault();
-            onNavigate('#/tickets');
-          }}
-        >
-          My Tickets
-        </a>
-      </nav>
-      <RequesterSelector />
+            <span className="tok-brand-badge" aria-hidden="true">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z" />
+                <path d="M13 5v2" />
+                <path d="M13 17v2" />
+                <path d="M13 11v2" />
+              </svg>
+            </span>
+            TokTickIT
+          </a>
+          <nav className="tok-nav" aria-label="Primary">
+            <a
+              href="#/new-ticket"
+              className={active === 'new' ? 'active' : ''}
+              aria-current={active === 'new' ? 'page' : undefined}
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate('#/new-ticket');
+              }}
+            >
+              New Ticket
+            </a>
+            <a
+              href="#/tickets"
+              className={active === 'my-tickets' ? 'active' : ''}
+              aria-current={active === 'my-tickets' ? 'page' : undefined}
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate('#/tickets');
+              }}
+            >
+              My Tickets
+            </a>
+          </nav>
+        </div>
+        <div className="ms-auto d-flex align-items-center flex-shrink-0">
+          <ProfileHeader onOpenProfile={() => onNavigate('#/select-requester')} />
+        </div>
+      </div>
     </header>
   );
 }
@@ -208,22 +226,40 @@ function Shell() {
   const activeNav =
     route.name === 'new-ticket' ? 'new' : 'my-tickets';
 
+  // Route guard (BR-05): without an active Development Requester, protected
+  // screens redirect to the Requester Selection page.
+  const protectedAndNoRequester =
+    PROTECTED_ROUTES.includes(route.name) && activeRequester === null;
+
   return (
     <div className="tt-app">
       <AppHeader active={activeNav} onNavigate={navigate} />
-      {route.name === 'home' && <HomeScreen />}
-      {route.name === 'new-ticket' && (
-        <CreateTicketPage onCreated={handleCreated} />
+      {protectedAndNoRequester ? (
+        <RequesterSelection onComplete={() => navigate('#/tickets')} />
+      ) : (
+        <>
+          {route.name === 'select-requester' && (
+            <RequesterSelection onComplete={() => navigate('#/tickets')} />
+          )}
+          {route.name === 'home' && <HomeScreen />}
+          {route.name === 'new-ticket' && (
+            <CreateTicketPage onCreated={handleCreated} />
+          )}
+          {route.name === 'tickets' && (
+            <MyTicketsPage
+              key={activeRequester?.id ?? 'none'}
+              onNavigate={navigate}
+            />
+          )}
+          {route.name === 'ticket-detail' && (
+            <TicketDetail ticketNumber={route.ticketNumber} />
+          )}
+        </>
       )}
-      {route.name === 'tickets' && (
-        <MyTicketsPage
-          key={activeRequester?.id ?? 'none'}
-          onNavigate={navigate}
-        />
-      )}
-      {route.name === 'ticket-detail' && (
-        <TicketDetail ticketNumber={route.ticketNumber} />
-      )}
+      <footer className="tok-app-footer">
+        <span>TokTickIT — Requester Ticketing MVP</span>
+        <span>Zen Green Theme · Lab 2</span>
+      </footer>
     </div>
   );
 }

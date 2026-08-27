@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   createTicketHandler,
+  getTicketDetailHandler,
   listTicketsHandler,
 } from '../controllers/tickets.controller.js';
 
@@ -12,3 +13,6 @@ ticketsRouter.post('/', createTicketHandler);
 
 // API-07..11, API-20 — GET /api/tickets (paginated list of my tickets).
 ticketsRouter.get('/', listTicketsHandler);
+
+// Detail — GET /api/tickets/:ticketNumber (owner-checked, includes ownerName)
+ticketsRouter.get('/:ticketNumber', getTicketDetailHandler);

@@ -105,4 +105,44 @@ describe('Development Requester selector', () => {
       '1',
     );
   });
+
+  it('profile dropdown shows the active requester and Change requester clears context', async () => {
+    stubFetch(REQUESTERS);
+
+    const user = userEvent.setup();
+    render(<App />);
+    // Wait for the default active requester (Alpha) to be set.
+    await screen.findByRole('combobox', { name: 'Development Requester' });
+
+    // Open the Profile menu; it shows the persisted active requester.
+    await user.click(screen.getByRole('button', { name: /profile/i }));
+    expect(screen.getByText('Current requester · testing only')).toBeInTheDocument();
+    expect(
+      screen.getByText('Dev User Alpha (alpha@toktickit.test)'),
+    ).toBeInTheDocument();
+
+    // The dropdown shows the requester's name (email) format.
+    // Switch to another requester first to confirm the menu reflects it.
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Development Requester' }), '3');
+    await user.click(screen.getByRole('button', { name: /profile/i }));
+    expect(
+      screen.getByText('Dev User Gamma (gamma@toktickit.test)'),
+    ).toBeInTheDocument();
+  });
+
+  it('Change requester clears the active requester and shows the unselected profile state', async () => {
+    stubFetch(REQUESTERS);
+
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole('combobox', { name: 'Development Requester' });
+
+    await user.click(screen.getByRole('button', { name: /profile/i }));
+    await user.click(screen.getByRole('button', { name: /change requester/i }));
+
+    // Profile shows the neutral placeholder once cleared.
+    await user.click(screen.getByRole('button', { name: /profile/i }));
+    expect(screen.getByText('No requester selected yet')).toBeInTheDocument();
+    expect(localStorage.getItem('toktickit.devRequesterId')).toBeNull();
+  });
 });

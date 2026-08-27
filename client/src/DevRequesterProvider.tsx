@@ -40,8 +40,17 @@ export function DevRequesterProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (activeId !== null) {
       localStorage.setItem(STORAGE_KEY, String(activeId));
+    } else if (activeId === null && localStorage.getItem(STORAGE_KEY)) {
+      // A requester was explicitly cleared; drop the persisted selection.
+      localStorage.removeItem(STORAGE_KEY);
     }
   }, [activeId]);
+
+  // BR-05/BR-03 — "Change requester": forget the selection so the app is
+  // unauthenticated-but-usable; protected routes render the selection screen.
+  const clearRequester = useCallback(() => {
+    setActiveId(null);
+  }, []);
 
   const activeRequester = useMemo(
     () => requesters.find((r) => r.id === activeId) ?? null,
@@ -54,9 +63,10 @@ export function DevRequesterProvider({ children }: { children: ReactNode }) {
       activeRequester,
       status,
       selectRequester: setActiveId,
+      clearRequester,
       retry: load,
     }),
-    [requesters, activeRequester, status, load],
+    [requesters, activeRequester, status, load, clearRequester],
   );
 
   return (

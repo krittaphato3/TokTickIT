@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TokTickIT — My Tickets (Zen Green v0.3.2)</title>
+<style>
+  :root{
+    --tok-primary:#006B3C;
+    --tok-secondary:#0B7A46;
+    --tok-primary-soft:#EAF6EF;
+    --tok-page-bg:#F5F7F6;
+    --tok-surface:#FFFFFF;
+    --tok-text:#1E2A25;
+    --tok-text-muted:#5C6B64;
+    --tok-border:#C9D4CE;
+    --tok-border-soft:#E1E8E4;
+    --tok-field-editable:#FFFFFF;
+    --tok-field-readonly:#F0F3F1;
+    --tok-field-readonly-warm:#FAF6EF;
+    --tok-error:#B3261E;
+    --tok-error-soft:#FDECEA;
+    --tok-warning:#B26A00;
+    --tok-warning-soft:#FFF4E5;
+    --tok-success:#1E7A46;
+    --tok-success-soft:#EAF6EF;
+    --tok-info:#1D5FBF;
+    --tok-info-soft:#E9F0FB;
+    --shadow-card:0 1px 3px rgba(30,42,37,.08);
+    --ring:3px solid rgba(0,107,60,.28);
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{font-size:16px}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue","Noto Sans","Liberation Sans",Arial,sans-serif;
+    background:var(--tok-page-bg);color:var(--tok-text);line-height:1.5;
+    overflow-x:hidden;
+  }
+  a{color:var(--tok-secondary)}
+  button{font:inherit;cursor:pointer;background:none;border:none;color:inherit}
+  :focus-visible{outline:var(--ring);outline-offset:2px;border-radius:.25rem}
+
+  .skip-link{position:absolute;left:-9999px;top:0;background:var(--tok-primary);color:#fff;padding:.5rem 1rem;border-radius:0 0 .375rem 0;z-index:100}
+  .skip-link:focus{left:0}
+
+  /* ---------- App shell ---------- */
+  .top-accent{height:4px;background:var(--tok-primary)}
+  .navbar{
+    position:sticky;top:0;z-index:50;background:var(--tok-surface);
+    border-bottom:1px solid var(--tok-border);
+    display:flex;align-items:center;gap:1.5rem;
+    padding:.625rem 1.5rem;
+  }
+  .brand{display:flex;align-items:center;gap:.5rem;font-weight:700;font-size:1.125rem;color:var(--tok-primary);text-decoration:none}
+  .brand svg{width:20px;height:20px;fill:var(--tok-primary)}
+  .nav-items{display:flex;gap:.25rem}
+  .nav-items a{
+    text-decoration:none;color:var(--tok-text-muted);font-weight:600;font-size:.9375rem;
+    padding:.375rem .875rem;border-radius:999px;
+  }
+  .nav-items a:hover{color:var(--tok-secondary);background:var(--tok-primary-soft)}
+  .nav-items a.active{background:var(--tok-primary-soft);color:var(--tok-primary)}
+  .nav-right{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:.125rem}
+  .nav-right label{font-size:.8125rem;font-weight:600;color:var(--tok-text-muted)}
+  .nav-right select{
+    border:1px solid var(--tok-border);border-radius:.375rem;background:var(--tok-field-editable);
+    padding:.25rem .5rem;font-size:.875rem;color:var(--tok-text);min-width:170px;
+  }
+  .nav-caption{font-size:.75rem;color:var(--tok-text-muted)}
+
+  /* ---------- Page ---------- */
+  .page{max-width:1280px;margin:0 auto;padding:1.5rem 1rem 3rem}
+  .page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem}
+  .page-head h1{font-size:1.5rem;font-weight:700}
+  .page-sub{font-size:.875rem;color:var(--tok-text-muted);margin-top:.125rem}
+  .head-actions{display:flex;gap:.625rem;flex-wrap:wrap}
+
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:.4375rem;
+    border-radius:.375rem;font-weight:600;font-size:.9375rem;
+    padding:.5rem 1rem;min-height:40px;text-decoration:none;
+  }
+  .btn svg{width:15px;height:15px;flex:none}
+  .btn-primary{background:var(--tok-primary);color:#fff}
+  .btn-primary:hover{background:var(--tok-secondary)}
+  .btn-secondary{background:var(--tok-surface);color:var(--tok-text);border:1px solid var(--tok-border)}
+  .btn-secondary:hover{background:var(--tok-primary-soft);border-color:var(--tok-secondary)}
+  .btn-tertiary{color:var(--tok-primary);padding:.375rem .5rem}
+  .btn-tertiary:hover{text-decoration:underline}
+  .btn[disabled]{opacity:.5;cursor:not-allowed}
+
+  /* ---------- Filter bar ---------- */
+  .card{background:var(--tok-surface);border:1px solid var(--tok-border-soft);border-radius:.75rem;box-shadow:var(--shadow-card)}
+  .filter-card{padding:1.25rem;margin-bottom:1.25rem;display:grid;grid-template-columns:minmax(200px,1.6fr) repeat(4,minmax(130px,1fr));gap:1rem;align-items:end}
+  .f-label{display:block;font-size:.8125rem;font-weight:600;color:var(--tok-text);margin-bottom:.375rem}
+  .search-wrap{position:relative}
+  .search-wrap .mag{position:absolute;left:.75rem;top:50%;transform:translateY(-50%);width:15px;height:15px;fill:var(--tok-text-muted);pointer-events:none}
+  .search-wrap input{
+    width:100%;height:40px;border:1px solid var(--tok-border);border-radius:.5rem;
+    background:var(--tok-field-editable);color:var(--tok-text);
+    padding:0 2rem 0 2.25rem;font-size:.9375rem;
+  }
+  .search-wrap input::placeholder{color:var(--tok-text-muted)}
+  .search-wrap input:focus{outline:var(--ring);outline-offset:0;border-color:var(--tok-primary)}
+  .search-clear{
+    position:absolute;right:.5rem;top:50%;transform:translateY(-50%);
+    width:24px;height:24px;border-radius:50%;display:none;align-items:center;justify-content:center;
+    color:var(--tok-text-muted);font-size:.875rem;
+  }
+  .search-clear:hover{background:var(--tok-field-readonly);color:var(--tok-text)}
+  .search-wrap.has-value .search-clear{display:inline-flex}
+  .filter-card select{
+    width:100%;height:40px;border:1px solid var(--tok-border);border-radius:.5rem;
+    background:var(--tok-field-editable);color:var(--tok-text);padding:0 .625rem;font-size:.9375rem;
+  }
+  .filter-card select:focus{outline:var(--ring);outline-offset:0;border-color:var(--tok-primary)}
+
+  /* ---------- Table (fluid, NO horizontal scroll) ---------- */
+  .table-card{overflow:hidden}
+  .table-scroll{width:100%}
+  table{width:100%;border-collapse:collapse;table-layout:auto}
+  thead th{
+    background:var(--tok-primary-soft);color:var(--tok-secondary);
+    font-size:.8125rem;font-weight:700;text-align:left;
+    padding:.625rem .625rem;border-bottom:1px solid var(--tok-border-soft);white-space:nowrap;
+  }
+  th .th-sort{display:inline-flex;align-items:center;gap:.375rem;color:inherit;font:inherit;padding:.125rem .125rem}
+  th .th-sort:hover{color:var(--tok-primary)}
+  .sic{width:8px;height:12px;flex:none}
+  .sic path{fill:#9DB4A8}
+  th[aria-sort="ascending"] .sic .up,th[aria-sort="descending"] .sic .dn{fill:var(--tok-primary)}
+  tbody td{
+    padding:.6875rem .625rem;border-bottom:1px solid var(--tok-border-soft);
+    font-size:.8125rem;vertical-align:middle;
+    white-space:normal;overflow-wrap:break-word;
+  }
+  tbody tr:hover{background:var(--tok-primary-soft)}
+  tbody tr:last-child td{border-bottom:none}
+  td.sum{min-width:140px}
+  .tkt-link{font-family:var(--mono);font-weight:600;font-size:.8125rem;color:var(--tok-secondary);text-decoration:none;white-space:nowrap}
+  .tkt-link:hover{color:var(--tok-primary);text-decoration:underline}
+  .muted{color:var(--tok-text-muted)}
+
+  .badge{
+    display:inline-flex;align-items:center;gap:.25rem;
+    border-radius:999px;font-size:.75rem;font-weight:600;
+    padding:.1875rem .625rem;border:1px solid transparent;white-space:nowrap;
+  }
+  .pri-low{background:var(--tok-success-soft);color:var(--tok-success);border-color:#CBE7D4}
+  .pri-medium{background:var(--tok-warning-soft);color:#9A5B00;border-color:#F0D9B5}
+  .pri-high{background:var(--tok-error-soft);color:var(--tok-error);border-color:#F3C4BE}
+  .pri-critical{background:var(--tok-error);color:#fff}
+  .st-open{background:var(--tok-info-soft);color:var(--tok-info);border-color:#C9DAF3}
+  .st-pending{background:var(--tok-warning-soft);color:#9A5B00;border-color:#F0D9B5}
+  .st-inprogress{background:var(--tok-success-soft);color:var(--tok-success);border-color:#CBE7D4}
+  .st-resolved{background:#E6F4EE;color:var(--tok-secondary);border-color:#C4E4D4}
+
+  /* ---------- Table footer / pagination ---------- */
+  .table-foot{
+    display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;
+    padding:.875rem 1rem;border-top:1px solid var(--tok-border-soft);background:var(--tok-surface);
+  }
+  .showing{font-size:.8125rem;color:var(--tok-text-muted)}
+  .pager{display:flex;align-items:center;gap:.375rem;flex-wrap:wrap}
+  .page-btn{
+    min-width:36px;height:36px;padding:0 .625rem;border-radius:.375rem;
+    border:1px solid var(--tok-border);background:var(--tok-surface);
+    font-size:.8125rem;font-weight:600;color:var(--tok-text);
+    display:inline-flex;align-items:center;justify-content:center;gap:.25rem;
+  }
+  .page-btn:hover:not([disabled]):not(.active){background:var(--tok-primary-soft);border-color:var(--tok-secondary)}
+  .page-btn.active{background:var(--tok-primary);border-color:var(--tok-primary);color:#fff}
+  .page-btn[disabled]{opacity:.5;cursor:not-allowed}
+  .page-ellipsis{min-width:24px;text-align:center;color:var(--tok-text-muted);font-size:.8125rem}
+
+  /* ---------- Inline live states ---------- */
+  .live-state{padding:3rem 1.5rem;text-align:center;display:none}
+  .live-state h3{font-size:1.0625rem;font-weight:700;margin-bottom:.375rem}
+  .live-state p{font-size:.875rem;color:var(--tok-text-muted);margin-bottom:1rem}
+
+  /* ---------- Mobile cards (live, <768px) ---------- */
+  .cards{display:none;flex-direction:column;gap:.75rem;padding:1rem}
+  .m-card{border:1px solid var(--tok-border-soft);border-radius:.75rem;padding:1rem;background:var(--tok-surface)}
+  .m-card .row1{display:flex;justify-content:space-between;gap:.5rem;align-items:baseline;flex-wrap:wrap}
+  .m-card .sum{font-weight:600;font-size:.9375rem;margin:.25rem 0 .5rem}
+  .m-card .badges{display:flex;gap:.375rem;flex-wrap:wrap;margin-bottom:.5rem}
+  .m-card .meta{font-size:.8125rem;color:var(--tok-text-muted);display:flex;flex-direction:column;gap:.125rem}
+  .m-card a{min-height:44px;display:inline-flex;align-items:center}
+
+  /* ---------- Static mobile preview (always visible for review) ---------- */
+  .phone-frame{
+    max-width:420px;margin:0 auto;background:var(--tok-page-bg);
+    border:1px solid var(--tok-border);border-radius:1.25rem;
+    padding:.875rem;box-shadow:var(--shadow-card);
+  }
+  .demo-cards{display:flex;flex-direction:column;gap:.75rem}
+
+  /* ---------- Demo state sections ---------- */
+  .demo-label{margin:2.25rem 0 .75rem;font-size:.9375rem;font-weight:700;color:var(--tok-text-muted)}
+  .skeleton-row{display:flex;gap:1rem;padding:1rem;border-bottom:1px solid var(--tok-border-soft)}
+  .shimmer{height:.875rem;border-radius:999px;background:linear-gradient(90deg,#EDF2EF 25%,#F8FBF9 50%,#EDF2EF 75%);background-size:200% 100%;animation:sh 1.1s infinite linear}
+  @keyframes sh{to{background-position:-200% 0}}
+  .state-pad{padding:3rem 1.5rem;text-align:center}
+  .state-pad h3{font-size:1.0625rem;font-weight:700;margin-bottom:.375rem}
+  .state-pad p{font-size:.875rem;color:var(--tok-text-muted);margin-bottom:1rem}
+  .alert-error{
+    display:flex;align-items:center;justify-content:center;gap:.5rem;
+    background:var(--tok-error-soft);border:1px solid #F3C4BE;color:var(--tok-error);
+    border-radius:.5rem;padding:.75rem 1rem;font-size:.875rem;font-weight:600;margin:0 1rem 1rem;
+  }
+
+  .end-note{margin-top:2.5rem;font-size:.8125rem;color:var(--tok-text-muted);text-align:center}
+
+  /* ---------- Responsive ---------- */
+  @media (max-width:991px){
+    .filter-card{grid-template-columns:1fr 1fr}
+    .search-wrap{grid-column:1 / -1}
+    thead th{font-size:.75rem;padding:.5rem .5rem}
+    tbody td{font-size:.75rem;padding:.5625rem .5rem}
+    .badge{font-size:.6875rem;padding:.125rem .5rem}
+    .tkt-link{font-size:.75rem;white-space:normal;overflow-wrap:anywhere}
+  }
+  @media (max-width:767px){
+    .navbar{padding:.625rem 1rem;gap:.75rem;flex-wrap:wrap}
+    .nav-right{margin-left:0;align-items:flex-start;width:100%}
+    .nav-right select{width:100%;min-height:44px}
+    .page-head{flex-direction:column}
+    .head-actions{width:100%}
+    .head-actions .btn{min-height:44px;flex:1}
+    .filter-card{grid-template-columns:1fr;padding:1rem}
+    .filter-card select{min-height:44px}
+    .filter-card input{min-height:44px}
+    .table-scroll{display:none}
+    .cards{display:flex}
+    .table-foot{justify-content:center}
+    .page-btn{min-width:44px;height:44px}
+  }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<div class="top-accent"></div>
+
+<header class="navbar">
+  <a class="brand" href="#">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16a1 1 0 0 1 1 1v3a2 2 0 0 0 0 6v3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-3a2 2 0 0 0 0-6V6a1 1 0 0 1 1-1zm3 3v2h10V8H7zm0 8v2h10v-2H7z"/></svg>
+    TokTickIT
+  </a>
+  <nav class="nav-items" aria-label="Primary">
+    <a href="#">New Ticket</a>
+    <a href="#" class="active" aria-current="page">My Tickets</a>
+  </nav>
+  <div class="nav-right">
+    <label for="dev-requester">Development Requester</label>
+    <select id="dev-requester">
+      <option>Dev User Alpha</option>
+      <option>Dev User Beta</option>
+      <option>Dev User Gamma</option>
+      <option>Dev User Delta</option>
+    </select>
+    <span class="nav-caption">Testing only — not real authentication</span>
+  </div>
+</header>
+
+<main id="main" class="page">
+
+  <!-- Page head -->
+  <div class="page-head">
+    <div>
+      <h1>My Tickets</h1>
+      <p class="page-sub">View and track all of your support requests.</p>
+    </div>
+    <div class="head-actions">
+      <button class="btn btn-secondary" id="clear-filters-top" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M20 11A8 8 0 1 0 20 13"/><polyline points="20 4 20 11 13 11"/></svg>
+        Clear Filters
+      </button>
+      <a class="btn btn-primary" href="#" id="create-ticket-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Create Ticket
+      </a>
+    </div>
+  </div>
+
+  <!-- Filter bar -->
+  <section class="card filter-card" aria-label="Search and filters">
+    <div class="search-wrap" id="search-wrap">
+      <svg class="mag" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2a8 8 0 1 0 4.9 14.3l5.4 5.4 1.4-1.4-5.4-5.4A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z"/></svg>
+      <input type="search" id="search" placeholder="Search by ticket number or summary..." aria-label="Search by ticket number or summary" autocomplete="off">
+      <button class="search-clear" id="search-clear" type="button" aria-label="Clear search">✕</button>
+    </div>
+    <div>
+      <label class="f-label" for="f-category">Category</label>
+      <select id="f-category">
+        <option value="">All Categories</option>
+        <option>Hardware</option>
+        <option>Network</option>
+        <option>Software</option>
+        <option>Access</option>
+      </select>
+    </div>
+    <div>
+      <label class="f-label" for="f-reqpri">Requested Priority</label>
+      <select id="f-reqpri">
+        <option value="">All Priorities</option>
+        <option>Low</option>
+        <option>Medium</option>
+        <option>High</option>
+        <option>Critical</option>
+      </select>
+    </div>
+    <div>
+      <label class="f-label" for="f-itpri">IT Priority</label>
+      <select id="f-itpri">
+        <option value="">All Priorities</option>
+        <option>Low</option>
+        <option>Medium</option>
+        <option>High</option>
+        <option>Critical</option>
+      </select>
+    </div>
+    <div>
+      <label class="f-label" for="f-status">Current Status</label>
+      <select id="f-status">
+        <option value="">All Statuses</option>
+        <option>Open</option>
+        <option>Pending</option>
+        <option>In Progress</option>
+        <option>Resolved</option>
+      </select>
+    </div>
+  </section>
+
+  <!-- Ticket table -->
+  <section class="card table-card" aria-label="My tickets list">
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th aria-sort="none"><button class="th-sort" data-sort="ticketNo" type="button">Ticket No. <svg class="sic" viewBox="0 0 8 12" aria-hidden="true"><path class="up" d="M4 0l4 5H0z"/><path class="dn" d="M4 12L0 7h8z"/></svg></button></th>
+            <th aria-sort="descending"><button class="th-sort" data-sort="created" type="button">Created Date <svg class="sic" viewBox="0 0 8 12" aria-hidden="true"><path class="up" d="M4 0l4 5H0z"/><path class="dn" d="M4 12L0 7h8z"/></svg></button></th>
+            <th>Summary</th>
+            <th>Category</th>
+            <th>Requested Priority</th>
+            <th>IT Priority</th>
+            <th>Current Status</th>
+            <th>Ticket Owner</th>
+            <th aria-sort="none"><button class="th-sort" data-sort="updated" type="button">Last Updated <svg class="sic" viewBox="0 0 8 12" aria-hidden="true"><path class="up" d="M4 0l4 5H0z"/><path class="dn" d="M4 12L0 7h8z"/></svg></button></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- Mobile cards (live, shown <768px) -->
+    <div class="cards" id="cards"></div>
+
+    <!-- Live empty / no-results -->
+    <div class="live-state" id="live-empty">
+      <h3>No tickets yet</h3>
+      <p>When you submit a support request, it will appear here with its official ticket number.</p>
+      <a class="btn btn-primary" href="#">Create your first ticket</a>
+    </div>
+    <div class="live-state" id="live-noresults">
+      <h3>No results match your filters</h3>
+      <p>Try a different search term, or clear the filters to see all of your tickets.</p>
+      <button class="btn btn-secondary" id="clear-filters-inline" type="button">Clear filters</button>
+    </div>
+
+    <div class="table-foot">
+      <span class="showing" id="showing" aria-live="polite">Showing 1 to 8 of 42 tickets</span>
+      <nav class="pager" id="pager" aria-label="Pagination"></nav>
+    </div>
+  </section>
+
+  <!-- Screen 03-B — Loading state -->
+  <h2 class="demo-label">Screen 03-B — Loading state</h2>
+  <section class="card" aria-label="Loading state example">
+    <div class="skeleton-row"><span class="shimmer" style="width:12%"></span><span class="shimmer" style="width:14%"></span><span class="shimmer" style="width:26%"></span><span class="shimmer" style="width:8%"></span><span class="shimmer" style="width:8%"></span><span class="shimmer" style="width:8%"></span><span class="shimmer" style="width:10%"></span></div>
+    <div class="skeleton-row"><span class="shimmer" style="width:12%"></span><span class="shimmer" style="width:14%"></span><span class="shimmer" style="width:22%"></span><span class="shimmer" style="width:8%"></span><span class="shimmer" style="width:8%"></span><span class="shimmer" style="width:8%"></span><span class="shimmer" style="width:10%"></span></div>
+    <div class="skeleton-row"><span class="shimmer" style="width:12%"></span><span class="shimmer" style="width:14%"></span><span class="shimmer" style="width:30%"></span><span class="shimmer" style="width:8%"></span><span class="shimmer" style="width:8%"></span><span class="shimmer" style="width:8%"></span><span class="shimmer" style="width:10%"></span></div>
+  </section>
+
+  <!-- Screen 03-C — Empty state -->
+  <h2 class="demo-label">Screen 03-C — Empty state (zero tickets)</h2>
+  <section class="card state-pad" aria-label="Empty state example">
+    <h3>No tickets yet</h3>
+    <p>When you submit a support request, it will appear here with its official ticket number.</p>
+    <a class="btn btn-primary" href="#">Create your first ticket</a>
+  </section>
+
+  <!-- Screen 03-D — No-results state -->
+  <h2 class="demo-label">Screen 03-D — No-results state (filters match nothing)</h2>
+  <section class="card state-pad" aria-label="No results state example">
+    <h3>No results match your filters</h3>
+    <p>Try a different search term, or clear the filters to see all of your tickets.</p>
+    <button class="btn btn-secondary" type="button">Clear filters</button>
+  </section>
+
+  <!-- Screen 03-E — Failure state -->
+  <h2 class="demo-label">Screen 03-E — Failure state (API down)</h2>
+  <section class="card state-pad" aria-label="Failure state example" style="padding-top:1rem">
+    <div class="alert-error">We couldn't load your tickets. Your filters are preserved.</div>
+    <button class="btn btn-tertiary" type="button">Try again</button>
+    <div style="height:1.5rem"></div>
+  </section>
+
+  <!-- Screen 03-F — Mobile cards -->
+  <h2 class="demo-label">Screen 03-F — Mobile cards (&lt;768px)</h2>
+  <p class="page-sub" style="margin-bottom:1rem">Live behavior: resize the browser below 768px and the table above collapses into touch-friendly cards (touch targets ≥ 44px, no horizontal scroll). Static phone-width preview below for desktop review.</p>
+  <div class="phone-frame">
+    <div class="demo-cards">
+      <div class="m-card">
+        <div class="row1"><a class="tkt-link" href="#">TKT-2025-001234</a><span class="muted" style="font-size:.8125rem">May 12, 2025 09:14 AM</span></div>
+        <div class="sum">Laptop battery drains quickly</div>
+        <div class="badges"><span class="badge pri-medium">Medium</span><span class="badge pri-medium">Medium</span><span class="badge st-inprogress">In Progress</span></div>
+        <div class="meta"><span>Hardware · Michael Brown</span><span>Updated May 13, 2025 10:30 AM</span></div>
+      </div>
+      <div class="m-card">
+        <div class="row1"><a class="tkt-link" href="#">TKT-2025-001233</a><span class="muted" style="font-size:.8125rem">May 12, 2025 08:02 AM</span></div>
+        <div class="sum">Cannot connect to VPN</div>
+        <div class="badges"><span class="badge pri-high">High</span><span class="badge pri-high">High</span><span class="badge st-open">Open</span></div>
+        <div class="meta"><span>Network · Sarah Johnson</span><span>Updated May 13, 2025 09:45 AM</span></div>
+      </div>
+      <div class="m-card">
+        <div class="row1"><a class="tkt-link" href="#">TKT-2025-001231</a><span class="muted" style="font-size:.8125rem">May 11, 2025 11:30 AM</span></div>
+        <div class="sum">New employee setup request</div>
+        <div class="badges"><span class="badge pri-low">Low</span><span class="badge pri-low">Low</span><span class="badge st-resolved">Resolved</span></div>
+        <div class="meta"><span>Access · Jennifer Anderson</span><span>Updated May 12, 2025 11:05 AM</span></div>
+      </div>
+    </div>
+  </div>
+
+  <p class="end-note">— end of draft v0.3.2 · My Tickets (full feature set, fluid table, mobile cards) · ENI × Ozone review —</p>
+</main>
+
+<script>
+/* [no, created, summary, category, reqPri, itPri, status, owner, updated] */
+const DATA = [
+["TKT-2025-001234","2025-05-12T09:14","Laptop battery drains quickly","Hardware","Medium","Medium","In Progress","Michael Brown","2025-05-13T10:30"],
+["TKT-2025-001233","2025-05-12T08:02","Cannot connect to VPN","Network","High","High","Open","Sarah Johnson","2025-05-13T09:45"],
+["TKT-2025-001232","2025-05-11T16:45","Email not syncing on mobile","Software","Medium","Medium","In Progress","David Lee","2025-05-12T15:20"],
+["TKT-2025-001231","2025-05-11T11:30","New employee setup request","Access","Low","Low","Resolved","Jennifer Anderson","2025-05-12T11:05"],
+["TKT-2025-001230","2025-05-10T14:10","Printer keeps showing offline","Hardware","Medium","Low","Open","Michael Brown","2025-05-11T10:15"],
+["TKT-2025-001229","2025-05-10T10:08","Request access to SharePoint","Access","Low","Low","Pending","Sarah Johnson","2025-05-10T10:08"],
+["TKT-2025-001228","2025-05-09T15:22","Outlook freezing intermittently","Software","High","Medium","In Progress","David Lee","2025-05-11T13:40"],
+["TKT-2025-001227","2025-05-09T09:15","Docking station not detected","Hardware","Medium","Medium","Resolved","Michael Brown","2025-05-09T14:30"],
+["TKT-2025-001226","2025-05-08T16:40","Wi-Fi drops in conference room B","Network","High","High","In Progress","Jennifer Anderson","2025-05-09T08:12"],
+["TKT-2025-001225","2025-05-08T10:25","Password reset email not arriving","Access","Medium","Medium","Pending","Sarah Johnson","2025-05-08T10:25"],
+["TKT-2025-001224","2025-05-07T15:05","Excel crashes on large files","Software","Medium","High","In Progress","Michael Brown","2025-05-08T09:40"],
+["TKT-2025-001223","2025-05-07T09:48","Monitor flickering at desk 4F-12","Hardware","Low","Low","Resolved","David Lee","2025-05-07T14:22"],
+["TKT-2025-001222","2025-05-06T13:30","Cannot access shared drive","Network","High","Medium","In Progress","Sarah Johnson","2025-05-07T10:05"],
+["TKT-2025-001221","2025-05-06T08:55","Request license for design tool","Software","Low","Low","Pending","Jennifer Anderson","2025-05-06T08:55"],
+["TKT-2025-001220","2025-05-05T17:20","Laptop won't charge past 80%","Hardware","Medium","Medium","Open","Michael Brown","2025-05-05T17:20"],
+["TKT-2025-001219","2025-05-05T11:10","Account locked after password change","Access","High","High","Resolved","David Lee","2025-05-06T09:15"],
+["TKT-2025-001218","2025-05-04T14:45","Teams audio cuts out during calls","Network","Medium","Medium","In Progress","Sarah Johnson","2025-05-05T16:30"],
+["TKT-2025-001217","2025-05-04T09:05","Install antivirus on new workstation","Software","Low","Medium","Open","Jennifer Anderson","2025-05-04T09:05"],
+["TKT-2025-001216","2025-05-03T16:15","Keyboard keys sticking","Hardware","Low","Low","Resolved","Michael Brown","2025-05-04T10:50"],
+["TKT-2025-001215","2025-05-03T10:40","VPN slow when accessing ERP","Network","High","Critical","In Progress","David Lee","2025-05-04T15:12"],
+["TKT-2025-001214","2025-05-02T15:55","Email quarantine false positives","Software","Medium","Medium","Pending","Sarah Johnson","2025-05-02T15:55"],
+["TKT-2025-001213","2025-05-02T08:30","Badge reader not recognizing card","Access","Medium","High","In Progress","Jennifer Anderson","2025-05-03T09:20"],
+["TKT-2025-001212","2025-05-01T13:12","Projector shows no signal","Hardware","Medium","Low","Resolved","Michael Brown","2025-05-01T16:45"],
+["TKT-2025-001211","2025-05-01T09:20","Cannot join wireless from phone","Network","Low","Low","Open","David Lee","2025-05-01T09:20"],
+["TKT-2025-001210","2025-04-30T16:05","Outlook rules not applying","Software","Low","Medium","In Progress","Sarah Johnson","2025-05-01T11:30"],
+["TKT-2025-001209","2025-04-30T10:50","Request admin rights for dev machine","Access","Medium","Medium","Pending","Jennifer Anderson","2025-04-30T10:50"],
+["TKT-2025-001208","2025-04-29T14:35","Second monitor not detected","Hardware","Medium","Medium","Resolved","Michael Brown","2025-04-30T09:10"],
+["TKT-2025-001207","2025-04-29T08:15","Guest Wi-Fi portal stuck on loading","Network","Medium","High","In Progress","David Lee","2025-04-29T15:40"],
+["TKT-2025-001206","2025-04-28T15:25","PDF editor license expired","Software","High","Medium","Open","Sarah Johnson","2025-04-28T15:25"],
+["TKT-2025-001205","2025-04-28T11:40","Shared mailbox access request","Access","Low","Low","Resolved","Jennifer Anderson","2025-04-29T10:05"],
+["TKT-2025-001204","2025-04-27T16:50","Laptop overheats during video calls","Hardware","High","High","In Progress","Michael Brown","2025-04-28T13:25"],
+["TKT-2025-001203","2025-04-27T09:35","Intermittent DNS resolution failures","Network","Critical","Critical","In Progress","David Lee","2025-04-28T08:55"],
+["TKT-2025-001202","2025-04-26T14:10","OneDrive sync paused randomly","Software","Medium","Low","Open","Sarah Johnson","2025-04-26T14:10"],
+["TKT-2025-001201","2025-04-26T10:20","Password expiring too often","Access","Low","Low","Pending","Jennifer Anderson","2025-04-26T10:20"],
+["TKT-2025-001200","2025-04-25T15:45","USB-C hub ports failing","Hardware","Medium","Medium","Resolved","Michael Brown","2025-04-26T09:30"],
+["TKT-2025-001199","2025-04-25T08:50","Cannot reach intranet site","Network","Medium","Medium","Resolved","David Lee","2025-04-25T13:15"],
+["TKT-2025-001198","2025-04-24T13:40","Browser keeps forgetting session","Software","Low","Medium","Open","Sarah Johnson","2025-04-24T13:40"],
+["TKT-2025-001197","2025-04-24T09:10","New starter account provisioning","Access","Medium","Medium","Resolved","Jennifer Anderson","2025-04-25T10:45"],
+["TKT-2025-001196","2025-04-23T16:30","Headset microphone not working","Hardware","Low","Low","Open","Michael Brown","2025-04-23T16:30"],
+["TKT-2025-001195","2025-04-23T11:55","Video conferencing room echo","Network","Medium","High","Pending","David Lee","2025-04-23T11:55"],
+["TKT-2025-001194","2025-04-22T14:20","Spreadsheet macros blocked","Software","Medium","Medium","In Progress","Sarah Johnson","2025-04-23T09:35"],
+["TKT-2025-001193","2025-04-22T09:00","Access request for finance folder","Access","High","Medium","Open","Jennifer Anderson","2025-04-22T09:00"]
+];
+
+const PAGE_SIZE = 8;
+const state = { search:"", category:"", reqPri:"", itPri:"", status:"", sortKey:"created", sortDir:"desc", page:1 };
+
+const $ = id => document.getElementById(id);
+const tbody=$("tbody"), cards=$("cards"), pager=$("pager"), showing=$("showing");
+const searchInput=$("search"), searchWrap=$("search-wrap");
+
+const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function fmt(iso){
+  const d=new Date(iso);
+  let h=d.getHours(); const am=h>=12?"PM":"AM"; h=h%12||12;
+  return MONTHS[d.getMonth()]+" "+d.getDate()+", "+d.getFullYear()+" "+String(h).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")+" "+am;
+}
+function priBadge(p){ return '<span class="badge '+(p==="Critical"?"pri-critical":p==="High"?"pri-high":p==="Medium"?"pri-medium":"pri-low")+'">'+(p==="Critical"?"! ":"")+p+"</span>"; }
+function stBadge(s){ return '<span class="badge '+(s==="Open"?"st-open":s==="Pending"?"st-pending":s==="In Progress"?"st-inprogress":"st-resolved")+'">'+s+"</span>"; }
+
+function filtered(){
+  const q=state.search.trim().toLowerCase();
+  let rows=DATA.filter(r=>{
+    if(q && !(r[0].toLowerCase().includes(q)||r[2].toLowerCase().includes(q))) return false;
+    if(state.category && r[3]!==state.category) return false;
+    if(state.reqPri && r[4]!==state.reqPri) return false;
+    if(state.itPri && r[5]!==state.itPri) return false;
+    if(state.status && r[6]!==state.status) return false;
+    return true;
+  });
+  const dir=state.sortDir==="asc"?1:-1;
+  rows.sort((a,b)=>{
+    if(state.sortKey==="ticketNo") return a[0].localeCompare(b[0])*dir;
+    const ai=state.sortKey==="created"?1:8;
+    return (new Date(a[ai])-new Date(b[ai]))*dir;
+  });
+  return rows;
+}
+
+function pageList(total,current){
+  if(total<=7) return Array.from({length:total},(_,i)=>i+1);
+  if(current<=4) return [1,2,3,4,5,"…",total];
+  if(current>=total-3) return [1,"…",total-4,total-3,total-2,total-1,total];
+  return [1,"…",current-1,current,current+1,"…",total];
+}
+
+function render(){
+  const rows=filtered();
+  const total=rows.length;
+  const totalPages=Math.max(1,Math.ceil(total/PAGE_SIZE));
+  if(state.page>totalPages) state.page=totalPages;
+  const start=(state.page-1)*PAGE_SIZE;
+  const slice=rows.slice(start,start+PAGE_SIZE);
+
+  const anyFilter=state.search||state.category||state.reqPri||state.itPri||state.status;
+  $("live-empty").style.display = (total===0&&!anyFilter)?"block":"none";
+  $("live-noresults").style.display = (total===0&&anyFilter)?"block":"none";
+
+  tbody.innerHTML=slice.map(r=>(
+    "<tr>"+
+    '<td><a class="tkt-link" href="#">'+r[0]+"</a></td>"+
+    "<td>"+fmt(r[1])+"</td>"+
+    '<td class="sum">'+r[2]+"</td>"+
+    "<td>"+r[3]+"</td>"+
+    "<td>"+priBadge(r[4])+"</td>"+
+    "<td>"+priBadge(r[5])+"</td>"+
+    "<td>"+stBadge(r[6])+"</td>"+
+    "<td>"+r[7]+"</td>"+
+    "<td>"+fmt(r[8])+"</td>"+
+    "</tr>"
+  )).join("");
+
+  cards.innerHTML=slice.map(r=>(
+    '<div class="m-card">'+
+    '<div class="row1"><a class="tkt-link" href="#">'+r[0]+"</a><span class='muted' style='font-size:.8125rem'>"+fmt(r[1])+"</span></div>"+
+    '<div class="sum">'+r[2]+"</div>"+
+    '<div class="badges">'+priBadge(r[4])+priBadge(r[5])+stBadge(r[6])+"</div>"+
+    '<div class="meta"><span>'+r[3]+" · "+r[7]+"</span><span>Updated "+fmt(r[8])+"</span></div>"+
+    "</div>"
+  )).join("");
+
+  showing.textContent = total===0 ? "Showing 0 to 0 of 0 tickets"
+    : "Showing "+(start+1)+" to "+Math.min(start+PAGE_SIZE,total)+" of "+total+" tickets";
+
+  let html='<button class="page-btn" type="button" data-page="prev"'+(state.page===1?" disabled":"")+'>‹ Previous</button>';
+  pageList(totalPages,state.page).forEach(p=>{
+    html += p==="…" ? '<span class="page-ellipsis">…</span>'
+      : '<button class="page-btn'+(p===state.page?" active":"")+'" type="button" data-page="'+p+'"'+(p===state.page?' aria-current="page"':"")+">"+p+"</button>";
+  });
+  html+='<button class="page-btn" type="button" data-page="next"'+(state.page===totalPages?" disabled":"")+'>Next ›</button>';
+  pager.innerHTML=html;
+
+  document.querySelectorAll("th[aria-sort]").forEach(th=>{
+    const key=th.querySelector(".th-sort").dataset.sort;
+    th.setAttribute("aria-sort", key===state.sortKey ? (state.sortDir==="asc"?"ascending":"descending") : "none");
+  });
+}
+
+/* events */
+let deb;
+searchInput.addEventListener("input",()=>{
+  searchWrap.classList.toggle("has-value",searchInput.value.length>0);
+  clearTimeout(deb);
+  deb=setTimeout(()=>{ state.search=searchInput.value; state.page=1; render(); },300);
+});
+$("search-clear").addEventListener("click",()=>{
+  searchInput.value=""; searchWrap.classList.remove("has-value");
+  state.search=""; state.page=1; render(); searchInput.focus();
+});
+[["f-category","category"],["f-reqpri","reqPri"],["f-itpri","itPri"],["f-status","status"]].forEach(([id,key])=>{
+  $(id).addEventListener("change",e=>{ state[key]=e.target.value; state.page=1; render(); });
+});
+document.querySelectorAll(".th-sort").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    const k=btn.dataset.sort;
+    if(state.sortKey===k){ state.sortDir=state.sortDir==="asc"?"desc":"asc"; }
+    else { state.sortKey=k; state.sortDir = k==="ticketNo" ? "asc" : "desc"; }
+    render();
+  });
+});
+pager.addEventListener("click",e=>{
+  const b=e.target.closest(".page-btn"); if(!b||b.disabled) return;
+  const p=b.dataset.page;
+  if(p==="prev") state.page--; else if(p==="next") state.page++; else state.page=+p;
+  render();
+});
+function clearAll(){
+  state.search=state.category=state.reqPri=state.itPri=state.status=""; state.page=1;
+  searchInput.value=""; searchWrap.classList.remove("has-value");
+  ["f-category","f-reqpri","f-itpri","f-status"].forEach(id=>$(id).selectedIndex=0);
+  render();
+}
+$("clear-filters-top").addEventListener("click",clearAll);
+$("clear-filters-inline").addEventListener("click",clearAll);
+
+render();
+</script>
+</body>
+</html>
