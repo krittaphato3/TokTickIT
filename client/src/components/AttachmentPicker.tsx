@@ -26,18 +26,24 @@ function extensionOf(name: string): string {
   return parts.length > 1 ? (parts.pop() as string).toLowerCase() : '';
 }
 
-export default function AttachmentPicker({ disabled }: { disabled?: boolean }) {
+export default function AttachmentPicker({ disabled, onPendingFilesChange }: { disabled?: boolean; onPendingFilesChange?: (files: File[])=>void }) {
   const [files, setFiles] = useState<PendingFile[]>([]);
+  const rawFilesRef = useRef<File[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  function syncPending(nextRaw: File[]) {
+    rawFilesRef.current = nextRaw;
+    onPendingFilesChange?.(nextRaw);
+  }
+
   function addFiles(incoming: FileList | File[]) {
     const next = [...files];
-    const active = next.filter((f) => !f.error).length;
+    const nextRaw = [...rawFilesRef.current];
 
     for (const file of Array.from(incoming)) {
       const ext = extensionOf(file.name);
-      if (active >= MAX_ATTACHMENTS) {
+      if (next.filter(f=>!f.error).length >= MAX_ATTACHMENTS) {
         next.push({
           id: `${file.name}-${Date.now()}-${Math.random()}`,
           name: file.name,
@@ -65,13 +71,24 @@ export default function AttachmentPicker({ disabled }: { disabled?: boolean }) {
         continue;
       }
       next.push({ id: `${file.name}-${Date.now()}-${Math.random()}`, name: file.name, size: file.size });
+      nextRaw.push(file as File);
     }
 
     setFiles(next);
+    syncPending(nextRaw);
   }
 
   function removeFile(id: string) {
+    const idx = files.findIndex(f=>f.id===id);
+    const isValid = idx>=0 && !files[idx].error;
     setFiles((current) => current.filter((f) => f.id !== id));
+    if (isValid) {
+      // remove corresponding raw file by matching name/size order
+      const rawIdx = files.slice(0, idx).filter(f=>!f.error).length;
+      const nr = [...rawFilesRef.current];
+      nr.splice(rawIdx,1);
+      syncPending(nr);
+    }
   }
 
   function onDrop(event: DragEvent<HTMLElement>) {

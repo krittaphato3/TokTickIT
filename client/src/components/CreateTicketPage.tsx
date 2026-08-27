@@ -4,6 +4,7 @@ import {
   createTicket,
   getCategories,
   getRelatedSystems,
+  uploadAttachment,
   type Category,
   type Priority,
   type RelatedSystem,
@@ -41,6 +42,8 @@ export default function CreateTicketPage({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [createdNumber, setCreatedNumber] = useState<string | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [uploadErrors, setUploadErrors] = useState<string[]>([]);
 
   async function loadLookups() {
     setLoadState('loading');
@@ -107,6 +110,18 @@ export default function CreateTicketPage({
         activeRequester?.id ?? 0,
       );
       setCreatedNumber(ticket.ticketNumber);
+      // Sequential per-file upload; failures show inline but ticket persists (compensation)
+      if (pendingFiles.length > 0) {
+        const errs: string[] = [];
+        for (const f of pendingFiles) {
+          try {
+            await uploadAttachment(ticket.ticketNumber, f, activeRequester!.id);
+          } catch (e: unknown) {
+            errs.push(`${f.name}: ${e instanceof Error ? e.message : 'Upload failed'}`);
+          }
+        }
+        if (errs.length > 0) setUploadErrors(errs);
+      }
       onCreated?.(ticket.ticketNumber);
     } catch (err) {
       if (err instanceof ApiError && err.body.details) {
@@ -139,6 +154,8 @@ export default function CreateTicketPage({
     setPriority('MEDIUM');
     setIssues([]);
     setSubmitError(null);
+    setPendingFiles([]);
+    setUploadErrors([]);
   }
 
   if (loadState === 'loading') {
@@ -397,7 +414,8 @@ export default function CreateTicketPage({
               · optional · up to 5 files · 5 MB each
             </span>
           </h2>
-          <AttachmentPicker disabled={submitting} />
+          <AttachmentPicker disabled={submitting} onPendingFilesChange={setPendingFiles} />
+          {uploadErrors.length>0 && <div className="tok-alert error" role="alert">{uploadErrors.map((e,i)=><div key={i}>{e}</div>)}</div>}
         </section>
 
         <div className="tok-actions">

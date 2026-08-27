@@ -209,4 +209,50 @@ export async function checkSystem(): Promise<SystemStatus> {
   return { online: true, categories };
 }
 
+export interface AttachmentMeta {
+  id: number;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedAt: string;
+  removedAt: string | null;
+}
+
+export interface TicketDetail extends Ticket {
+  requester: Requester;
+  attachments: AttachmentMeta[];
+}
+
+export async function getTicketDetail(ticketNumber: string, requesterId: number): Promise<TicketDetail> {
+  const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}`, {
+    headers: { 'X-Dev-Requester-Id': String(requesterId) },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as TicketDetail;
+}
+
+export async function uploadAttachment(ticketNumber: string, file: File, requesterId: number): Promise<AttachmentMeta> {
+  const form = new FormData();
+  form.append('file', file);
+  const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}/attachments`, {
+    method: 'POST',
+    headers: { 'X-Dev-Requester-Id': String(requesterId) },
+    body: form,
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as AttachmentMeta;
+}
+
+export async function deleteAttachment(ticketNumber: string, attachmentId: number, requesterId: number): Promise<AttachmentMeta> {
+  const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}/attachments/${attachmentId}`, {
+    method: 'DELETE',
+    headers: { 'X-Dev-Requester-Id': String(requesterId) },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as AttachmentMeta;
+}
+
 export default API_URL;
