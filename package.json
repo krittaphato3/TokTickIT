@@ -5,6 +5,26 @@
   "description": "TokTickIT monorepo root helper scripts (CPE334 Lab 1)",
   "scripts": {
     "db:migrate": "npm --prefix server run prisma:migrate",
-    "db:seed": "npm --prefix server run prisma:seed"
+    "db:seed": "npm --prefix server run prisma:seed",
+    "ports:free": "node scripts/ports-free.cjs"
+  },
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/krittaphato3/TokTickIT.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/krittaphato3/TokTickIT/issues"
+  },
+  "homepage": "https://github.com/krittaphato3/TokTickIT#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
   }
 }

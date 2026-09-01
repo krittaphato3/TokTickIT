@@ -1,7 +1,226 @@
+:root {
+  /* Zen Green tokens (ui-spec §1.1). */
+  --tt-primary: #006b3c;
+  --tt-secondary: #0b7a46;
+  --tt-primary-soft: #eaf6ef;
+  --tt-page-bg: #f5f7f6;
+  --tt-surface: #ffffff;
+  --tt-text: #1e2a25;
+  --tt-text-muted: #5c6b64;
+  --tt-border: #c9d4ce;
+  --tt-error: #b3261e;
+  --tt-warning: #b26a00;
+  --tt-success: #1e7a46;
+}
+
 body {
   margin: 0;
   min-height: 100svh;
-  background-color: #f8f9fa;
+  background-color: var(--tt-page-bg);
+}
+
+/* App shell (ui-spec §9): sticky top navbar, white surface, bottom border. */
+.tt-navbar {
+  background-color: var(--tt-surface);
+  border-bottom: 1px solid var(--tt-border);
+}
+.tt-navbar-inner {
+  padding-inline: 1rem;
+}
+.tt-brand {
+  color: var(--tt-primary);
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+.tt-brand-icon {
+  color: var(--tt-primary);
+}
+.tt-selector {
+  color: var(--tt-text-muted);
+}
+.tt-selector-label {
+  color: var(--tt-text-muted);
+  font-size: 0.8125rem;
+  margin: 0;
+}
+.tt-selector-select {
+  min-width: 12rem;
+  border-color: var(--tt-border);
+  color: var(--tt-text);
+}
+.tt-selector-caption {
+  color: var(--tt-text-muted);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+.tt-selector-status {
+  color: var(--tt-text-muted);
+  font-size: 0.875rem;
+}
+.tt-selector-error {
+  color: var(--tt-error);
+  font-size: 0.875rem;
+}
+
+/* ===== App shell navigation (ui-spec §9, Issue #14) ===== */
+.tt-nav-items {
+  gap: 0.25rem;
+}
+.tt-nav-link {
+  color: var(--tt-text-muted);
+  text-decoration: none;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+}
+.tt-nav-link:hover {
+  color: var(--tt-text);
+  background-color: var(--tt-primary-soft);
+}
+.tt-nav-link-active {
+  color: var(--tt-primary);
+  background-color: var(--tt-primary-soft);
+  font-weight: 600;
+}
+
+/* ===== Create Ticket form (ui-spec §2/§3) ===== */
+.tt-main {
+  max-width: 1200px;
+}
+.tt-fieldset {
+  border: 0;
+  padding: 0;
+}
+.tt-required {
+  color: var(--tt-error);
+  margin-left: 2px;
+}
+.tt-readonly {
+  background-color: var(--tt-primary-soft);
+  border-color: #d9e2dd;
+  color: var(--tt-text-muted);
+  cursor: default;
+}
+.tt-form-busy .form-control,
+.tt-form-busy .form-select,
+.tt-form-busy .btn {
+  opacity: 0.7;
+}
+.tt-submit-btn {
+  min-width: 10rem;
+  background-color: var(--tt-primary);
+  border-color: var(--tt-primary);
+}
+.tt-submit-btn:hover:not(:disabled) {
+  background-color: var(--tt-secondary);
+  border-color: var(--tt-secondary);
+}
+.tt-ticket-number {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* Inline field error: icon + text below the field (never color-only). */
+.tt-field-error {
+  color: var(--tt-error);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+.tt-field-hint {
+  color: var(--tt-text-muted);
+  font-size: 0.8125rem;
+  margin-top: 0.25rem;
+}
+
+/* Alert banners: soft backgrounds + icon semantics. */
+.tt-alert {
+  background-color: #fdecea;
+  border: 1px solid #f3c1bd;
+  color: var(--tt-error);
+  border-radius: 0.375rem;
+  padding: 0.625rem 0.875rem;
+  margin-bottom: 1rem;
+}
+.tt-alert .btn-link {
+  color: inherit;
+  vertical-align: baseline;
+}
+.tt-alert-success {
+  background-color: var(--tt-primary-soft);
+  border-color: #c4e3d1;
+  color: var(--tt-success);
+}
+
+/* Loading skeleton (ui-spec §6). */
+.tt-skeleton {
+  height: 1rem;
+  border-radius: 0.25rem;
+  background: linear-gradient(90deg, #e8eeeb 25%, #f4f7f5 50%, #e8eeeb 75%);
+  background-size: 200% 100%;
+  animation: tt-shimmer 1.2s infinite;
+  margin-bottom: 0.75rem;
+}
+.tt-skeleton-lg { width: 55%; }
+.tt-skeleton-sm { width: 35%; }
+@keyframes tt-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* ===== Attachment picker (ui-spec §5) ===== */
+.tt-dropzone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 2px dashed var(--tt-border);
+  border-radius: 0.75rem;
+  background-color: var(--tt-surface);
+  color: var(--tt-text-muted);
+}
+.tt-dropzone-over {
+  border-color: var(--tt-primary);
+  background-color: var(--tt-primary-soft);
+}
+.tt-picker-note {
+  color: var(--tt-warning);
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+.tt-chip-list {
+  margin-top: 0.75rem;
+}
+.tt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  background-color: var(--tt-primary-soft);
+  border: 1px solid var(--tt-border);
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+/* Mobile (<768px): stacked layout, touch targets >= 44px, no horizontal
+   scroll (ui-spec §7). */
+@media (max-width: 767.98px) {
+  .tt-navbar-inner {
+    flex-wrap: wrap;
+    row-gap: 0.25rem;
+  }
+  .tt-nav-link {
+    padding: 0.5rem 0.875rem;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .tt-submit-btn {
+    width: 100%;
+    min-height: 44px;
+  }
+  .form-control,
+  .form-select {
+    min-height: 44px;
+  }
 }
 
 /* Foundation tidying: reserved space so status content (Issues 2/4)

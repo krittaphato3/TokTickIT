@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TokTickIT — My Tickets (Zen Green v0.2)</title>
+<!-- DESIGN DRAFT v0.2 — MY TICKETS. Visual reference for docs/lab-02/ui-spec.md §10-11.
+     States shown: populated (desktop table), loading, empty, no-results, failure, mobile cards.
+     Zen Green tokens only. No framework. Feed this file to the coding agent as the visual contract. -->
+<style>
+  :root{
+    --tok-primary:#006B3C; --tok-secondary:#0B7A46; --tok-primary-soft:#EAF6EF;
+    --tok-page-bg:#F5F7F6; --tok-surface:#FFFFFF; --tok-text:#1E2A25; --tok-text-muted:#5C6B64;
+    --tok-border:#C9D4CE; --tok-field-editable:#FFFFFF; --tok-field-readonly:#F0F3F1;
+    --tok-error:#B3261E; --tok-error-soft:#FDECEA; --tok-warning:#B26A00; --tok-warning-soft:#FFF4E5;
+    --tok-success:#1E7A46;
+    --tok-radius-ctl:.375rem; --tok-radius-card:.75rem;
+    --tok-shadow:0 1px 3px rgba(30,42,37,.08); --tok-ring:3px solid rgba(0,107,60,.28);
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--tok-page-bg);color:var(--tok-text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue","Noto Sans",Arial,sans-serif}
+  .skip{position:absolute;left:-9999px;top:0;background:var(--tok-primary);color:#fff;padding:10px 16px;border-radius:0 0 var(--tok-radius-ctl) 0;z-index:200;text-decoration:none}
+  .skip:focus{left:0}
+  :focus-visible{outline:var(--tok-ring);outline-offset:1px}
+
+  /* ---------- App shell ---------- */
+  .topnav{position:sticky;top:0;z-index:100;background:var(--tok-surface);border-bottom:1px solid var(--tok-border);display:flex;align-items:center;gap:16px;padding:10px 24px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:8px;font-weight:700;color:var(--tok-primary);text-decoration:none;font-size:1.05rem}
+  .navlinks{display:flex;gap:4px}
+  .navlinks a{color:var(--tok-text-muted);text-decoration:none;padding:8px 14px;border-radius:999px;font-weight:500}
+  .navlinks a:hover{color:var(--tok-secondary);background:var(--tok-primary-soft)}
+  .navlinks a.active{background:var(--tok-primary-soft);color:var(--tok-primary);font-weight:600}
+  .reqbox{margin-left:auto;display:flex;flex-direction:column;gap:2px;min-width:230px}
+  .reqbox .lbl{font-size:.8125rem;font-weight:600}
+  .reqbox .cap{font-size:.8125rem;color:var(--tok-text-muted)}
+
+  /* ---------- Controls ---------- */
+  .ctl{display:flex;flex-direction:column;gap:4px}
+  .ctl .lbl{font-size:.8125rem;font-weight:600}
+  .ctl select,.search input{height:40px;border:1px solid var(--tok-border);border-radius:var(--tok-radius-ctl);background:var(--tok-field-editable);color:var(--tok-text);padding:0 12px;font:inherit}
+  .ctl select:focus,.search input:focus{border-color:var(--tok-primary);outline:var(--tok-ring);outline-offset:0}
+  .search{position:relative;flex:1;min-width:220px}
+  .search input{width:100%;padding-left:36px;padding-right:36px}
+  .search .mag{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--tok-text-muted);pointer-events:none;display:flex}
+  .search .clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:28px;height:28px;border:none;background:transparent;border-radius:999px;color:var(--tok-text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .search .clear:hover{background:var(--tok-primary-soft);color:var(--tok-primary)}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:var(--tok-radius-ctl);font:inherit;font-weight:600;cursor:pointer;text-decoration:none}
+  .btn-primary{background:var(--tok-primary);border:1px solid var(--tok-primary);color:#fff;padding:10px 18px;min-height:40px}
+  .btn-primary:hover{background:var(--tok-secondary);border-color:var(--tok-secondary)}
+  .btn-secondary{background:transparent;border:1px solid var(--tok-primary);color:var(--tok-primary);padding:10px 18px;min-height:40px}
+  .btn-secondary:hover{background:var(--tok-primary-soft)}
+  .btn-tertiary{background:none;border:none;color:var(--tok-primary);padding:8px 10px}
+  .btn-tertiary:hover{text-decoration:underline}
+  .btn[disabled]{opacity:.5;cursor:not-allowed}
+
+  /* ---------- Layout ---------- */
+  main{max-width:1200px;margin:0 auto;padding:24px 16px 64px}
+  h1{font-size:1.5rem;font-weight:600;margin:0 0 4px}
+  .sub{color:var(--tok-text-muted);margin:0 0 20px;font-size:.875rem}
+  .card{background:var(--tok-surface);border:1px solid var(--tok-border);border-radius:var(--tok-radius-card);box-shadow:var(--tok-shadow);overflow:hidden}
+  .toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;padding:16px;border-bottom:1px solid var(--tok-border)}
+
+  /* ---------- Table ---------- */
+  .tablewrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse}
+  thead th{font-size:.8125rem;font-weight:600;color:var(--tok-text-muted);text-align:left;padding:12px 16px;border-bottom:1px solid var(--tok-border)}
+  tbody td{padding:12px 16px;border-bottom:1px solid #EDF2EF;vertical-align:middle}
+  tbody tr:hover{background:var(--tok-primary-soft)}
+  .tnum{font-family:var(--mono);font-weight:600;color:var(--tok-secondary);text-decoration:none;white-space:nowrap}
+  .tnum:hover{text-decoration:underline}
+  .ttitle{font-weight:500}
+  .cat-chip{display:inline-block;background:#E7EBE9;color:#43524C;border-radius:999px;padding:2px 10px;font-size:.8125rem;white-space:nowrap}
+  .cat-inline{display:none;margin-left:8px}
+  .badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font-size:.8125rem;font-weight:600;white-space:nowrap}
+  .b-low{background:#E7EBE9;color:#43524C}
+  .b-med{background:var(--tok-warning-soft);color:#9A5B00}
+  .b-high{background:#FBE9E7;color:#C2410C}
+  .b-crit{background:var(--tok-error);color:#fff}
+  .b-new{background:var(--tok-primary-soft);color:var(--tok-primary)}
+  .dot{width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block}
+  .created{color:var(--tok-text-muted);font-size:.875rem;white-space:nowrap}
+
+  /* ---------- Pagination ---------- */
+  .pager{display:flex;align-items:center;gap:8px;padding:14px 16px;flex-wrap:wrap}
+  .pager .range{color:var(--tok-text-muted);font-size:.875rem;margin-right:auto}
+  .pbtn{min-width:36px;min-height:36px;padding:0 10px;border:1px solid var(--tok-border);background:#fff;border-radius:var(--tok-radius-ctl);color:var(--tok-text);cursor:pointer;font:inherit}
+  .pbtn:hover:not([disabled]){border-color:var(--tok-primary);color:var(--tok-primary)}
+  .pbtn.current{background:var(--tok-primary-soft);border-color:var(--tok-primary-soft);color:var(--tok-primary);font-weight:600}
+  .pbtn[disabled]{opacity:.5;cursor:not-allowed}
+  .ellipsis{color:var(--tok-text-muted);padding:0 4px}
+  .page-simple{display:none;color:var(--tok-text-muted);font-size:.875rem}
+
+  /* ---------- Mobile cards ---------- */
+  .mcards{display:none;padding:16px;gap:12px;flex-direction:column}
+  .mcards.force{display:flex}
+  .mcard{border:1px solid var(--tok-border);border-radius:var(--tok-radius-card);box-shadow:var(--tok-shadow);background:#fff;padding:14px 16px;text-decoration:none;color:inherit;display:block}
+  .mcard .row1{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+  .mcard .row2{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .mcard .created{display:block;margin-top:8px}
+
+  /* ---------- Draft sections & states ---------- */
+  .draft{margin:44px 0 12px;display:flex;align-items:center;gap:12px;color:var(--tok-text-muted);font-size:.8125rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+  .draft::after{content:"";flex:1;border-top:1px dashed var(--tok-border)}
+  .note{color:var(--tok-text-muted);font-size:.875rem;margin:0 0 12px}
+  .state-pad{padding:48px 24px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px}
+  .glyph{width:64px;height:64px;border-radius:50%;background:var(--tok-primary-soft);display:grid;place-items:center;color:var(--tok-primary)}
+  .state-title{font-size:1.25rem;font-weight:600;margin:0}
+  .state-text{color:var(--tok-text-muted);margin:0;max-width:440px}
+  .sk-row{display:flex;gap:16px;padding:16px;border-bottom:1px solid #EDF2EF}
+  .sk{height:14px;border-radius:7px;background:linear-gradient(90deg,#EDF2EF 25%,#F7FAF9 50%,#EDF2EF 75%);background-size:200% 100%;animation:sh 1.1s linear infinite}
+  @keyframes sh{to{background-position:-200% 0}}
+  .errbar{display:flex;align-items:center;gap:12px;background:var(--tok-error-soft);border:1px solid rgba(179,38,30,.35);color:var(--tok-error);border-radius:var(--tok-radius-ctl);padding:12px 16px;margin:16px}
+  .errbar .btn-tertiary{color:var(--tok-error);font-weight:700}
+  footer{max-width:1200px;margin:0 auto;padding:0 16px 48px;color:var(--tok-text-muted);font-size:.875rem;text-align:center}
+
+  /* ---------- Responsive ---------- */
+  @media (max-width:991px){
+    .col-cat{display:none}
+    .cat-inline{display:inline-block}
+    .reqbox{min-width:190px}
+  }
+  @media (max-width:767px){
+    .tablewrap{display:none}
+    .mcards.auto{display:flex}
+    .pager .pages{display:none}
+    .page-simple{display:inline}
+    .btn{min-height:44px}
+    .pbtn{min-width:44px;min-height:44px}
+    .toolbar{flex-direction:column;align-items:stretch}
+    .ctl{width:100%}
+    .ctl select{width:100%}
+    .topnav{padding:10px 16px}
+    .reqbox{margin-left:0;width:100%}
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="topnav">
+  <a class="brand" href="#">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v1a2 2 0 0 0 0 4v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1a2 2 0 0 0 0-4z"/><line x1="13" y1="7" x2="13" y2="17" stroke-dasharray="2 2"/></svg>
+    TokTickIT
+  </a>
+  <nav class="navlinks" aria-label="Primary">
+    <a href="#">New Ticket</a>
+    <a href="#" class="active" aria-current="page">My Tickets</a>
+  </nav>
+  <div class="reqbox">
+    <label class="lbl" for="reqSel">Development Requester</label>
+    <select id="reqSel">
+      <option>Dev User Alpha</option><option>Dev User Beta</option>
+      <option>Dev User Gamma</option><option>Dev User Delta</option>
+    </select>
+    <span class="cap">Testing only — not real authentication</span>
+  </div>
+</header>
+
+<main id="main">
+  <h1>My Tickets</h1>
+  <p class="sub">Owned by <strong>Dev User Alpha</strong> · default sort: newest first</p>
+
+  <!-- ============ SCREEN 03-A · POPULATED (desktop table / mobile cards) ============ -->
+  <section class="card" aria-label="My Tickets list">
+    <div class="toolbar">
+      <div class="ctl search">
+        <label class="lbl" for="q">Search</label>
+        <div class="search" style="display:block">
+          <span class="mag"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg></span>
+          <input id="q" type="text" placeholder="Search by title or description…" />
+        </div>
+      </div>
+      <div class="ctl"><label class="lbl" for="cat">Category</label>
+        <select id="cat"><option>All Categories</option><option>Account and Access</option><option>Hardware</option><option>Software</option><option>Network</option></select>
+      </div>
+      <div class="ctl"><label class="lbl" for="pri">Priority</label>
+        <select id="pri"><option>All Priorities</option><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></select>
+      </div>
+      <div class="ctl"><label class="lbl" for="sort">Sort by</label>
+        <select id="sort"><option>Newest first</option><option>Oldest first</option><option>Title A–Z</option><option>Title Z–A</option><option>Priority: high first</option><option>Priority: low first</option></select>
+      </div>
+      <!-- Clear filters hidden at defaults; appears only when search/filters/sort differ -->
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th scope="col">Ticket #</th><th scope="col">Title</th><th scope="col" class="col-cat">Category</th>
+          <th scope="col">Priority</th><th scope="col">Status</th><th scope="col">Created</th>
+        </tr></thead>
+        <tbody>
+          <tr><td><a class="tnum" href="#">TTK-2026-000017</a></td><td class="ttitle">Laptop will not boot after update<span class="cat-chip cat-inline">Hardware</span></td><td class="col-cat"><span class="cat-chip">Hardware</span></td><td><span class="badge b-high">High</span></td><td><span class="badge b-new"><span class="dot"></span>New</span></td><td class="created">Aug 18, 09:30</td></tr>
+          <tr><td><a class="tnum" href="#">TTK-2026-000016</a></td><td class="ttitle">Campus Wi-Fi drops every hour<span class="cat-chip cat-inline">Network</span></td><td class="col-cat"><span class="cat-chip">Network</span></td><td><span class="badge b-med">Medium</span></td><td><span class="badge b-new"><span class="dot"></span>New</span></td><td class="created">Aug 17, 14:12</td></tr>
+          <tr><td><a class="tnum" href="#">TTK-2026-000012</a></td><td class="ttitle">LEB2 app shows blank grade page<span class="cat-chip cat-inline">Software</span></td><td class="col-cat"><span class="cat-chip">Software</span></td><td><span class="badge b-crit">! Critical</span></td><td><span class="badge b-new"><span class="dot"></span>New</span></td><td class="created">Aug 15, 08:03</td></tr>
+          <tr><td><a class="tnum" href="#">TTK-2026-000009</a></td><td class="ttitle">Cannot access library account after password reset<span class="cat-chip cat-inline">Account and Access</span></td><td class="col-cat"><span class="cat-chip">Account and Access</span></td><td><span class="badge b-low">Low</span></td><td><span class="badge b-new"><span class="dot"></span>New</span></td><td class="created">Aug 12, 10:45</td></tr>
+          <tr><td><a class="tnum" href="#">TTK-2026-000005</a></td><td class="ttitle">Printer on 3rd floor jams on double-sided prints<span class="cat-chip cat-inline">Hardware</span></td><td class="col-cat"><span class="cat-chip">Hardware</span></td><td><span class="badge b-med">Medium</span></td><td><span class="badge b-new"><span class="dot"></span>New</span></td><td class="created">Aug 9, 16:20</td></tr>
+          <tr><td><a class="tnum" href="#">TTK-2026-000002</a></td><td class="ttitle">VPN disconnects when switching Wi-Fi networks<span class="cat-chip cat-inline">Network</span></td><td class="col-cat"><span class="cat-chip">Network</span></td><td><span class="badge b-high">High</span></td><td><span class="badge b-new"><span class="dot"></span>New</span></td><td class="created">Aug 6, 11:08</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Mobile (<768px) representation of the same rows -->
+    <div class="mcards auto" aria-label="My Tickets cards (mobile)">
+      <a class="mcard" href="#"><span class="row1"><span class="tnum">TTK-2026-000017</span><span class="ttitle">Laptop will not boot after update</span></span><span class="row2"><span class="badge b-high">High</span><span class="badge b-new"><span class="dot"></span>New</span><span class="cat-chip">Hardware</span></span><span class="created">Aug 18, 09:30</span></a>
+      <a class="mcard" href="#"><span class="row1"><span class="tnum">TTK-2026-000016</span><span class="ttitle">Campus Wi-Fi drops every hour</span></span><span class="row2"><span class="badge b-med">Medium</span><span class="badge b-new"><span class="dot"></span>New</span><span class="cat-chip">Network</span></span><span class="created">Aug 17, 14:12</span></a>
+      <a class="mcard" href="#"><span class="row1"><span class="tnum">TTK-2026-000012</span><span class="ttitle">LEB2 app shows blank grade page</span></span><span class="row2"><span class="badge b-crit">! Critical</span><span class="badge b-new"><span class="dot"></span>New</span><span class="cat-chip">Software</span></span><span class="created">Aug 15, 08:03</span></a>
+    </div>
+
+    <div class="pager">
+      <span class="range">Showing 1–6 of 14</span>
+      <span class="pages" style="display:flex;gap:8px;align-items:center">
+        <button class="pbtn" disabled aria-label="Previous page">‹</button>
+        <button class="pbtn current" aria-current="page">1</button>
+        <button class="pbtn">2</button>
+        <button class="pbtn">3</button>
+        <span class="ellipsis">…</span>
+        <button class="pbtn">Next</button>
+      </span>
+      <span class="page-simple">Page 1 of 3</span>
+      <button class="pbtn pages" style="display:inline-flex" aria-label="Next page">›</button>
+    </div>
+  </section>
+
+  <!-- ============ SCREEN 03-B · LOADING ============ -->
+  <h2 class="draft">Screen 03-B — Loading state</h2>
+  <section class="card" aria-label="Loading list">
+    <div class="sk-row"><span class="sk" style="width:14%"></span><span class="sk" style="width:38%"></span><span class="sk" style="width:12%"></span><span class="sk" style="width:10%"></span><span class="sk" style="width:10%"></span></div>
+    <div class="sk-row"><span class="sk" style="width:14%"></span><span class="sk" style="width:30%"></span><span class="sk" style="width:12%"></span><span class="sk" style="width:10%"></span><span class="sk" style="width:10%"></span></div>
+    <div class="sk-row"><span class="sk" style="width:14%"></span><span class="sk" style="width:44%"></span><span class="sk" style="width:12%"></span><span class="sk" style="width:10%"></span><span class="sk" style="width:10%"></span></div>
+  </section>
+
+  <!-- ============ SCREEN 03-C · EMPTY ============ -->
+  <h2 class="draft">Screen 03-C — Empty state (zero tickets)</h2>
+  <section class="card">
+    <div class="state-pad">
+      <span class="glyph"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v1a2 2 0 0 0 0 4v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1a2 2 0 0 0 0-4z"/><line x1="13" y1="7" x2="13" y2="17" stroke-dasharray="2 2"/></svg></span>
+      <h3 class="state-title">No tickets yet</h3>
+      <p class="state-text">When you submit a support request, it will appear here with its official ticket number.</p>
+      <a class="btn btn-primary" href="#">Create your first ticket</a>
+    </div>
+  </section>
+
+  <!-- ============ SCREEN 03-D · NO RESULTS ============ -->
+  <h2 class="draft">Screen 03-D — No-results state (filters match nothing)</h2>
+  <section class="card">
+    <div class="toolbar">
+      <div class="ctl search">
+        <label class="lbl" for="q2">Search</label>
+        <div class="search" style="display:block">
+          <span class="mag"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg></span>
+          <input id="q2" type="text" value="zzz projector" />
+          <button class="clear" aria-label="Clear search">✕</button>
+        </div>
+      </div>
+      <div class="ctl"><label class="lbl" for="cat2">Category</label>
+        <select id="cat2"><option>All Categories</option><option selected>Hardware</option><option>Software</option><option>Network</option><option>Account and Access</option></select>
+      </div>
+      <div class="ctl"><label class="lbl" for="pri2">Priority</label>
+        <select id="pri2"><option>All Priorities</option><option selected>Critical</option><option>Low</option><option>Medium</option><option>High</option></select>
+      </div>
+      <div class="ctl"><label class="lbl" for="sort2">Sort by</label>
+        <select id="sort2"><option selected>Newest first</option><option>Oldest first</option><option>Title A–Z</option><option>Title Z–A</option><option>Priority: high first</option><option>Priority: low first</option></select>
+      </div>
+      <button class="btn btn-secondary">Clear filters</button>
+    </div>
+    <div class="state-pad">
+      <span class="glyph"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/><line x1="8" y1="11" x2="14" y2="11"/></svg></span>
+      <h3 class="state-title">No results match your filters</h3>
+      <p class="state-text">Try a different search term, or clear the filters to see all of your tickets.</p>
+      <button class="btn btn-secondary">Clear filters</button>
+    </div>
+  </section>
+
+  <!-- ============ SCREEN 03-E · FAILURE ============ -->
+  <h2 class="draft">Screen 03-E — Failure state (API down)</h2>
+  <section class="card">
+    <div class="errbar" role="alert">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3 2 21h20z"/><line x1="12" y1="10" x2="12" y2="15"/><circle cx="12" cy="18" r="0.5" fill="currentColor"/></svg>
+      <span>We couldn't load your tickets. Your filters are preserved.</span>
+      <button class="btn btn-tertiary">Try again</button>
+    </div>
+    <div class="sk-row"><span class="sk" style="width:14%"></span><span class="sk" style="width:38%"></span><span class="sk" style="width:12%"></span><span class="sk" style="width:10%"></span></div>
+    <div class="sk-row"><span class="sk" style="width:14%"></span><span class="sk" style="width:30%"></span><span class="sk" style="width:12%"></span><span class="sk" style="width:10%"></span></div>
+  </section>
+
+  <!-- ============ SCREEN 03-F · MOBILE CARDS REFERENCE ============ -->
+  <h2 class="draft">Screen 03-F — Mobile cards (&lt;768px)</h2>
+  <p class="note">Resize the browser below 768px and Screen 03-A collapses into these cards. Touch targets ≥ 44px, no horizontal scroll.</p>
+  <div class="mcards force">
+    <a class="mcard" href="#"><span class="row1"><span class="tnum">TTK-2026-000009</span><span class="ttitle">Cannot access library account after password reset</span></span><span class="row2"><span class="badge b-low">Low</span><span class="badge b-new"><span class="dot"></span>New</span><span class="cat-chip">Account and Access</span></span><span class="created">Aug 12, 10:45</span></a>
+    <a class="mcard" href="#"><span class="row1"><span class="tnum">TTK-2026-000005</span><span class="ttitle">Printer on 3rd floor jams on double-sided prints</span></span><span class="row2"><span class="badge b-med">Medium</span><span class="badge b-new"><span class="dot"></span>New</span><span class="cat-chip">Hardware</span></span><span class="created">Aug 9, 16:20</span></a>
+  </div>
+</main>
+
+<footer>— end of draft v0.2 · My Tickets · ENI × Ozone review —</footer>
+</body>
+</html>

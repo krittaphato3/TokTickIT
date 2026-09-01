@@ -11,7 +11,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "tsx prisma/seed.ts"
+    "prisma:seed": "tsx prisma/seed.ts",
+    "db:up": "node scripts/dev-db.mjs up && npx prisma migrate deploy && npm run prisma:seed",
+    "db:down": "node scripts/dev-db.mjs down"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -20,17 +22,27 @@
     "@prisma/client": "^6.19.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "multer": "^2.2.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/multer": "^2.2.0",
     "@types/node": "^26.1.2",
     "@types/supertest": "^7.2.1",
+    "embedded-postgres": "^18.4.0-beta.17",
     "prisma": "^6.19.3",
     "supertest": "^7.2.2",
     "tsx": "^4.23.9",
     "typescript": "^5.9.3",
     "vitest": "^4.1.10"
+  },
+  "allowScripts": {
+    "@embedded-postgres/windows-x64@18.4.0-beta.17": true,
+    "@prisma/client@6.19.3": true,
+    "@prisma/engines@6.19.3": true,
+    "esbuild@0.28.1": true,
+    "prisma@6.19.3": true
   }
 }

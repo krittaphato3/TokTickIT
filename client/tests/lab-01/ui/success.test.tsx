@@ -4,6 +4,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import App from '../../../src/App';
 
 const HEALTH_BODY = { status: 'ok', service: 'TokTickIT API' };
+const REQUESTERS = [
+  { id: 1, name: 'Dev User Alpha', email: 'alpha@toktickit.test' },
+  { id: 2, name: 'Dev User Beta', email: 'beta@toktickit.test' },
+  { id: 3, name: 'Dev User Gamma', email: 'gamma@toktickit.test' },
+  { id: 4, name: 'Dev User Delta', email: 'delta@toktickit.test' },
+];
 const CATEGORIES = [
   { id: 1, name: 'Account and Access' },
   { id: 2, name: 'Hardware' },
@@ -20,8 +26,8 @@ describe('App success flow', () => {
   });
 
   it('shows a loading state, then the category list on success', async () => {
-    // Deferred promises keep the request pending so the loading state is
-    // observable before the success state renders.
+    // Deferred promises keep the health request pending so the loading state
+    // is observable. The app shell's requesters request resolves immediately.
     let resolveHealth!: (value: unknown) => void;
     let resolveCategories!: (value: unknown) => void;
     const healthPromise = new Promise((resolve) => {
@@ -32,7 +38,19 @@ describe('App success flow', () => {
     });
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockReturnValueOnce(healthPromise).mockReturnValueOnce(categoriesPromise),
+      vi.fn((url: string) => {
+        if (url.includes('/api/requesters')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => REQUESTERS,
+          });
+        }
+        if (url.includes('/api/health')) {
+          return healthPromise;
+        }
+        return categoriesPromise;
+      }),
     );
 
     const user = userEvent.setup();

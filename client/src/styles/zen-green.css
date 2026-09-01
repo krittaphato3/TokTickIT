@@ -1,0 +1,321 @@
+:root{
+  --tok-primary:#006B3C; --tok-secondary:#0B7A46; --tok-primary-soft:#EAF6EF;
+  --tok-page-bg:#F5F7F6; --tok-surface:#FFFFFF; --tok-text:#1E2A25; --tok-text-muted:#5C6B64;
+  --tok-border:#C9D4CE; --tok-border-soft:#DFE7E2; --tok-field-editable:#FFFFFF;
+  --tok-field-readonly:#F0F3F1; --tok-field-readonly-border:#D9E2DD;
+  --tok-error:#B3261E; --tok-error-soft:#FDECEA; --tok-warning:#B26A00; --tok-success:#1E7A46;
+  --tok-radius:.375rem; --tok-radius-card:.75rem; --tok-ring:0 0 0 3px rgba(0,107,60,.28);
+  --tok-shadow:0 1px 3px rgba(30,42,37,.08);
+  --tok-font:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue","Noto Sans","Liberation Sans",Arial,sans-serif;
+}
+*{box-sizing:border-box}
+/* Slightly denser base scale (15px root instead of 16px) — zooms the whole
+   UI out a touch so more fits on screen without redesigning each component. */
+html{font-size:93.75%}
+body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:var(--tok-font);line-height:1.5}
+
+/* ============ APP HEADER ============ */
+.tok-navbar{position:sticky;top:0;z-index:100;background:var(--tok-surface);border-bottom:1px solid var(--tok-border-soft)}
+.tok-navbar .container-fluid{padding-left:16px !important;padding-right:16px !important}
+@media (min-width:768px){.tok-navbar .container-fluid{padding-left:24px !important;padding-right:24px !important}}
+.tok-navbar .tok-brand{display:inline-flex;align-items:center;gap:.625rem;font-weight:700;font-size:1.0625rem;color:var(--tok-text);text-decoration:none}
+.tok-brand-badge{width:34px;height:34px;border-radius:10px;background:var(--tok-primary);color:#fff;display:grid;place-items:center;flex:none}
+.tok-nav{display:flex;align-items:center;gap:.25rem;flex-wrap:wrap}
+.tok-nav a{display:inline-flex;align-items:center;min-height:38px;padding:.375rem 1rem;border-radius:999px;border:1px solid transparent;
+  font-size:.9375rem;font-weight:600;color:var(--tok-text-muted);text-decoration:none}
+.tok-nav a:hover{color:var(--tok-secondary)}
+.tok-nav a.active{background:var(--tok-primary-soft);color:var(--tok-primary);border-color:rgba(0,107,60,.25)}
+.tok-req-wrap{margin-left:auto;display:flex;align-items:center;gap:.75rem}
+.tok-req-label{font-size:.6875rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tok-text-muted);text-align:right;line-height:1.25}
+.tok-req-select{appearance:none;-webkit-appearance:none;border:1px solid var(--tok-border);border-radius:.5rem;background:#fff
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235C6B64' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")
+  no-repeat right .75rem center;padding:.5rem 2.25rem .5rem .875rem;font-family:inherit;font-size:.9375rem;font-weight:600;color:var(--tok-text);min-height:40px}
+.tok-req-caption{font-size:.8125rem;color:var(--tok-text-muted)}
+.tok-req-select:focus-visible,.tok-nav a:focus-visible{outline:none;box-shadow:var(--tok-ring);border-color:var(--tok-primary)}
+/* App shell + global footer */
+.tt-app{min-height:100vh;display:flex;flex-direction:column}
+.tok-app-footer{margin-top:auto;padding:14px 24px;border-top:1px solid var(--tok-border);color:var(--tok-text-muted);font-size:.8125rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;background:var(--tok-surface)}
+@media (max-width:767.98px){
+  .tok-app-footer{flex-direction:column;align-items:center;gap:4px;text-align:center;padding:12px 16px}
+}
+@media (min-width:992px) and (max-height:800px){
+  .tok-app-footer{padding:8px 24px}
+}
+
+/* ============ Profile dropdown (mockup: AccountSelection_Demo) ============ */
+.tok-profile{position:relative;flex:none}
+.tok-profile-btn{display:inline-flex;align-items:center;gap:.5rem;background:none;border:none;cursor:pointer;
+  color:var(--tok-text);font-weight:600;font-size:.9375rem;padding:.4rem .625rem;border-radius:.5rem}
+.tok-profile-btn:hover{background:#F2F2F2}
+.tok-profile-btn svg{color:var(--tok-secondary)}
+.tok-profile-btn:focus-visible{outline:3px solid rgba(0,107,60,.28);outline-offset:2px;border-radius:.5rem}
+.tok-profile-caret{font-size:.8rem;color:var(--tok-text)}
+.tok-profile-menu{position:absolute;right:0;top:calc(100% + 8px);min-width:300px;background:var(--tok-surface);
+  border:1px solid var(--tok-border);border-radius:.625rem;padding:.5rem;box-shadow:0 8px 24px rgba(30,42,37,.14);z-index:200}
+.tok-profile-head{font-size:.78rem;color:var(--tok-text-muted);padding:.375rem .625rem .25rem;text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+.tok-profile-account{font-weight:600;color:var(--tok-text);background:var(--tok-primary-soft);
+  border-radius:.5rem;padding:.625rem .75rem;word-break:break-word;font-size:.875rem}
+.tok-profile-item{display:block;width:100%;text-align:left;margin-top:.375rem;padding:.5625rem .625rem;border:none;
+  border-radius:.5rem;background:none;color:var(--tok-primary);font-weight:600;cursor:pointer}
+.tok-profile-item:hover{background:var(--tok-primary-soft)}
+
+/* ============ PAGE FRAME ============ */
+.tok-main{max-width:1200px;margin:0 auto;padding:1.5rem 1rem 3rem}
+@media (min-width:992px){.tok-main{padding:1.75rem 1.5rem 3rem}}
+.tok-breadcrumb{font-size:.8125rem;color:var(--tok-text-muted);margin-bottom:.25rem}
+.tok-breadcrumb a{color:var(--tok-text-muted);text-decoration:none}
+.tok-breadcrumb a:hover{color:var(--tok-secondary);text-decoration:underline}
+.tok-breadcrumb .sep{margin:0 .375rem;color:var(--tok-border)}
+.tok-breadcrumb .current{color:var(--tok-text);font-weight:600}
+.tok-page-title{font-size:1.5rem;font-weight:700;margin:0 0 1.25rem}
+/* Create Ticket densified head overrides */
+.tok-main.tok-create-page .tok-breadcrumb{font-size:.8125rem;margin:0}
+.tok-main.tok-create-page .tok-page-title{font-size:1.35rem;margin:4px 0 12px;line-height:1.2}
+
+/* ============ CARD + SECTIONS ============ */
+.tok-card{background:var(--tok-surface);border:1px solid var(--tok-border-soft);border-radius:var(--tok-radius-card);box-shadow:var(--tok-shadow);padding:2rem}
+.tok-section-label{display:flex;align-items:baseline;gap:.5rem;font-size:.75rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tok-secondary);margin:0 0 1.125rem}
+.tok-section-note{font-size:.75rem;font-weight:500;letter-spacing:.02em;text-transform:none;color:var(--tok-text-muted)}
+.tok-divider{border:0;border-top:1px dashed var(--tok-border);margin:1.625rem 0}
+.tok-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem 1.5rem}
+@media (max-width:767.98px){.tok-grid-2{grid-template-columns:1fr}}
+/* ============ CREATE TICKET DENSIFICATION (fits 1280x800 / 1366x768) ============ */
+.tok-main.tok-create-page{width:100%;max-width:1200px;margin:0 auto;padding:12px 24px 0;min-height:calc(100vh - 106px);display:flex;flex-direction:column}
+@media (max-width:767.98px){ .tok-main.tok-create-page{width:100%;padding:12px 16px 0} }
+.tok-create-card{width:100% !important;max-width:1080px !important;margin-left:auto !important;margin-right:auto !important;padding:20px 28px 16px !important;border-radius:12px !important;margin-bottom:12px !important;flex:0 0 auto}
+@media (min-width:768px) and (max-width:991.98px){ .tok-create-card{max-width:760px !important} }
+@media (max-width:767.98px){ .tok-create-card{max-width:100% !important} }
+.tok-create-card .tok-section-label{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--tok-secondary);margin:0 0 10px;font-weight:700}
+.tok-create-card .tok-divider{border:0 !important;border-top:0 !important;margin:14px 0 !important;height:0}
+.tok-create-card .tok-grid-2{gap:14px 20px !important}
+.tok-create-card .tok-label{font-size:.875rem;margin-bottom:4px !important}
+.tok-create-card .tok-input,.tok-create-card .tok-select{height:42px !important;min-height:42px !important;padding:.5rem .75rem !important;font-size:.9375rem}
+.tok-create-card .tok-textarea{min-height:78px !important;max-height:140px !important;resize:vertical !important;line-height:1.5}
+.tok-create-card .tok-hint{margin-top:4px !important;font-size:.8125rem !important}
+.tok-create-card .tok-dropzone{padding:16px !important;font-size:.875rem !important;min-height:0 !important}
+.tok-create-card .tok-dropzone svg{width:20px !important;height:20px !important;margin-bottom:2px !important}
+.tok-create-card .tok-dropzone .tok-formats{margin-top:4px !important;font-size:.75rem !important}
+.tok-create-card .tok-actions{border-top:1px solid var(--tok-border-soft) !important;margin-top:14px !important;padding-top:12px !important;margin-bottom:0 !important;display:flex;justify-content:flex-end;gap:.75rem}
+.tok-create-card .tok-actions .tok-btn{min-height:40px !important;height:40px !important;padding:0 1.25rem !important}
+.tok-create-card .tok-actions .tok-btn.secondary,.tok-create-card .tok-actions .tok-btn.primary{font-size:.9375rem}
+.tok-create-card .tok-field{margin-bottom:8px !important}
+.tok-create-card .tok-field[style]{margin-bottom:10px !important}
+@media (max-width:767.98px){
+  .tok-main.tok-create-page{padding:8px 16px 0}
+  .tok-create-card{padding:16px 18px 12px !important}
+  .tok-create-card .tok-input,.tok-create-card .tok-select{height:44px !important;min-height:44px !important}
+  .tok-create-card .tok-actions .tok-btn{height:44px !important;min-height:44px !important}
+}
+@media (min-width:992px) and (max-height:800px){
+  .tok-main.tok-create-page{padding-top:4px !important}
+  .tok-create-card{padding:6px 12px 4px !important}
+  .tok-create-card .tok-textarea{min-height:40px !important;max-height:70px !important}
+  .tok-create-card .tok-dropzone{padding:6px !important}
+  .tok-create-card .tok-actions{padding-top:4px !important; margin-top:4px !important}
+  .tok-create-card .tok-section-label{margin:0 0 2px !important}
+  .tok-create-card .tok-divider{margin:2px 0 !important}
+  .tok-create-card .tok-grid-2{gap:4px 10px !important}
+  .tok-create-card .tok-field{margin-bottom:2px !important}
+  .tok-app-footer{padding:6px 24px !important}
+}
+
+/* ============ FIELDS ============ */
+.tok-label{display:block;font-size:.875rem;font-weight:600;color:var(--tok-text);margin-bottom:.375rem}
+.tok-req{color:var(--tok-error)}
+.tok-input,.tok-select,.tok-textarea{width:100%;border:1px solid var(--tok-border);border-radius:var(--tok-radius);
+  background:var(--tok-field-editable);color:var(--tok-text);font-family:inherit;font-size:.9375rem;padding:.625rem .75rem;min-height:44px}
+.tok-input::placeholder,.tok-textarea::placeholder{color:#9AA8A1}
+.tok-input:focus-visible,.tok-select:focus-visible,.tok-textarea:focus-visible{outline:none;border-color:var(--tok-primary);box-shadow:var(--tok-ring)}
+.tok-readonly{background:var(--tok-field-readonly);border-color:var(--tok-field-readonly-border);color:var(--tok-text-muted);cursor:default}
+.tok-readonly:focus{box-shadow:none}
+.tok-select{appearance:none;-webkit-appearance:none;padding-right:2.25rem;
+  background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235C6B64' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")
+  no-repeat right .75rem center}
+.tok-textarea{min-height:132px;resize:vertical;line-height:1.55}
+.tok-hint{font-size:.8125rem;color:var(--tok-text-muted);margin:.375rem 0 0}
+.tok-field.invalid .tok-input,.tok-field.invalid .tok-select,.tok-field.invalid .tok-textarea{border-color:var(--tok-error)}
+.tok-err{display:none;align-items:flex-start;gap:.375rem;font-size:.8125rem;color:var(--tok-error);margin:.375rem 0 0}
+.tok-field.invalid .tok-err{display:flex}
+
+/* ============ ATTACHMENTS ============ */
+.tok-dropzone{border:2px dashed var(--tok-border);border-radius:.5rem;background:#FBFDFC;padding:2.75rem 1.25rem;text-align:center;color:var(--tok-text-muted);font-size:.9375rem}
+.tok-dropzone.dragover{border-color:var(--tok-primary);background:var(--tok-primary-soft)}
+.tok-dropzone svg{color:var(--tok-primary);margin-bottom:.625rem}
+.tok-browse{color:var(--tok-primary);font-weight:700;text-decoration:none;cursor:pointer}
+.tok-browse:hover{color:var(--tok-secondary);text-decoration:underline}
+.tok-formats{margin-top:.625rem;font-size:.75rem;letter-spacing:.08em;color:var(--tok-text-muted)}
+.tok-chips{display:flex;flex-wrap:wrap;gap:.625rem;margin-top:1rem}
+.tok-chip{display:inline-flex;align-items:center;gap:.5rem;max-width:100%;border:1px solid var(--tok-border);border-radius:999px;
+  background:#fff;padding:.375rem .75rem;font-size:.8125rem;color:var(--tok-text)}
+.tok-chip .ok{color:var(--tok-success);font-weight:700}
+.tok-chip .bang{color:var(--tok-error);font-weight:700}
+.tok-chip .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tok-chip .size{color:var(--tok-text-muted)}
+.tok-chip .x{border:0;background:none;color:var(--tok-text-muted);font-size:.875rem;line-height:1;cursor:pointer;padding:.125rem;min-width:20px;min-height:20px}
+.tok-chip .x:hover{color:var(--tok-text)}
+.tok-chip.invalid{border-color:var(--tok-error);color:var(--tok-error)}
+.tok-chip.invalid .x{color:var(--tok-error)}
+
+/* ============ ALERTS + ACTIONS ============ */
+.tok-alert{display:none;border-radius:var(--tok-radius);padding:.75rem 1rem;font-size:.875rem;margin:0 0 1.25rem}
+.tok-alert.error{display:flex;gap:.5rem;background:var(--tok-error-soft);color:var(--tok-error);border:1px solid rgba(179,38,30,.35)}
+.tok-alert.success{display:flex;gap:.5rem;background:var(--tok-primary-soft);color:var(--tok-primary);border:1px solid rgba(0,107,60,.35)}
+.tok-actions{display:flex;justify-content:flex-end;gap:.75rem;margin-top:2rem}
+.tok-btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;border-radius:var(--tok-radius);font-family:inherit;
+  font-size:.9375rem;font-weight:600;min-height:44px;padding:.625rem 1.25rem;cursor:pointer}
+.tok-btn.secondary{background:#fff;border:1px solid var(--tok-border);color:var(--tok-text)}
+.tok-btn.secondary:hover{background:var(--tok-primary-soft)}
+.tok-btn.primary{background:var(--tok-primary);border:1px solid var(--tok-primary);color:#fff;font-weight:700;padding:.625rem 1.375rem}
+.tok-btn.primary:hover{background:var(--tok-secondary)}
+.tok-btn:disabled{opacity:.55;cursor:not-allowed}
+.tok-btn:focus-visible{outline:none;box-shadow:var(--tok-ring)}
+.tok-spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:tokspin .7s linear infinite}
+@keyframes tokspin{to{transform:rotate(360deg)}}
+
+/* ============ REQUESTER SELECTION POLISH (Spec 3 — densified centered) ============ */
+.tok-selection-page{
+  width:100%;
+  min-height:calc(100vh - 106px);
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  padding:32px 16px;
+  background: radial-gradient(1200px 400px at 50% 0%, #EAF6EF 0%, #F5F7F6 60%);
+}
+.tok-selection-shell{
+  width:100%;
+  max-width:680px;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+}
+.tok-selection-shell .tok-breadcrumb{
+  width:100%;
+  align-self:stretch;
+  margin-bottom:10px;
+}
+.tok-selection-card{
+  width:100%;
+  max-width:100%;
+  background:var(--tok-surface);
+  border:1px solid var(--tok-border-soft);
+  border-radius:var(--tok-radius-card);
+  box-shadow:var(--tok-shadow);
+  padding:36px 44px 0;
+  overflow:hidden;
+}
+.tok-selection-icon{
+  width:72px;
+  height:72px;
+  border-radius:50%;
+  background:var(--tok-primary-soft);
+  margin:0 auto;
+  display:grid;
+  place-items:center;
+  flex:none;
+}
+.tok-selection-title{
+  text-align:center;
+  margin:16px 0 8px;
+  font-size:1.6rem;
+  font-weight:700;
+  line-height:1.2;
+}
+.tok-selection-subtitle{
+  text-align:center;
+  color:var(--tok-text-muted);
+  line-height:1.7;
+  max-width:54ch;
+  margin:0 auto;
+  font-size:.95rem;
+}
+.tok-selection-divider{
+  border:0;
+  border-top:1px solid var(--tok-border-soft);
+  margin:22px 0;
+}
+.tok-selection-card .tok-label{
+  width:100%;
+}
+.tok-selection-card .tok-select{
+  width:100%;
+  height:48px;
+  min-height:48px;
+  font-size:1rem;
+}
+.tok-selection-callout,
+.tok-selection-note{
+  width:100%;
+  display:flex;
+  gap:.625rem;
+  align-items:flex-start;
+  border-radius:8px;
+  padding:13px 16px;
+  font-size:.9rem;
+  margin-top:14px;
+}
+.tok-selection-callout{
+  background:var(--tok-primary-soft);
+  border:1px solid #CFE6D8;
+  color:var(--tok-secondary);
+}
+.tok-selection-note{
+  background:var(--tok-field-readonly);
+  border:1px solid #E0E0DE;
+  color:var(--tok-text-muted);
+}
+.tok-selection-footer{
+  display:flex;
+  justify-content:flex-end;
+  gap:.625rem;
+  margin:24px -44px 0;
+  padding:16px 44px;
+  border-top:1px solid var(--tok-border);
+  background:var(--tok-surface);
+  border-radius:0 0 var(--tok-radius-card) var(--tok-radius-card);
+}
+.tok-selection-footer .tok-btn{
+  min-height:44px;
+  height:44px;
+}
+
+/* Tablet 768-991 — keep same centered width */
+@media (min-width:768px) and (max-width:991.98px){
+  .tok-selection-shell{max-width:680px}
+  .tok-selection-card{padding:36px 44px 0}
+}
+/* Mobile <768 */
+@media (max-width:767.98px){
+  .tok-selection-shell{max-width:100%}
+  .tok-selection-card{padding:24px 18px 0}
+  .tok-selection-footer{
+    margin:24px -18px 0;
+    padding:16px 18px;
+    flex-direction:column-reverse;
+    gap:10px;
+  }
+  .tok-selection-footer .tok-btn{
+    width:100%;
+    height:48px;
+    min-height:48px;
+  }
+  .tok-card{padding:1.25rem}
+  .tok-actions{flex-direction:column-reverse}
+  .tok-btn{width:100%}
+  .tok-dropzone{padding:1.75rem 1rem}
+  /* The selector row (label + select + caption) must be allowed to wrap and
+     shrink, or its intrinsic min-width forces the navbar past the viewport. */
+  .tok-req-wrap{margin-left:0;width:100%;justify-content:flex-start;flex-wrap:wrap;min-width:0}
+  .tok-req-label{text-align:left}
+  .tok-req-select{max-width:100%;min-width:0}
+  .tok-req-caption{white-space:normal}
+}
+@media (max-width:767.98px){
+  /* Ensure no horizontal scroll at 375 */
+  html,body{overflow-x:hidden}
+}
+/* Ensure selection card padding wins over generic .tok-card at mobile (same specificity, order matters) */
+@media (max-width:767.98px){
+  .tok-card.tok-selection-card{padding:24px 18px 0 !important}
+}
