@@ -62,7 +62,12 @@ describe('RequesterTicketDetail', () => {
     // breadcrumb still shows ticket number
     expect(screen.getAllByText(/My Tickets/).length).toBeGreaterThan(0);
     // Lab-pure ownership: Requester shows creator, Ticket Owner shows Unassigned
-    expect(screen.getByText('Requester')).toBeInTheDocument();
+    // Header also contains "Development Requester" and badge "Requester" — scope to detail card
+    expect(
+      Array.from(document.querySelectorAll('.td-card label')).some((l) =>
+        l.textContent?.includes('Requester'),
+      ),
+    ).toBe(true);
     expect(screen.getByText('Ticket Owner')).toBeInTheDocument();
     expect(screen.getByText('Unassigned')).toBeInTheDocument();
     expect(screen.getAllByText('Dev User Alpha').length).toBeGreaterThan(0);

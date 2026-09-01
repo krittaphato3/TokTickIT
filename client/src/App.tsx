@@ -3,6 +3,7 @@ import type { Category } from './api';
 import { checkSystem } from './api';
 import { DevRequesterProvider } from './DevRequesterProvider';
 import ProfileHeader from './ProfileHeader';
+import RequesterSelector from './RequesterSelector';
 import RequesterSelection from './components/RequesterSelection';
 import CreateTicketPage from './components/CreateTicketPage';
 import MyTicketsPage from './components/MyTicketsPage';
@@ -111,7 +112,7 @@ function AppHeader({
           </nav>
         </div>
         <div className="ms-auto d-flex align-items-center flex-shrink-0" style={{gap:'0.75rem'}}>
-          <span style={{fontSize:'0.8125rem', color:'#5C6B64'}}>Testing only — not real authentication</span>
+          <RequesterSelector />
           <ProfileHeader />
         </div>
       </div>
