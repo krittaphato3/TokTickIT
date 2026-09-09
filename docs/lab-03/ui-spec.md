@@ -11,7 +11,7 @@ Intent: show authenticated user + role badge, role-based nav (Requester / IT Sta
 
 ## 2. Login — TODO
 
-Intent: credential form, validation errors, safe failure message, redirect on success.
+Intent: credential form, validation errors, safe failure message, redirect on success. No `Forgot your password?` link (password-reset email excluded).
 
 ## 3. Mandatory Password Change — TODO
 
@@ -27,11 +27,11 @@ Intent: desktop 9-column table; mobile cards below 768px; search/filter/sort/pag
 
 ## 6. IT Staff Ticket Detail — TODO
 
-Intent: owner assignment (zero-or-one), IT priority control, 8-status transition control, public vs internal threads with distinct styling.
+Intent: owner assignment (zero-or-one), IT priority control, 8-status transition control, public vs internal threads with distinct styling. Tabs limited to Public Comments, Internal Notes, Attachments — no Service Actions tab, no Resolution Summary field. Category/Requester/Summary/Description read-only; only Owner, IT Priority, Status editable.
 
 ## 7. Administrator User Management — TODO
 
-Intent: Name/Email/Role/Status/Edit table; search + role filter; create / edit / set-password modals; activate/deactivate (no deletion).
+Intent: Name/Email/Role/Status/Edit table; search + role filter; create / edit / set-password modals; activate/deactivate (no deletion). No `send password reset email` checkbox — initial passwords via local-lab behavior only.
 
 ## 8. Responsive Rules — TODO
 

@@ -25,6 +25,8 @@
 | TODO mandatory change | Auth | TODO: new password | TODO: required when mustChangePassword |
 | TODO voluntary change | Auth | TODO: current + new password | TODO |
 
+Policy (per lab-sheet login mockup): new password min 8 chars, max 72 (bcrypt input limit); must contain uppercase, lowercase, number, special character; must differ from current; confirmation must match. Violations → 400 with field-level `details`. No forgot-password link or reset flow exists in Lab 3.
+
 ## 4. Requester Regression APIs — TODO
 
 Intent: ticket list/detail/attachments scoped to auth identity (no dev header).
@@ -33,6 +35,8 @@ Intent: ticket list/detail/attachments scoped to auth identity (no dev header).
 |---------------|------|-------|
 | TODO `GET /api/tickets` | Requester auth | TODO: preserved Lab 2 semantics |
 | TODO ticket detail + attachments | Requester auth | TODO: ownership by auth identity |
+
+AD-03: any active authenticated user (incl. IT Staff) may `POST /api/tickets`, owning it as requester-self; `requesterId` always server-derived, never client-supplied.
 
 ## 5. IT Staff Queue API — TODO
 
@@ -74,8 +78,8 @@ Intent: role-gated; requester access masked as 404.
 |---------------|------|---------|-------|
 | TODO list + search/filter | Admin | 200 + meta | TODO |
 | TODO create | Admin | 201 / 409 duplicate email | TODO |
-| TODO patch | Admin | 200 / 409 safety conflict | TODO: no self-deactivation, no last-admin removal |
-| TODO set-initial-password | Admin | 200 | TODO: sets mustChangePassword |
+| TODO patch | Admin | 200 / 409 safety conflict | No self-deactivation; no last-admin deactivation; no last-admin role reassignment (409 `last active Administrator`) |
+| TODO set-initial-password | Admin | 200 | Sets mustChangePassword; min 8 chars; local-lab behavior only — no email delivery, no reset-email checkbox |
 
 ## 10. Safe Error Conventions — TODO
 

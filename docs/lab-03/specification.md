@@ -47,6 +47,10 @@ TODO: Concise interpretation — stakeholders want identity enforced server-side
 - Notifications
 - Dashboards
 - Actions Taken
+- Service Actions tab (Lab 4 concept from detail mockup)
+- Resolution Summary field (Lab 4 concept from detail mockup)
+- "Forgot your password?" link or reset-password flow
+- "Send password reset email" checkbox or any email delivery of passwords
 
 ## 4. Functional Requirements
 
@@ -73,8 +77,8 @@ TODO: Concise interpretation — stakeholders want identity enforced server-side
 - **BR-06 — Owner must be active IT Staff/Administrator.** TODO: zero-or-one; deactivated owner handling.
 - **BR-07 — IT Priority copy+edit rule.** TODO: initial copy from Requested Priority on claim; independently editable after.
 - **BR-08 — 8-status transition matrix.** TODO: New, Open, In Progress, Waiting for Requester, Resolved, Closed, Reopened, Cancelled — allowed transitions table.
-- **BR-09 — Admin safety rules.** TODO: no self-deactivation; no last-admin removal; deactivation-not-deletion.
-- **BR-10 — Password hashing.** TODO: hash algorithm, never store/return plaintext.
+- **BR-09 — Admin safety rules.** No self-deactivation; no deactivation of the last active Administrator; no role reassignment of the last active Administrator to a non-Administrator role (409 `last active Administrator`); deactivation-not-deletion; duplicate email rejected.
+- **BR-10 — Password policy + hashing.** New passwords: min 8 chars, max 72 (bcrypt input limit), must contain uppercase + lowercase + number + special character, must differ from current, confirmation must match; violations → 400 with field details. Passwords hashed (algorithm TBD in api-spec §6.1), never stored or returned in plaintext. Admin-set initial passwords require min 8 chars and set mustChangePassword=true; full complexity enforced at the user's own first-login change.
 - **BR-11 — Lab 2 regression.** TODO: requester flows, ownership, attachments, list semantics preserved.
 - **BR-12 — TODO.** TODO: reserved for authorization-matrix clarification (see §11).
 
@@ -132,6 +136,7 @@ TODO endpoint placeholders. Full shapes in [`api-spec.md`](./api-spec.md):
 - Staff queue `GET /api/staff/tickets` (TODO path; confirm in api-spec)
 - Staff ops: owner, it-priority, status (TODO shapes)
 - Public comments; Internal notes (role-gated)
+- Ticket Detail tabs limited to Public Comments, Internal Notes, Attachments (no Service Actions, no Resolution Summary)
 - Admin users: list/create/patch/set-password (TODO shapes)
 
 ## 9. Acceptance Criteria
@@ -149,8 +154,9 @@ TODO: expand each AC with Given/When/Then during contract finalization.
 | AC-01-04 | #39 | TODO |
 | AC-01-05 | #40 | TODO |
 | AC-01-06 | #41 | TODO |
-| AC-01-07 | #42 | TODO |
-| AC-01-08 | #43 | TODO |
+| AC-01-07 | #37 | TODO: password-policy acceptance (400 cases + 200 success) |
+| AC-01-08 | #42 | TODO |
+| AC-01-09 | #43 | TODO |
 
 ## 10. Definition of Done
 
@@ -167,3 +173,4 @@ TODO: expand each AC with Given/When/Then during contract finalization.
 |----|----------------------|--------|
 | AD-01 | Session/token mechanism TBD in api-spec. | TODO — decide in api-spec |
 | AD-02 | Administrator ticket-operation permission must be explicitly recorded per authorization matrix. | TODO — record allowed/denied ops |
+| AD-03 | Any active authenticated user (incl. IT Staff) may POST /api/tickets as requester-self; identity server-derived; no separate staff endpoint; must appear in authorization matrix. | Accepted |
