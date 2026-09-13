@@ -393,6 +393,7 @@ Role badges appear in the shell user cluster, comment/note authorship headers, a
 - Staff Detail groups read-only versus editable fields, enforces claim/reassign confirmations, and keeps Public versus Internal threads visually distinct per §7.
 - Admin Users implements the Name/Email/Role/Status/Edit table, single search + single role filter, create/edit/set-password modals, and duplicate/self/last-administrator guards per §8.
 - Feedback matrix (§10), badges (§11), editable/read-only styling (§12), responsive rules without horizontal scroll (§13), and accessibility (§14) hold on desktop, tablet, and mobile for every screen in §2–§8.
+- Screenshots required: queue-desktop (1280 9-col + badges), queue-mobile (375 cards), staff-detail-amber-vs-public (side-by-side --tok-internal-bg #FFF8E6 vs public, lock + warning banner), admin-users, all-8-badges strip (New/Open/In Progress/Waiting/Resolved/Closed/Reopened/Cancelled) — Traceability: FR-06, FR-07, FR-12 | BR-13, BR-15 | AC-08, AC-11.
 
 ---
 
