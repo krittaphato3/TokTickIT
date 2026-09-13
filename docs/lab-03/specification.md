@@ -204,6 +204,17 @@ Cookie `toktickit.sid` carries the raw token with `httpOnly`, `SameSite=Lax`, `S
 - Tickets: realistic volume distributed across requesters, all 8 statuses (post-migration), mixed requested/IT priorities, and mixed assigned/unassigned ownership including one ticket with a deactivated owner for badge coverage.
 - Threads: example public comments and internal notes on representative tickets with no sensitive or personal content. Seeded credentials are local-development only and documented in the seed script header.
 
+### 7.7 Auth-foundation increment (this issue — `feature/lab3-auth`)
+
+Scope is FR-01..FR-04, BR-01, BR-02, BR-06..BR-09, AC-01, AC-02, AC-05, AC-06, AC-18 (auth only). Staff queue/detail (§FR-06..FR-10) and admin screens (FR-11..FR-12) stay placeholder references owned by other issues.
+
+- **Authentication decisions (AD-01, frozen):** session cookie `toktickit.sid` (`HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` in production); 24 h sliding expiry refreshed on activity capped by 24 h absolute lifetime (`expiresAt` + `absoluteExpiresAt`); CSRF double-submit — server issues `csrfToken` on login/`me`, all mutating `POST`/`PATCH`/`DELETE` require `X-CSRF-Token` (mismatch → 403); bcrypt cost 12 for passwords (cost 4 in `auth.api.test.ts` for speed only); no JWT in localStorage, no `X-Dev-Requester-Id`.
+- **Password hashing:** bcrypt-12 via `bcryptjs`; 72-byte input limit enforced by validation; constant-time compare with dummy hash on unknown email so unknown vs wrong-password paths share observable timing and message (`401 Invalid email or password`); plaintext never stored, logged, or returned (`safeUser` projection only).
+- **Session/token behavior:** opaque 32-byte hex token in cookie, server-side `Session` row (`userId`, `expiresAt`, `absoluteExpiresAt`, `ipHash` for logging only); sliding refresh on each authenticated load, hard reject after absolute expiry; logout deletes the row, revokes the CSRF token, and clears the cookie with an expired `Set-Cookie` (old token → 401, idempotent); mid-session deactivation destroys the session and returns 403 on next request.
+- **Migration strategy (incremental):** `Requester` table kept for compat in this increment; `User` mirrored alongside it preserving ids (`User.id` = `Requester.id`); `Ticket.requesterId` still points to `Requester` in this increment; new `User`/`Session` tables, `Ticket.ownerId`/`appearsResolvedAt` columns, and `Role`/extended-`Status` values land via one Prisma migration (`20260913110405_lab3_auth_foundation`); full `Ticket.requesterId` repoint to `User` and `Requester` drop are deferred to the migration issue.
+- **Seeded-user policy:** local-dev only credentials table in the seed script header (never production); idempotent upsert on `email` (lowercased, trimmed); quotas 4 active + 1 inactive Requester, 3 active + 1 inactive IT Staff, 1 active Administrator; seeded rows start with `mustChangePassword=true` and a documented initial password.
+- **Test traceability (this increment):** `T-AUTH-01..05`, `T-PWD-01`, `T-SESS-01`, `T-GATE-01`, `T-MIG-01` → AC-01, AC-02, AC-05, AC-06, AC-18. Implemented in `server/tests/lab-03/auth.api.test.ts` (see `tests.md` §2 Final column).
+
 ## 8. API Contract
 
 Full paths, shapes, validation tables, and examples live in [`api-spec.md`](./api-spec.md). Summary of the normative surface:

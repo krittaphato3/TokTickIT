@@ -7,7 +7,7 @@ import {
   createTicket,
   getTicketDetail,
   listTickets,
-  resolveRequester,
+  resolveSessionRequester,
   HttpError,
 } from '../services/ticket.service.js';
 import {
@@ -18,6 +18,32 @@ import {
   uploadAttachment,
   ALLOWED_MIME,
 } from '../services/attachment.service.js';
+import { NOT_AUTHENTICATED } from '../middleware/auth.js';
+
+// Lab 3 — "Do not trust client-supplied requester identity" (BR-03).
+// Every handler below derives the requester server-side from req.auth.user
+// (populated by optionalAuth + enforced by requireAuth on the tickets router).
+// The legacy X-Dev-Requester-Id header and any body requester identity are
+// never read for authorization; their presence only emits a server-side
+// warning so stale Lab 2 clients are visible in logs.
+function warnOnUntrustedIdentity(req: Request): void {
+  if (req.get('X-Dev-Requester-Id') !== undefined) {
+    console.warn(
+      '[tickets] ignoring client-supplied X-Dev-Requester-Id header; using session identity',
+    );
+  }
+}
+
+async function sessionRequesterId(
+  req: Request,
+  opts?: { createIfMissing?: boolean },
+): Promise<number> {
+  const user = req.auth?.user;
+  if (!user) throw new HttpError(401, NOT_AUTHENTICATED);
+  warnOnUntrustedIdentity(req);
+  const requester = await resolveSessionRequester(getPrisma(), user, opts);
+  return requester.id;
+}
 
 export async function createTicketHandler(
   req: Request,
@@ -26,11 +52,15 @@ export async function createTicketHandler(
 ): Promise<void> {
   try {
     const prisma = getPrisma();
-    const requester = await resolveRequester(
+    // Creating as requester-self provisions the linked row when the session
+    // user has none yet (AD-03); all other handlers are read-scoped or act on
+    // an already-owned ticket and must not write to the Requester table.
+    const requesterId = await sessionRequesterId(req, { createIfMissing: true });
+    const ticket = await createTicket(
       prisma,
-      req.get('X-Dev-Requester-Id'),
+      { id: requesterId, name: req.auth?.user?.name ?? '' },
+      req.body,
     );
-    const ticket = await createTicket(prisma, requester, req.body);
     res.status(201).json(ticket);
   } catch (err) {
     next(err);
@@ -44,11 +74,8 @@ export async function listTicketsHandler(
 ): Promise<void> {
   try {
     const prisma = getPrisma();
-    const requester = await resolveRequester(
-      prisma,
-      req.get('X-Dev-Requester-Id'),
-    );
-    const result = await listTickets(prisma, requester.id, req.query);
+    const requesterId = await sessionRequesterId(req);
+    const result = await listTickets(prisma, requesterId, req.query);
     res.status(200).json(result);
   } catch (err) {
     next(err);
@@ -62,11 +89,8 @@ export async function getTicketDetailHandler(
 ): Promise<void> {
   try {
     const prisma = getPrisma();
-    const requester = await resolveRequester(
-      prisma,
-      req.get('X-Dev-Requester-Id'),
-    );
-    const ticket = await getTicketDetail(prisma, requester.id, req.params.ticketNumber as string);
+    const requesterId = await sessionRequesterId(req);
+    const ticket = await getTicketDetail(prisma, requesterId, req.params.ticketNumber as string);
     res.status(200).json(ticket);
   } catch (err) {
     next(err);
@@ -80,10 +104,10 @@ export async function uploadAttachmentHandler(
 ): Promise<void> {
   try {
     const prisma = getPrisma();
-    const requester = await resolveRequester(prisma, req.get('X-Dev-Requester-Id'));
+    const requesterId = await sessionRequesterId(req);
     const ticketNumber = req.params.ticketNumber as string;
     ensureTicketNumberFormat(ticketNumber);
-    const ticket = await resolveOwnedTicket(prisma, requester.id, ticketNumber);
+    const ticket = await resolveOwnedTicket(prisma, requesterId, ticketNumber);
     // multer memory: file in req.file
     const file = (req as unknown as { file?: Express.Multer.File }).file;
     if (!file) throw new HttpError(400, 'No file provided');
@@ -118,12 +142,12 @@ export async function downloadAttachmentHandler(
 ): Promise<void> {
   try {
     const prisma = getPrisma();
-    const requester = await resolveRequester(prisma, req.get('X-Dev-Requester-Id'));
+    const requesterId = await sessionRequesterId(req);
     const ticketNumber = req.params.ticketNumber as string;
     const attachmentIdRaw = req.params.attachmentId as string;
     ensureTicketNumberFormat(ticketNumber);
     const attachmentId = ensureAttachmentIdFormat(attachmentIdRaw);
-    const ticket = await resolveOwnedTicket(prisma, requester.id, ticketNumber);
+    const ticket = await resolveOwnedTicket(prisma, requesterId, ticketNumber);
     const att = await prisma.attachment.findFirst({
       where: { id: attachmentId, ticketId: ticket.id },
     });
@@ -147,12 +171,12 @@ export async function deleteAttachmentHandler(
 ): Promise<void> {
   try {
     const prisma = getPrisma();
-    const requester = await resolveRequester(prisma, req.get('X-Dev-Requester-Id'));
+    const requesterId = await sessionRequesterId(req);
     const ticketNumber = req.params.ticketNumber as string;
     const attachmentIdRaw = req.params.attachmentId as string;
     ensureTicketNumberFormat(ticketNumber);
     const attachmentId = ensureAttachmentIdFormat(attachmentIdRaw);
-    const ticket = await resolveOwnedTicket(prisma, requester.id, ticketNumber);
+    const ticket = await resolveOwnedTicket(prisma, requesterId, ticketNumber);
     const att = await prisma.attachment.findFirst({
       where: { id: attachmentId, ticketId: ticket.id },
     });

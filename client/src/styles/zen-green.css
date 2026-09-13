@@ -319,3 +319,16 @@ body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:va
 @media (max-width:767.98px){
   .tok-card.tok-selection-card{padding:24px 18px 0 !important}
 }
+
+/* ============ LAB 3 AUTH (login / change-password, ui-spec §3-§4) ============ */
+.tok-auth-page{width:100%;min-height:calc(100vh - 106px);align-items:flex-start !important;padding:32px 16px;
+  background:radial-gradient(1200px 400px at 50% 0%, #EAF6EF 0%, var(--tok-page-bg) 60%)}
+.tok-auth-card{margin-top:24px}
+.tok-auth-page .tok-input{min-height:44px}
+.tok-auth-page .tok-btn{min-height:44px}
+.tok-auth-page .tok-alert{display:flex;gap:.5rem;align-items:flex-start}
+@media (max-width:767.98px){
+  .tok-auth-page{padding:16px 16px 32px}
+  .tok-auth-card{margin-top:8px}
+  .tok-auth-page .tok-btn{width:100%}
+}

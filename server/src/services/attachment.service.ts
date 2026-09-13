@@ -37,9 +37,11 @@ export async function resolveOwnedTicket(
 ) {
   ensureTicketNumberFormat(ticketNumber);
   const ticket = await prisma.ticket.findUnique({ where: { ticketNumber } });
-  if (!ticket) throw new HttpError(404, `Ticket ${ticketNumber} does not exist`);
+  // Masked 404 (api-spec §1.5): absent and cross-owner are indistinguishable
+  // so Requester A cannot probe Requester B's ticket numbers. No 403 here.
+  if (!ticket) throw new HttpError(404, 'Ticket not found');
   if (ticket.requesterId !== requesterId)
-    throw new HttpError(403, `Ticket ${ticketNumber} does not belong to this requester`);
+    throw new HttpError(404, 'Ticket not found');
   return ticket;
 }
 

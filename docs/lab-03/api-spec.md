@@ -27,7 +27,7 @@ Cookie-based server-side session. No tokens in localStorage. No `X-Dev-Requester
 | Credential validation | Constant-time compare; identical timing for unknown vs wrong-password paths |
 | Logout invalidation | Server destroys session row; clears cookie with expired `Set-Cookie`; old session id is unusable (`401` on reuse) |
 | Inactive user | Session (if any) destroyed; login rejected; in-flight session behaves as `403` (see §11) |
-| mustChangePassword gate | Login succeeds but returns `mustChangePassword: true`; every non-auth API except `POST /api/auth/change-password` and `POST /api/auth/logout` returns `403` with `Password change required` until changed |
+| mustChangePassword gate | Login succeeds but returns `mustChangePassword: true`; every non-auth API except `POST /api/auth/change-password` and `POST /api/auth/logout` returns `403 { "error": "Password change required", "code": "password_change_required" }` until changed |
 
 Authenticated requests send cookies automatically (`credentials: "include"` on the client). Unauthenticated
 API access returns `401`. Authenticated-but-forbidden returns `403`. Missing resources are masked per §1.5.
@@ -950,7 +950,7 @@ forces `mustChangePassword: true` on the admin's own next request cycle.
 | Status | Meaning | Example body |
 |---|---|---|
 | 401 | Unauthenticated (no/invalid/expired session, wrong credentials, CSRF absent on login-me paths where applicable) | `{ "error": "Not authenticated" }` / `{ "error": "Invalid email or password" }` |
-| 403 | Forbidden: inactive account, wrong role, mustChangePassword gate, CSRF mismatch, requester on staff surface, requester resolving/closing | `{ "error": "Account is inactive. Contact an administrator." }`, `{ "error": "Password change required" }`, `{ "error": "IT Staff access required" }`, `{ "error": "Only IT Staff may resolve or close tickets" }` |
+| 403 | Forbidden: inactive account, wrong role, mustChangePassword gate, CSRF mismatch, requester on staff surface, requester resolving/closing | `{ "error": "Account is inactive. Contact an administrator." }`, `{ "error": "Password change required", "code": "password_change_required" }`, `{ "error": "IT Staff access required" }`, `{ "error": "Only IT Staff may resolve or close tickets" }` |
 | 400 | Invalid input with field details | `{ "error": "Validation failed", "details": [{ "field": "pageSize", "message": "pageSize must be between 1 and 100" }] }` |
 | 404 | Not found / masked missing (ticket, attachment, user, or requester-probed internal note) | `{ "error": "Ticket not found" }`, `{ "error": "Not found" }`, `{ "error": "User not found" }` |
 | 409 | Conflict: duplicate email, illegal transition, admin safety, owner eligibility | `{ "error": "Email already exists" }`, `{ "error": "Illegal status transition from NEW to RESOLVED" }`, `{ "error": "Cannot deactivate the last active Administrator" }` |

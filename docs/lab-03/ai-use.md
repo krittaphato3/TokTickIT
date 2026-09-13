@@ -33,3 +33,9 @@ Contract-first worked. The spec agent forced frozen numbering (FR/BR/AC/AD), whi
 ## 4. Reflection on Coding-Agent Use
 
 The coding agent has not been used for application code in this increment. All AI output so far is documentation-only: the engineering contract, this use record, and the reviewer scaffold. Implementation (migration, auth, queue/detail, admin screen, tests) remains pending and will be gated on contract approval. This separation was deliberate — it kept the contract from being reverse-written from generated code and preserves the Spec DD requirement that the specification exist before the main implementation PRs. When coding begins, the agent will be constrained to the frozen contract and the Definition of Done, with any deviation treated as a versioned contract amendment.
+
+## 5. Auth-foundation increment (`feature/lab3-auth`)
+
+- **Branch:** `feature/lab3-auth` (auth foundation only; staff/admin owned by other issues).
+- **AI use:** coding-agent for `server/src/routes/auth.ts`, `server/src/middleware/auth.ts`, `server/src/middleware/cookies.ts`, migration `20260913110405_lab3_auth_foundation`, and `server/tests/lab-03/auth.api.test.ts` (T-AUTH-01..05, T-PWD-01, T-SESS-01, T-GATE-01, T-MIG-01); documentation-agent for `specification.md` §7.7, `api-spec.md` gate-`code` clarification, `tests.md` Final-column update, and this record.
+- **Human gate:** auth decisions, incremental migration (Requester kept, User mirrored preserving ids, `Ticket.requesterId` repoint deferred), and safe-error shapes verified against code before merge.

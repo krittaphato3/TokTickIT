@@ -58,7 +58,9 @@ export interface Ticket {
 // Issue 3 — call the backend; if not ok, throw.
 // Throwing on failure lets the UI show a single Offline/error state.
 export async function getRequesters(): Promise<Requester[]> {
-  const response = await fetch(`${API_URL}/api/requesters`);
+  const response = await fetch(`${API_URL}/api/requesters`, {
+    credentials: 'include',
+  });
   if (!response.ok) {
     throw new Error(`Requesters request failed with status ${response.status}`);
   }
@@ -67,7 +69,9 @@ export async function getRequesters(): Promise<Requester[]> {
 
 // Issue #14 — lookup data for the Create Ticket form.
 export async function getCategories(): Promise<Category[]> {
-  const response = await fetch(`${API_URL}/api/categories`);
+  const response = await fetch(`${API_URL}/api/categories`, {
+    credentials: 'include',
+  });
   if (!response.ok) {
     throw new Error(`Categories request failed with status ${response.status}`);
   }
@@ -75,7 +79,9 @@ export async function getCategories(): Promise<Category[]> {
 }
 
 export async function getRelatedSystems(): Promise<RelatedSystem[]> {
-  const response = await fetch(`${API_URL}/api/related-systems`);
+  const response = await fetch(`${API_URL}/api/related-systems`, {
+    credentials: 'include',
+  });
   if (!response.ok) {
     throw new Error(
       `Related systems request failed with status ${response.status}`,
@@ -90,27 +96,165 @@ export async function getRelatedSystems(): Promise<RelatedSystem[]> {
 // Non-2xx: throws ApiError carrying the documented { error, details? } body.
 export class ApiError extends Error {
   status: number;
-  body: { error?: string; details?: { field: string; message: string }[] };
+  code?: string;
+  body: {
+    error?: string;
+    code?: string;
+    details?: { field: string; message: string }[];
+  };
 
   constructor(
     status: number,
-    body: { error?: string; details?: { field: string; message: string }[] },
+    body: {
+      error?: string;
+      code?: string;
+      details?: { field: string; message: string }[];
+    },
   ) {
     super(body.error ?? `Request failed with status ${status}`);
     this.status = status;
     this.body = body;
+    this.code = body.code;
   }
+}
+
+// Lab 3 session auth (api-spec §1.1/§2/§3). CSRF token lives in module memory
+// only — never localStorage. Authenticated requests send cookies via
+// credentials:include.
+let csrfToken: string | null = null;
+
+export function getCsrfToken(): string | null {
+  return csrfToken;
+}
+
+export function setCsrfToken(token: string | null): void {
+  csrfToken = token;
+}
+
+function authHeaders(extra?: Record<string, string>, withCsrf = false): Record<string, string> {
+  const headers: Record<string, string> = { ...extra };
+  if (withCsrf && csrfToken) headers['X-CSRF-Token'] = csrfToken;
+  return headers;
+}
+
+// Deprecated Lab 2 header: still sent when a caller supplies requesterId for
+// backward compat, but session identity is authoritative server-side (BR-03).
+function devHeaders(requesterId?: number): Record<string, string> {
+  if (requesterId === undefined || requesterId === null) return {};
+  return { 'X-Dev-Requester-Id': String(requesterId) };
+}
+
+export type UserRole = 'REQUESTER' | 'IT_STAFF' | 'ADMIN' | string;
+
+export interface AuthUser {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  isActive: boolean;
+  mustChangePassword: boolean;
+}
+
+export interface LoginResult {
+  user: AuthUser;
+  csrfToken: string;
+}
+
+export interface MeResult {
+  user: AuthUser;
+  csrfToken: string;
+}
+
+export async function login(email: string, password: string): Promise<LoginResult> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/api/auth/login`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+  } catch {
+    throw new ApiError(0, { error: 'Network error' });
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  const result = body as LoginResult;
+  if (result.csrfToken) setCsrfToken(result.csrfToken);
+  return result;
+}
+
+export async function me(): Promise<MeResult> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/api/auth/me`, {
+      credentials: 'include',
+    });
+  } catch {
+    throw new ApiError(0, { error: 'Network error' });
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  const result = body as MeResult;
+  if (result.csrfToken) setCsrfToken(result.csrfToken);
+  return result;
+}
+
+export async function logout(): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/api/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: authHeaders({}, true),
+    });
+  } catch {
+    throw new ApiError(0, { error: 'Network error' });
+  }
+  // Idempotent logout: treat 401 (already expired) as success per BR-08.
+  if (response.status === 401) {
+    setCsrfToken(null);
+    return;
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  setCsrfToken(null);
+}
+
+export interface ChangePasswordInput {
+  currentPassword?: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+export async function changePassword(input: ChangePasswordInput): Promise<{ user: AuthUser }> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/api/auth/change-password`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: authHeaders({ 'Content-Type': 'application/json' }, true),
+      body: JSON.stringify(input),
+    });
+  } catch {
+    throw new ApiError(0, { error: 'Network error' });
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as { user: AuthUser };
 }
 
 export async function createTicket(
   input: CreateTicketInput,
-  requesterId: number,
+  requesterId?: number,
 ): Promise<Ticket> {
   const response = await fetch(`${API_URL}/api/tickets`, {
     method: 'POST',
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      'X-Dev-Requester-Id': String(requesterId),
+      ...devHeaders(requesterId),
+      ...authHeaders({}, true),
     },
     body: JSON.stringify(input),
   });
@@ -161,7 +305,7 @@ export interface TicketListResult {
 
 export async function getTickets(
   params: TicketListParams,
-  requesterId: number,
+  requesterId?: number,
 ): Promise<TicketListResult> {
   const search = new URLSearchParams();
   if (params.page !== undefined) search.set('page', String(params.page));
@@ -181,7 +325,8 @@ export async function getTickets(
   const qs = search.toString();
   const url = `${API_URL}/api/tickets${qs ? `?${qs}` : ''}`;
   const response = await fetch(url, {
-    headers: { 'X-Dev-Requester-Id': String(requesterId) },
+    credentials: 'include',
+    headers: { ...devHeaders(requesterId) },
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -196,12 +341,16 @@ export async function getTickets(
 //   return { online: true, categories }.
 // Throwing on failure lets the UI show a single Offline/error state.
 export async function checkSystem(): Promise<SystemStatus> {
-  const healthResponse = await fetch(`${API_URL}/api/health`);
+  const healthResponse = await fetch(`${API_URL}/api/health`, {
+    credentials: 'include',
+  });
   if (!healthResponse.ok) {
     throw new Error(`Health check failed with status ${healthResponse.status}`);
   }
 
-  const categoriesResponse = await fetch(`${API_URL}/api/categories`);
+  const categoriesResponse = await fetch(`${API_URL}/api/categories`, {
+    credentials: 'include',
+  });
   if (!categoriesResponse.ok) {
     throw new Error(`Categories request failed with status ${categoriesResponse.status}`);
   }
@@ -224,21 +373,27 @@ export interface TicketDetail extends Ticket {
   attachments: AttachmentMeta[];
 }
 
-export async function getTicketDetail(ticketNumber: string, requesterId: number): Promise<TicketDetail> {
+export async function getTicketDetail(ticketNumber: string, requesterId?: number): Promise<TicketDetail> {
   const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}`, {
-    headers: { 'X-Dev-Requester-Id': String(requesterId) },
+    credentials: 'include',
+    headers: { ...devHeaders(requesterId) },
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new ApiError(response.status, body);
   return body as TicketDetail;
 }
 
-export async function uploadAttachment(ticketNumber: string, file: File, requesterId: number): Promise<AttachmentMeta> {
+export async function uploadAttachment(ticketNumber: string, file: File, requesterId?: number): Promise<AttachmentMeta> {
   const form = new FormData();
   form.append('file', file);
+  const headers: Record<string, string> = {
+    ...devHeaders(requesterId),
+    ...authHeaders({}, true),
+  };
   const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}/attachments`, {
     method: 'POST',
-    headers: { 'X-Dev-Requester-Id': String(requesterId) },
+    credentials: 'include',
+    headers,
     body: form,
   });
   const body = await response.json().catch(() => ({}));
@@ -246,10 +401,11 @@ export async function uploadAttachment(ticketNumber: string, file: File, request
   return body as AttachmentMeta;
 }
 
-export async function deleteAttachment(ticketNumber: string, attachmentId: number, requesterId: number): Promise<AttachmentMeta> {
+export async function deleteAttachment(ticketNumber: string, attachmentId: number, requesterId?: number): Promise<AttachmentMeta> {
   const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}/attachments/${attachmentId}`, {
     method: 'DELETE',
-    headers: { 'X-Dev-Requester-Id': String(requesterId) },
+    credentials: 'include',
+    headers: { ...devHeaders(requesterId), ...authHeaders({}, true) },
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new ApiError(response.status, body);
