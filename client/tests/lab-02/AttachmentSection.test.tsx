@@ -2,8 +2,9 @@ import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/re
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../../src/App';
+import { stubAuthenticatedFetch, sessionUser } from '../helpers/auth';
 
-const REQUESTERS = [{ id: 1, name: 'Dev User Alpha', email: 'alpha@toktickit.test' }];
+const USER = sessionUser();
 const TICKET_BASE = {
   id: 1,
   ticketNumber: 'TTK-2026-000042',
@@ -33,9 +34,8 @@ function ok(body: unknown) { return { ok: true, status: 200, json: async () => b
 describe('AttachmentSection UI-08/09', () => {
   beforeEach(() => {
     localStorage.clear();
-    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
-      if (String(url).includes('/api/requesters')) return ok(REQUESTERS);
-      if (String(url).includes('/api/tickets/TTK-2026-000042') && !String(url).includes('attachments')) return ok(TICKET_BASE);
+    vi.stubGlobal('fetch', stubAuthenticatedFetch(USER, async (url) => {
+      if (url.includes('/api/tickets/TTK-2026-000042') && !url.includes('attachments')) return ok(TICKET_BASE);
       return ok({});
     }));
   });
@@ -53,12 +53,11 @@ describe('AttachmentSection UI-08/09', () => {
 
   it('UI-09: remove flow with inline confirm; chip becomes grayed + strikethrough + Removed badge; download gone', async () => {
     const single = { ...TICKET_BASE, attachments: [{ id: 10, fileName: 'shot.png', mimeType: 'image/png', sizeBytes: 100, uploadedAt: '2026-08-18T09:45:00.000Z', removedAt: null }] };
-    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
-      if (String(url).includes('/api/requesters')) return ok(REQUESTERS);
-      if (String(url).includes('/api/tickets/TTK-2026-000042') && init?.method === 'DELETE') {
+    vi.stubGlobal('fetch', stubAuthenticatedFetch(USER, async (url, init) => {
+      if (url.includes('/api/tickets/TTK-2026-000042') && init?.method === 'DELETE') {
         return ok({ id: 10, fileName: 'shot.png', mimeType: 'image/png', sizeBytes: 100, uploadedAt: '2026-08-18T09:45:00.000Z', removedAt: new Date().toISOString() });
       }
-      if (String(url).includes('/api/tickets/TTK-2026-000042')) return ok(single);
+      if (url.includes('/api/tickets/TTK-2026-000042')) return ok(single);
       return ok({});
     }));
     window.location.hash = '#/tickets/TTK-2026-000042';

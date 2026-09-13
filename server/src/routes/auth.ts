@@ -258,4 +258,120 @@ authRouter.post(
   },
 );
 
+// ---------------------------------------------------------------------------
+// Forgot password (credential-verified reset — ui-spec §3.4).
+//
+// The lab sheet EXCLUDES email-based reset (no email invitations, no reset
+// emails). The approved mockup's "Forgot password?" flow is implemented as a
+// one-request self-service reset: the caller proves account ownership with the
+// current (or administrator-issued initial) password and sets a new one.
+//
+// Safe-error contract (BR-16):
+//   - unknown email, wrong current password, inactive account and any failure
+//     all return the SAME generic 401 body — existence is never revealed;
+//   - login-style rate limiting applies per IP (10/min);
+//   - a successful reset revokes all of the user's existing sessions, so a
+//     stolen session cannot survive a credential change.
+// ---------------------------------------------------------------------------
+const FORGOT_SAFE_ERROR = 'Unable to update password with the details provided.';
+
+authRouter.post(
+  '/forgot-password',
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const ip = req.ip ?? req.socket?.remoteAddress ?? 'unknown';
+      if (isLoginRateLimited(ip)) {
+        res.status(429).json({ error: 'Too many attempts. Try again later.' });
+        return;
+      }
+
+      // Body validation shares login's shape checks for email, then applies
+      // the new-password rules; field-level 400 details go to the UI as usual.
+      const body = (typeof req.body === 'object' && req.body !== null && !Array.isArray(req.body)
+        ? req.body
+        : {}) as Record<string, unknown>;
+
+      const issues: { field: string; message: string }[] = [];
+      const rawEmail = body.email;
+      let email = '';
+      if (typeof rawEmail !== 'string' || rawEmail.trim().length === 0) {
+        issues.push({ field: 'email', message: 'Email is required' });
+      } else {
+        email = rawEmail.trim().toLowerCase();
+        if (email.length > 254 || !EMAIL_RE.test(email)) {
+          issues.push({ field: 'email', message: 'Email must be a valid email address' });
+        }
+      }
+
+      const rawCurrent = body.currentPassword;
+      let currentPassword = '';
+      if (typeof rawCurrent !== 'string' || rawCurrent.length === 0) {
+        issues.push({ field: 'currentPassword', message: 'Current password is required' });
+      } else if (rawCurrent.length > 72) {
+        issues.push({ field: 'currentPassword', message: 'Current password must be at most 72 characters' });
+      } else {
+        currentPassword = rawCurrent;
+      }
+
+      const rawNew = body.newPassword;
+      const rawConfirm = body.confirmPassword;
+      if (typeof rawNew !== 'string' || rawNew.length === 0) {
+        issues.push({ field: 'newPassword', message: 'New password is required' });
+      } else {
+        issues.push(...validateNewPassword(rawNew));
+        if (
+          typeof rawConfirm !== 'string' ||
+          rawConfirm.length === 0 ||
+          rawConfirm !== rawNew
+        ) {
+          issues.push({ field: 'confirmPassword', message: 'Passwords do not match' });
+        }
+      }
+
+      if (issues.length > 0) {
+        throw new HttpError(400, 'Validation failed', issues);
+      }
+
+      const prisma = getPrisma();
+      const user = await prisma.user.findUnique({ where: { email } });
+
+      // Inactive accounts: verify the password to keep timing consistent, then
+      // return the same generic 401 as every other failure (no state leak).
+      if (user && !user.isActive) {
+        await constantTimePasswordCheck(currentPassword, user.passwordHash);
+        res.status(401).json({ error: FORGOT_SAFE_ERROR });
+        return;
+      }
+
+      const ok = await constantTimePasswordCheck(currentPassword, user ? user.passwordHash : null);
+      if (!user || !ok) {
+        res.status(401).json({ error: FORGOT_SAFE_ERROR });
+        return;
+      }
+
+      const npw = rawNew as string;
+      const sameAsCurrent = await bcrypt.compare(npw, user.passwordHash);
+      if (sameAsCurrent) {
+        throw new HttpError(400, 'Validation failed', [
+          { field: 'newPassword', message: 'New password must be different from current password' },
+        ]);
+      }
+
+      const passwordHash = await bcrypt.hash(npw, BCRYPT_COST);
+      await prisma.$transaction([
+        prisma.user.update({
+          where: { id: user.id },
+          data: { passwordHash, mustChangePassword: false },
+        }),
+        // Revoke every existing session for this user (stolen sessions die).
+        prisma.session.deleteMany({ where: { userId: user.id } }),
+      ]);
+
+      res.status(200).json({ changed: true, message: 'Password updated' });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 export default authRouter;

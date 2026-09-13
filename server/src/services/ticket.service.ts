@@ -600,7 +600,11 @@ export async function getTicketDetail(
   }
   const ticket = await prisma.ticket.findUnique({
     where: { ticketNumber },
-    include: { category: true, relatedSystem: true, requester: true, attachments: { where: { removedAt: null } } },
+    // Soft-removed attachments are INCLUDED (with removedAt set) so the
+    // requester's own detail view can still display their "Removed" chips —
+    // Lab 2 soft-remove semantics (api-spec §4.4). Active-count limits are
+    // enforced in attachment.service.ts, which filters removedAt: null.
+    include: { category: true, relatedSystem: true, requester: true, attachments: true },
   });
   // Masked 404 (api-spec §1.5): absent and cross-owner are indistinguishable
   // so Requester A cannot probe Requester B's ticket numbers. No 403 here.

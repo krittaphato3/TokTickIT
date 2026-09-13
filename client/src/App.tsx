@@ -1,17 +1,15 @@
 import { useEffect, useState } from 'react';
-import type { Category } from './api';
-import { checkSystem } from './api';
 import { AuthProvider, roleHome, useAuth } from './auth/AuthContext';
 import type { AuthUser } from './auth/AuthContext';
-import { DevRequesterProvider } from './DevRequesterProvider';
 import ChangePasswordPage from './components/ChangePasswordPage';
+import ForgotPasswordPage from './components/auth/ForgotPasswordPage';
 import CreateTicketPage from './components/CreateTicketPage';
 import LoginPage from './components/LoginPage';
 import MyTicketsPage from './components/MyTicketsPage';
 import TicketDetailPage from './components/TicketDetailPage';
+import HomeScreen from './components/HomeScreen';
 
 // UI states: idle, loading, success, error.
-type UiState = 'idle' | 'loading' | 'success' | 'error';
 
 // Hash-based routing: #/login, #/change-password, #/my, #/new,
 // #/tickets/:number, #/staff/queue, #/admin/users. Legacy Lab 2 hashes
@@ -19,6 +17,7 @@ type UiState = 'idle' | 'loading' | 'success' | 'error';
 export type Route =
   | { name: 'home' }
   | { name: 'login' }
+  | { name: 'forgot-password' }
   | { name: 'change-password'; first: boolean }
   | { name: 'my' }
   | { name: 'new' }
@@ -34,6 +33,9 @@ function parseRoute(hash: string): Route {
   const [pathPart, queryPart] = hash.replace(/^#/, '').split('?');
   const path = pathPart;
   if (path === '/login' || path === '/login/') return { name: 'login' };
+  if (path === '/forgot-password' || path === '/forgot-password/') {
+    return { name: 'forgot-password' };
+  }
   if (path === '/change-password' || path === '/change-password/') {
     const first = new URLSearchParams(queryPart ?? '').get('first') === '1';
     return { name: 'change-password', first };
@@ -223,65 +225,6 @@ function UnauthHeader() {
   );
 }
 
-// Lab 1 foundation screen — kept so the original check-system demo stays valid.
-function HomeScreen() {
-  const [state, setState] = useState<UiState>('idle');
-  const [categories, setCategories] = useState<Category[]>([]);
-
-  async function handleCheck() {
-    setState('loading');
-    try {
-      const result = await checkSystem();
-      setCategories(result.categories);
-      setState('success');
-    } catch {
-      setState('error');
-    }
-  }
-
-  return (
-    <div className="tok-main">
-      <h1 className="h3 mb-4">
-        TokTickIT <span className="text-success">IT Service Desk</span>
-      </h1>
-
-      <button
-        type="button"
-        className="btn btn-success"
-        onClick={handleCheck}
-        disabled={state === 'loading'}
-        aria-busy={state === 'loading'}
-      >
-        {state === 'loading' ? 'Loading…' : 'Check System'}
-      </button>
-
-      <div aria-live="polite" role="status" className="tt-status">
-        {state === 'success' && (
-          <>
-            <p className="mb-0">System Status: Online</p>
-            <p className="mb-2 mt-3">Supported Request Categories:</p>
-            <ul className="list-group">
-              {categories.map((category) => (
-                <li key={category.id} className="list-group-item">
-                  {category.name}
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-        {state === 'error' && (
-          <>
-            <p className="mb-0">System Status: Offline</p>
-            <p role="alert" className="mb-0 text-danger">
-              Unable to connect to TokTickIT API
-            </p>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function Forbidden({ home, message }: { home: string; message: string }) {
   return (
     <main className="tok-main">
@@ -422,9 +365,9 @@ function Shell() {
 
   // Unauthenticated: every route except login redirects to login with ?next=.
   if (!user) {
-    if (route.name !== 'login') {
+    if (route.name !== 'login' && route.name !== 'forgot-password') {
       const current = window.location.hash.replace(/^#/, '');
-      const isPublicish = current === '' || current === '/' || current.startsWith('/login');
+      const isPublicish = current === '' || current === '/' || current.startsWith('/login') || current.startsWith('/forgot-password');
       if (!isPublicish && !window.location.hash.includes('next=')) {
         const target = `#/login?next=${encodeURIComponent(`#${current}`)}`;
         window.location.hash = target.replace(/^#/, '');
@@ -439,7 +382,11 @@ function Shell() {
     return (
       <div className="tt-app">
         <UnauthHeader />
-        <LoginPage notice={signedOut ? 'You have been signed out.' : null} />
+        {route.name === 'forgot-password' ? (
+          <ForgotPasswordPage />
+        ) : (
+          <LoginPage notice={signedOut ? 'You have been signed out.' : null} />
+        )}
         <footer className="tok-app-footer">
           <span>TokTickIT — Real Auth + Staff/Admin</span>
           <span>Zen Green Theme · Lab 3</span>
@@ -523,9 +470,7 @@ function Shell() {
 function App() {
   return (
     <AuthProvider>
-      <DevRequesterProvider>
-        <Shell />
-      </DevRequesterProvider>
+      <Shell />
     </AuthProvider>
   );
 }

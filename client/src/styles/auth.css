@@ -1,0 +1,501 @@
+/* ============================================================================
+   Lab 3 — Authentication screens (login / forgot / change password)
+   Adapted from docs/mockups/Authentication-Forgot-Mockup.html, restyled to the
+   Zen Green language: white background, minimal borders, one accent.
+
+   RESPONSIVE SYSTEM — breakpoint map (each block below is commented):
+     base        : mobile-first core (320px+), 16px page gutters, 100dvh flex
+     ≤375px      : very small phones — tighter card padding (16px), scrollable
+                   rules box, smaller brand mark
+     ≤480px      : large phones / small tablets — stacked field meta, 50px CTA
+     481–768px   : tablet portrait — comfortable 24px gutters, mid-scale type
+     769–1024px  : tablet landscape / small laptop — 32px gutters, taller card
+     1025–1440px : laptop — 40px gutters, peak card presence (440px max-width)
+     ≥1441px     : desktop — same card, breathing room only
+     short-height: landscape phones — compact footer/brand so nothing overlaps
+   Fluid type uses clamp(); every interactive element meets the 44×44px
+   WCAG 2.5.5 target minimum; inputs are ≥16px so iOS never zooms on focus.
+   ========================================================================== */
+
+* { box-sizing: border-box; }
+
+html,
+body {
+  overflow-x: hidden; /* no horizontal panning at any width */
+  -webkit-tap-highlight-color: transparent;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* ---------------------------------------------------------------------------
+   PAGE SHELL
+   Flex column pinned between the app header and footer. min-height: 100dvh
+   (dynamic viewport height, vh fallback) keeps the footer at the bottom and
+   prevents overlap on short viewports (landscape phones, small laptops).
+--------------------------------------------------------------------------- */
+.tok-auth-page {
+  width: 100%;
+  flex: 1 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+    max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background: var(--tok-surface); /* plain white — minimal per mockup refresh */
+  min-height: calc(100vh - 140px);
+  min-height: calc(100dvh - 140px); /* mobile browsers with dynamic chrome */
+}
+
+.tok-auth-page > * {
+  width: 100%;
+  max-width: 440px; /* card cap: mobile full-bleed-minus-gutters → 440 desktop */
+  animation: tok-auth-enter 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes tok-auth-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------------------------------------------------------------------------
+   CARD — white, one accent line, shadow that steps down on small screens
+--------------------------------------------------------------------------- */
+.tok-auth-card {
+  background: var(--tok-surface);
+  border: 1px solid var(--tok-border-soft);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(30, 42, 37, 0.06); /* mobile: minimal (perf) */
+  padding: clamp(20px, 5.5vw, 36px);
+  position: relative;
+  overflow: hidden;
+}
+
+.tok-auth-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px; /* brand accent renders at every width (full-bleed inside card) */
+  background: linear-gradient(90deg, #7CC2A0, var(--tok-primary) 48%, #B8DCC8);
+  opacity: 0.7;
+}
+
+/* ---------------------------------------------------------------------------
+   BRAND BLOCK — fluid type via clamp()
+--------------------------------------------------------------------------- */
+.tok-auth-brand {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: clamp(10px, 2vw, 14px);
+  margin-bottom: clamp(18px, 4vw, 24px);
+}
+
+.tok-auth-badge {
+  width: clamp(46px, 11vw, 56px);
+  height: clamp(46px, 11vw, 56px);
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  color: var(--tok-primary);
+  background: linear-gradient(145deg, #F0F8F3, #DCEFE4);
+  border: 1px solid #D5E7DD;
+}
+
+.tok-auth-title {
+  margin: 0;
+  /* 22px on 320px phones → 26px on desktop */
+  font-size: clamp(1.375rem, 1rem + 1.4vw, 1.625rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+  color: var(--tok-text);
+}
+
+.tok-auth-subtitle {
+  margin: 0;
+  color: var(--tok-text-muted);
+  /* 13px → 15px fluid */
+  font-size: clamp(0.8125rem, 0.75rem + 0.3vw, 0.9375rem);
+  line-height: 1.55;
+}
+
+/* ---------------------------------------------------------------------------
+   FIELDS — fluid labels, 48px inputs, 16px text (no iOS zoom)
+--------------------------------------------------------------------------- */
+.tok-auth-field {
+  margin-bottom: clamp(14px, 3vw, 18px);
+}
+
+.tok-auth-field .tok-label {
+  margin-bottom: 6px;
+  font-size: clamp(0.8125rem, 0.78rem + 0.2vw, 0.875rem); /* 13px → 14px */
+}
+
+.tok-auth-input {
+  width: 100%;
+  min-height: 48px; /* ≥44px WCAG target with comfort margin */
+  padding: 12px 14px;
+  border: 1px solid var(--tok-border);
+  border-radius: 12px;
+  background: #FFFFFF;
+  color: var(--tok-text);
+  font: inherit;
+  font-size: 16px; /* never below 16px — iOS zoom-on-focus guard */
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.tok-auth-input::placeholder { color: #97A69D; }
+.tok-auth-input:hover { border-color: var(--tok-border); }
+.tok-auth-input:focus-visible {
+  outline: none;
+  border-color: var(--tok-primary);
+  box-shadow: 0 0 0 4px rgba(0, 107, 60, 0.14);
+}
+
+.tok-auth-input:disabled { opacity: 0.65; cursor: not-allowed; }
+
+.tok-auth-field.invalid .tok-auth-input {
+  border-color: rgba(179, 38, 30, 0.72);
+  background: var(--tok-error-soft);
+}
+
+/* Input with an embedded Show/Hide toggle */
+.tok-auth-wrap { position: relative; }
+.tok-auth-wrap .tok-auth-input { padding-right: 72px; } /* clear of the toggle */
+
+.tok-auth-toggle {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  min-height: 44px;   /* WCAG 2.5.5 target */
+  min-width: 48px;    /* comfortable thumb zone at every width */
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--tok-text-muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.tok-auth-toggle:hover { background: var(--tok-primary-soft); color: var(--tok-primary); }
+.tok-auth-toggle:focus-visible { outline: 2px solid var(--tok-primary); outline-offset: 2px; }
+
+/* Field meta row: inline error + optional right-side link (forgot) */
+.tok-auth-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px; /* guarantees the forgot link's tap row */
+  margin-top: 6px;
+}
+
+.tok-auth-meta .tok-err {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  margin: 0;
+  flex: 1;
+}
+
+.tok-auth-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;   /* tap target, not just text */
+  padding: 0 4px;
+  color: var(--tok-primary);
+  font-size: clamp(0.8125rem, 0.78rem + 0.2vw, 0.875rem);
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+  border-radius: 8px;
+}
+
+.tok-auth-link:hover { text-decoration: underline; color: var(--tok-secondary); }
+.tok-auth-link:focus-visible { outline: 2px solid var(--tok-primary); outline-offset: 2px; }
+
+.tok-auth-hint {
+  margin: 6px 0 0;
+  color: var(--tok-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+/* ---------------------------------------------------------------------------
+   BACK LINK (reset page) — padded, 44px row, clear of the card accent
+--------------------------------------------------------------------------- */
+.tok-auth-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  margin: -6px 0 10px -8px;
+  padding: 0 8px;
+  border-radius: 10px;
+  color: var(--tok-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.tok-auth-back:hover { color: var(--tok-primary); background: var(--tok-primary-soft); }
+.tok-auth-back:focus-visible { outline: 2px solid var(--tok-primary); outline-offset: 2px; }
+
+/* ---------------------------------------------------------------------------
+   ALERTS
+--------------------------------------------------------------------------- */
+.tok-auth-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  font-size: clamp(0.8125rem, 0.78rem + 0.2vw, 0.875rem);
+  line-height: 1.5;
+}
+
+.tok-auth-alert.error {
+  color: var(--tok-error);
+  background: var(--tok-error-soft);
+  border-color: rgba(179, 38, 30, 0.28);
+}
+
+.tok-auth-alert.success {
+  color: var(--tok-success);
+  background: var(--tok-primary-soft);
+  border-color: rgba(30, 122, 70, 0.3);
+}
+
+.tok-auth-alert.info {
+  color: #405B4C;
+  background: var(--tok-primary-soft);
+  border-color: #D5E6DC;
+}
+
+.tok-auth-alert .icon { flex: 0 0 auto; margin-top: 1px; }
+
+/* ---------------------------------------------------------------------------
+   SUBMIT — full-width on mobile, still full-width but height-tuned on desktop
+--------------------------------------------------------------------------- */
+.tok-auth-submit {
+  width: 100%;
+  min-height: 50px;   /* primary action: largest target on the page */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--tok-primary);
+  color: #fff;
+  font: inherit;
+  font-size: clamp(0.9375rem, 0.9rem + 0.2vw, 1rem);
+  font-weight: 650;
+  cursor: pointer;
+  box-shadow: 0 6px 16px -12px rgba(0, 107, 60, 0.9); /* subtle, even on mobile */
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.tok-auth-submit:hover { background: var(--tok-secondary); }
+.tok-auth-submit:active { transform: scale(0.995); }
+.tok-auth-submit:disabled { cursor: not-allowed; opacity: 0.68; transform: none; }
+.tok-auth-submit:focus-visible { outline: 3px solid rgba(0, 107, 60, 0.28); outline-offset: 3px; }
+
+.tok-auth-footnote {
+  margin: clamp(14px, 3vw, 20px) 0 0;
+  text-align: center;
+  color: var(--tok-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.55;
+}
+
+/* ---------------------------------------------------------------------------
+   STRENGTH METER (change-password)
+--------------------------------------------------------------------------- */
+.tok-auth-strength {
+  display: flex;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.tok-auth-strength span {
+  height: 4px;
+  flex: 1;
+  border-radius: 999px;
+  background: #E6EBE7;
+  transition: background-color 220ms ease;
+}
+
+.tok-auth-strength[data-score='1'] span:nth-child(-n+1),
+.tok-auth-strength[data-score='2'] span:nth-child(-n+2) { background: #CF8A84; }
+.tok-auth-strength[data-score='3'] span:nth-child(-n+3) { background: #D2A765; }
+.tok-auth-strength[data-score='4'] span:nth-child(-n+4) { background: #6AA87F; }
+.tok-auth-strength[data-score='5'] span:nth-child(-n+5) { background: var(--tok-primary); }
+
+.tok-auth-strength-label {
+  margin: 6px 0 0;
+  color: var(--tok-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 550;
+}
+
+/* ---------------------------------------------------------------------------
+   RULES CHECKLIST (change-password) + RULES CARD (reset page)
+--------------------------------------------------------------------------- */
+.tok-auth-rules {
+  list-style: none;
+  display: grid;
+  gap: clamp(6px, 1.5vw, 8px);
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.tok-auth-rules li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--tok-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  transition: color 180ms ease;
+}
+
+.tok-auth-rules .dot {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  border: 1.5px solid var(--tok-border);
+  border-radius: 50%;
+  background: #fff;
+  color: transparent;
+  font-size: 10px;
+  font-weight: 800;
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+
+.tok-auth-rules li.is-met { color: var(--tok-success); font-weight: 550; }
+
+.tok-auth-rules li.is-met .dot {
+  background: var(--tok-primary);
+  border-color: var(--tok-primary);
+  color: #fff;
+}
+
+/* Rules card (reset page) — replaces inline styles so media queries can act */
+.tok-auth-rules-card {
+  background: var(--tok-primary-soft);
+  border: 1px solid #D5E6DC;
+  border-radius: 12px;
+  padding: clamp(12px, 3vw, 16px);
+  margin: 4px 0 clamp(14px, 3vw, 18px);
+}
+
+.tok-auth-rules-card .tok-auth-rules-card-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--tok-text);
+  margin: 0 0 8px;
+}
+
+.tok-auth-rules-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 0.8125rem;
+}
+
+.tok-auth-rules-card li {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--tok-text-muted);
+  transition: color 180ms ease;
+}
+
+.tok-auth-rules-card li.is-met { color: var(--tok-success); font-weight: 550; }
+
+/* ===========================================================================
+   BREAKPOINTS — each range exists for a reason; read the comment per block.
+   =========================================================================== */
+
+/* ≤375px — very small phones (iPhone SE 320/375): tighten chrome, cap the
+   rules card height with scroll so the CTA never leaves the viewport. */
+@media (max-width: 375px) {
+  .tok-auth-page { padding: 16px 16px 24px; }
+  .tok-auth-card { padding: 16px; border-radius: 14px; }
+  .tok-auth-badge { width: 42px; height: 42px; border-radius: 12px; }
+  .tok-auth-badge svg { width: 20px; height: 20px; }
+  .tok-auth-meta { min-height: 40px; flex-direction: column; align-items: flex-start; gap: 2px; }
+  .tok-auth-rules-card { max-height: 168px; overflow-y: auto; } /* scroll, not cut */
+  .tok-auth-submit { min-height: 48px; }
+}
+
+/* ≤480px — large phones: stacked field meta, roomier inputs. */
+@media (max-width: 480px) {
+  .tok-auth-page { padding: 20px 16px 28px; }
+  .tok-auth-field { margin-bottom: 14px; }
+  .tok-auth-toggle { min-width: 52px; }
+}
+
+/* 481px–768px — tablet portrait: first breathing-room step, shadow restored. */
+@media (min-width: 481px) and (max-width: 768px) {
+  .tok-auth-page { padding: 32px 24px; }
+  .tok-auth-card { box-shadow: 0 10px 34px -22px rgba(30, 42, 37, 0.35), 0 1px 2px rgba(30, 42, 37, 0.04); }
+}
+
+/* 769px–1024px — tablet landscape / small laptop: page gutters widen to 32px
+   and the card gets more internal space; footer stays pinned by the flex page. */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .tok-auth-page { padding: 40px 32px; }
+  .tok-auth-card { padding: 32px 36px; }
+}
+
+/* 1025px–1440px — laptop: peak card presence at the 440px cap, 40px gutters. */
+@media (min-width: 1025px) and (max-width: 1440px) {
+  .tok-auth-page { padding: 48px 40px; }
+  .tok-auth-card { padding: 36px 40px; }
+  .tok-auth-submit:hover { background: var(--tok-secondary); }
+}
+
+/* ≥1441px — desktop: identical card (440px cap), generous page padding only. */
+@media (min-width: 1441px) {
+  .tok-auth-page { padding: 56px 40px; }
+  .tok-auth-card { padding: 36px 40px; }
+}
+
+/* Short viewports (landscape phones, ~≤480px tall): compact the brand block
+   and page padding so card + footer coexist without scrolling overlap. */
+@media (max-height: 480px) and (orientation: landscape) {
+  .tok-auth-page { padding: 12px 16px; min-height: 0; }
+  .tok-auth-brand { margin-bottom: 10px; gap: 6px; }
+  .tok-auth-badge { display: none; } /* reclaim vertical space */
+  .tok-auth-title { font-size: 1.125rem; }
+  .tok-auth-field { margin-bottom: 8px; }
+  .tok-auth-input { min-height: 42px; padding: 8px 12px; }
+  .tok-auth-submit { min-height: 44px; }
+  .tok-auth-footnote { display: none; }
+  .tok-app-footer { padding: 6px 16px; }
+}
+
+/* ---------------------------------------------------------------------------
+   REDUCED MOTION
+--------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .tok-auth-page > * { animation: none; }
+  .tok-auth-submit,
+  .tok-auth-strength span,
+  .tok-auth-rules li,
+  .tok-auth-rules .dot { transition: none !important; }
+}

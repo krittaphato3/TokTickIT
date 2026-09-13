@@ -1,10 +1,9 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 import App from '../../src/App';
+import { stubAuthenticatedFetch, sessionUser } from '../helpers/auth';
 
-const REQUESTERS = [
-  { id: 1, name: 'Dev User Alpha', email: 'alpha@toktickit.test' },
-];
+const USER = sessionUser();
 
 const TICKET = {
   id: 1,
@@ -33,11 +32,8 @@ function ok(body: unknown) {
 describe('RequesterTicketDetail', () => {
   beforeEach(() => {
     localStorage.clear();
-    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
-      if (String(url).includes('/api/requesters')) return ok(REQUESTERS);
-      if (String(url).includes('/api/categories')) return ok([]);
-      if (String(url).includes('/api/related-systems')) return ok([]);
-      if (String(url).includes('/api/tickets/TTK-2026-000042')) return ok(TICKET);
+    vi.stubGlobal('fetch', stubAuthenticatedFetch(USER, (url) => {
+      if (url.includes('/api/tickets/TTK-2026-000042')) return ok(TICKET);
       return ok({});
     }));
   });
@@ -62,7 +58,6 @@ describe('RequesterTicketDetail', () => {
     // breadcrumb still shows ticket number
     expect(screen.getAllByText(/My Tickets/).length).toBeGreaterThan(0);
     // Lab-pure ownership: Requester shows creator, Ticket Owner shows Unassigned
-    // Header also contains "Development Requester" and badge "Requester" — scope to detail card
     expect(
       Array.from(document.querySelectorAll('.td-card label')).some((l) =>
         l.textContent?.includes('Requester'),
@@ -80,16 +75,24 @@ describe('RequesterTicketDetail', () => {
     expect(screen.getByText(/Read-only preview — service actions arrive in a later lab/)).toBeInTheDocument();
   });
 
-  it('shows fallback when description empty and caption', async () => {
+  it('shows fallback when description empty; header shows the authenticated user, not a selector', async () => {
     const empty = { ...TICKET, description: null };
-    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
-      if (String(url).includes('/api/requesters')) return ok(REQUESTERS);
-      if (String(url).includes('/api/tickets/TTK-2026-000042')) return ok(empty);
-      return ok([]);
+    cleanup();
+    vi.stubGlobal('fetch', stubAuthenticatedFetch(USER, (url) => {
+      if (url.includes('/api/tickets/TTK-2026-000042')) return ok(empty);
+      return ok({});
     }));
     window.location.hash = '#/tickets/TTK-2026-000042';
     render(<App />);
     expect(await screen.findByText('No description provided')).toBeInTheDocument();
-    expect(screen.getAllByText('Testing only — not real authentication').length).toBeGreaterThan(0);
+    // BR-03: identity comes from the session — user name + role badge in the
+    // header; the Development Requester selector is gone. (The detail grid
+    // also labels a "Requester" field, so assert within the navbar.)
+    expect(screen.getAllByText('Dev User Alpha').length).toBeGreaterThan(0);
+    const navbar = document.querySelector('.tok-navbar') as HTMLElement;
+    expect(navbar).not.toBeNull();
+    expect(navbar.textContent).toContain('Requester');
+    expect(screen.queryByText('Testing only — not real authentication')).not.toBeInTheDocument();
+    expect(document.querySelector('#dev-requester-select')).toBeNull();
   });
 });

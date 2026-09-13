@@ -30,6 +30,10 @@ services:
       DATABASE_URL: postgresql://toktickit:toktickit_dev_password@postgres:5432/toktickit_dev?schema=public
       PORT: 4000
       CORS_ORIGIN: http://localhost:5173
+      # Local dev / E2E only: one Playwright run performs many logins from the
+      # same IP. The production default (10/min) stays enforced in code and is
+      # covered by server/tests/lab-03/auth.api.test.ts (T-AUTH-02).
+      LOGIN_RATE_MAX: 200
     ports:
       - "4000:4000"
     depends_on:

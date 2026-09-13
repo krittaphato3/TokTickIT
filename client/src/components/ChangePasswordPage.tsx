@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ApiError } from '../api';
 import { roleHome, useAuth } from '../auth/AuthContext';
+import { AuthAlert, ShowHideInput, TicketIcon } from './auth/AuthCard';
+import type { AuthBanner } from './auth/AuthCard';
 
 interface Rule {
   key: string;
@@ -12,18 +14,37 @@ interface Rule {
 function ruleChecks(newPassword: string, confirm: string, currentKnown: string | null): Rule[] {
   return [
     { key: 'len', label: '8–72 characters', ok: newPassword.length >= 8 && newPassword.length <= 72 },
-    { key: 'upper', label: 'Contains an uppercase letter', ok: /[A-Z]/.test(newPassword) },
-    { key: 'lower', label: 'Contains a lowercase letter', ok: /[a-z]/.test(newPassword) },
-    { key: 'digit', label: 'Contains a number', ok: /[0-9]/.test(newPassword) },
-    { key: 'special', label: 'Contains a special character', ok: /[^A-Za-z0-9]/.test(newPassword) },
+    { key: 'upper', label: 'One uppercase letter', ok: /[A-Z]/.test(newPassword) },
+    { key: 'lower', label: 'One lowercase letter', ok: /[a-z]/.test(newPassword) },
+    { key: 'digit', label: 'One number', ok: /[0-9]/.test(newPassword) },
+    { key: 'special', label: 'One special character', ok: /[^A-Za-z0-9]/.test(newPassword) },
     {
       key: 'differs',
-      label: 'Differs from current password',
+      label: 'Different from current password',
       ok: currentKnown === null ? newPassword.length > 0 : newPassword.length > 0 && newPassword !== currentKnown,
     },
     { key: 'match', label: 'Confirmation matches', ok: newPassword.length > 0 && newPassword === confirm },
   ];
 }
+
+function strengthScore(next: string): number {
+  let score = 0;
+  if (next.length >= 8) score += 1;
+  if (/[A-Z]/.test(next)) score += 1;
+  if (/[a-z]/.test(next)) score += 1;
+  if (/[0-9]/.test(next)) score += 1;
+  if (/[^A-Za-z0-9]/.test(next)) score += 1;
+  return score;
+}
+
+const STRENGTH_LABELS = [
+  'Use a strong, unique password.',
+  'Too weak',
+  'Weak',
+  'Fair',
+  'Strong',
+  'Very strong',
+];
 
 export default function ChangePasswordPage({ first }: { first: boolean }) {
   const { user, changePassword } = useAuth();
@@ -32,15 +53,16 @@ export default function ChangePasswordPage({ first }: { first: boolean }) {
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [show, setShow] = useState({ current: false, next: false, confirm: false });
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [banner, setBanner] = useState<{ kind: 'error' | 'success'; text: string } | null>(null);
+  const [banner, setBanner] = useState<AuthBanner | null>(null);
   const [busy, setBusy] = useState(false);
 
   const rules = useMemo(
     () => ruleChecks(next, confirm, voluntary ? current : null),
     [next, confirm, current, voluntary],
   );
+
+  const score = strengthScore(next);
 
   function setErr(field: string, message: string | null) {
     setFieldErrors((prev) => {
@@ -112,51 +134,68 @@ export default function ChangePasswordPage({ first }: { first: boolean }) {
   }
 
   return (
-    <main className="tok-main tok-auth-page" style={{ display: 'flex', justifyContent: 'center' }}>
-      <div className="tok-card" style={{ maxWidth: 520, width: '100%' }}>
-        <h1 className="h4 mb-2">{first ? 'Choose a new password' : 'Change password'}</h1>
+    <main className="tok-auth-page">
+      <div className="tok-auth-card">
+        {voluntary ? (
+          <a
+            className="tok-auth-back"
+            href="#back"
+            onClick={(e) => {
+              e.preventDefault();
+              window.history.back();
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M12.5 15 7.5 10l5-5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Back
+          </a>
+        ) : null}
+
+        <div className="tok-auth-brand">
+          <TicketIcon />
+          <div>
+            <h1 className="tok-auth-title" id="cp-title">
+              {first ? 'Choose a new password' : 'Change password'}
+            </h1>
+            <p className="tok-auth-subtitle">
+              {first
+                ? 'Pick a strong, unique password for your account.'
+                : 'Verify your current password, then choose a new one.'}
+            </p>
+          </div>
+        </div>
+
         {first ? (
-          <div className="tok-alert success" role="status" style={{ display: 'flex' }}>
-            <span aria-hidden="true">🔒</span>
+          <div className="tok-auth-alert info" role="status">
+            <span className="icon" aria-hidden="true">🔒</span>
             <span>Your administrator set an initial password. Choose a new password to continue.</span>
           </div>
         ) : null}
-        {banner ? (
-          <div
-            className={`tok-alert ${banner.kind === 'success' ? 'success' : 'error'}`}
-            role={banner.kind === 'success' ? 'status' : 'alert'}
-          >
-            <span aria-hidden="true">{banner.kind === 'success' ? '✓' : '⚠'}</span>
-            <span>{banner.text}</span>
-          </div>
-        ) : null}
 
-        <form onSubmit={handleSubmit} noValidate>
+        <AuthAlert banner={banner} />
+
+        <form onSubmit={handleSubmit} noValidate aria-labelledby="cp-title">
           {voluntary ? (
-            <div className={`tok-field${fieldErrors.currentPassword ? ' invalid' : ''}`} style={{ marginBottom: '1rem' }}>
+            <div className={`tok-auth-field${fieldErrors.currentPassword ? ' invalid' : ''}`}>
               <label className="tok-label" htmlFor="cp-current">
                 Current Password <span className="tok-req" aria-hidden="true">*</span>
               </label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <input
-                  id="cp-current"
-                  className="tok-input"
-                  style={{ flex: 1 }}
-                  type={show.current ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  value={current}
-                  disabled={busy}
-                  aria-invalid={fieldErrors.currentPassword ? 'true' : undefined}
-                  aria-describedby={fieldErrors.currentPassword ? 'cp-current-error' : undefined}
-                  onChange={(e) => {
-                    setCurrent(e.target.value);
-                    setErr('currentPassword', null);
-                  }}
-                />
-                <button type="button" className="tok-btn secondary" style={{ flexShrink: 0, minWidth: 44 }} aria-pressed={show.current} aria-label={show.current ? 'Hide current password' : 'Show current password'} disabled={busy} onClick={() => setShow((s) => ({ ...s, current: !s.current }))}>
-                  {show.current ? 'Hide' : 'Show'}
-                </button>
-              </div>
+              <ShowHideInput
+                id="cp-current"
+                label="Current password"
+                value={current}
+                onChange={(v) => {
+                  setCurrent(v);
+                  setErr('currentPassword', null);
+                }}
+                autoComplete="current-password"
+                placeholder="Enter your current password"
+                invalid={Boolean(fieldErrors.currentPassword)}
+                errorId="cp-current-error"
+                disabled={busy}
+                maxLength={72}
+              />
               {fieldErrors.currentPassword ? (
                 <p className="tok-err" id="cp-current-error" role="alert" style={{ display: 'flex' }}>
                   <span aria-hidden="true">⚠</span> {fieldErrors.currentPassword}
@@ -165,30 +204,36 @@ export default function ChangePasswordPage({ first }: { first: boolean }) {
             </div>
           ) : null}
 
-          <div className={`tok-field${fieldErrors.newPassword ? ' invalid' : ''}`} style={{ marginBottom: '1rem' }}>
+          <div className={`tok-auth-field${fieldErrors.newPassword ? ' invalid' : ''}`}>
             <label className="tok-label" htmlFor="cp-new">
               New Password <span className="tok-req" aria-hidden="true">*</span>
             </label>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <input
-                id="cp-new"
-                className="tok-input"
-                style={{ flex: 1 }}
-                type={show.next ? 'text' : 'password'}
-                autoComplete="new-password"
-                value={next}
-                disabled={busy}
-                aria-invalid={fieldErrors.newPassword ? 'true' : undefined}
-                aria-describedby={fieldErrors.newPassword ? 'cp-new-error cp-rules' : 'cp-rules'}
-                onChange={(e) => {
-                  setNext(e.target.value);
-                  setErr('newPassword', null);
-                }}
-              />
-              <button type="button" className="tok-btn secondary" style={{ flexShrink: 0, minWidth: 44 }} aria-pressed={show.next} aria-label={show.next ? 'Hide new password' : 'Show new password'} disabled={busy} onClick={() => setShow((s) => ({ ...s, next: !s.next }))}>
-                {show.next ? 'Hide' : 'Show'}
-              </button>
+            <ShowHideInput
+              id="cp-new"
+              label="New password"
+              value={next}
+              onChange={(v) => {
+                setNext(v);
+                setErr('newPassword', null);
+              }}
+              autoComplete="new-password"
+              placeholder="Create a new password"
+              invalid={Boolean(fieldErrors.newPassword)}
+              errorId="cp-new-error"
+              describedBy="cp-rules"
+              disabled={busy}
+              maxLength={72}
+            />
+            <div className="tok-auth-strength" data-score={score} aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
             </div>
+            <p className="tok-auth-strength-label" aria-live="polite">
+              {next ? STRENGTH_LABELS[Math.max(score, 1)] : STRENGTH_LABELS[0]}
+            </p>
             {fieldErrors.newPassword ? (
               <p className="tok-err" id="cp-new-error" role="alert" style={{ display: 'flex' }}>
                 <span aria-hidden="true">⚠</span> {fieldErrors.newPassword}
@@ -196,30 +241,25 @@ export default function ChangePasswordPage({ first }: { first: boolean }) {
             ) : null}
           </div>
 
-          <div className={`tok-field${fieldErrors.confirmPassword ? ' invalid' : ''}`} style={{ marginBottom: '1rem' }}>
+          <div className={`tok-auth-field${fieldErrors.confirmPassword ? ' invalid' : ''}`}>
             <label className="tok-label" htmlFor="cp-confirm">
               Confirm New Password <span className="tok-req" aria-hidden="true">*</span>
             </label>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <input
-                id="cp-confirm"
-                className="tok-input"
-                style={{ flex: 1 }}
-                type={show.confirm ? 'text' : 'password'}
-                autoComplete="new-password"
-                value={confirm}
-                disabled={busy}
-                aria-invalid={fieldErrors.confirmPassword ? 'true' : undefined}
-                aria-describedby={fieldErrors.confirmPassword ? 'cp-confirm-error' : undefined}
-                onChange={(e) => {
-                  setConfirm(e.target.value);
-                  setErr('confirmPassword', null);
-                }}
-              />
-              <button type="button" className="tok-btn secondary" style={{ flexShrink: 0, minWidth: 44 }} aria-pressed={show.confirm} aria-label={show.confirm ? 'Hide confirmation' : 'Show confirmation'} disabled={busy} onClick={() => setShow((s) => ({ ...s, confirm: !s.confirm }))}>
-                {show.confirm ? 'Hide' : 'Show'}
-              </button>
-            </div>
+            <ShowHideInput
+              id="cp-confirm"
+              label="Confirmation"
+              value={confirm}
+              onChange={(v) => {
+                setConfirm(v);
+                setErr('confirmPassword', null);
+              }}
+              autoComplete="new-password"
+              placeholder="Re-enter new password"
+              invalid={Boolean(fieldErrors.confirmPassword)}
+              errorId="cp-confirm-error"
+              disabled={busy}
+              maxLength={72}
+            />
             {fieldErrors.confirmPassword ? (
               <p className="tok-err" id="cp-confirm-error" role="alert" style={{ display: 'flex' }}>
                 <span aria-hidden="true">⚠</span> {fieldErrors.confirmPassword}
@@ -227,20 +267,19 @@ export default function ChangePasswordPage({ first }: { first: boolean }) {
             ) : null}
           </div>
 
-          <div className="tok-card" id="cp-rules" aria-live="polite" style={{ padding: '0.875rem 1rem', marginBottom: '1rem', background: 'var(--tok-primary-soft, #EAF6EF)' }}>
-            <p className="tok-label" style={{ marginBottom: '0.5rem' }}>Password must have:</p>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: '0.875rem' }}>
-              {rules.map((r) => (
-                <li key={r.key} style={{ color: r.ok ? 'var(--tok-success, #1E7A46)' : 'var(--tok-text-muted, #5C6B64)' }}>
-                  <span aria-hidden="true">{r.ok ? '✓ ' : '✕ '}</span>
+          <ul className="tok-auth-rules" id="cp-rules" aria-live="polite">
+            {rules.map((r) => (
+              <li key={r.key} className={r.ok ? 'is-met' : ''}>
+                <span className="dot" aria-hidden="true">✓</span>
+                <span>
                   {r.label}
                   <span className="visually-hidden">{r.ok ? ' (met)' : ' (not met)'}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+                </span>
+              </li>
+            ))}
+          </ul>
 
-          <button type="submit" className="tok-btn primary" style={{ width: '100%' }} disabled={busy} aria-busy={busy}>
+          <button type="submit" className="tok-auth-submit" style={{ marginTop: 20 }} disabled={busy} aria-busy={busy}>
             {busy ? (
               <>
                 <span className="tok-spinner" aria-hidden="true" /> Saving…

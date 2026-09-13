@@ -27,7 +27,7 @@ Cookie-based server-side session. No tokens in localStorage. No `X-Dev-Requester
 | Credential validation | Constant-time compare; identical timing for unknown vs wrong-password paths |
 | Logout invalidation | Server destroys session row; clears cookie with expired `Set-Cookie`; old session id is unusable (`401` on reuse) |
 | Inactive user | Session (if any) destroyed; login rejected; in-flight session behaves as `403` (see §11) |
-| mustChangePassword gate | Login succeeds but returns `mustChangePassword: true`; every non-auth API except `POST /api/auth/change-password` and `POST /api/auth/logout` returns `403 { "error": "Password change required", "code": "password_change_required" }` until changed |
+| mustChangePassword gate | Login succeeds but returns `mustChangePassword: true`; every non-auth API except `POST /api/auth/change-password`, `POST /api/auth/forgot-password`, and `POST /api/auth/logout` returns `403 { "error": "Password change required", "code": "password_change_required" }` until changed |
 
 Authenticated requests send cookies automatically (`credentials: "include"` on the client). Unauthenticated
 API access returns `401`. Authenticated-but-forbidden returns `403`. Missing resources are masked per §1.5.
@@ -194,6 +194,54 @@ Calling with no session returns `401`. Calling twice with the same cookie: first
 **Errors:** no/invalid session → `401 { "error": "Not authenticated" }`. Inactive account with a
 stale session → `403 { "error": "Account is inactive. Contact an administrator." }` and the session
 is destroyed.
+
+### 2.4 `POST /api/auth/forgot-password` — Credential-verified reset (public, no email)
+
+Implements the "Forgot password?" flow from the approved mockup within the lab's exclusions: no
+email is ever sent (email reset is excluded). The caller proves account ownership with the current
+or administrator-issued initial password and sets the new one in a single request. Public
+(rate-limited per IP on the shared login limiter: 10/min), reachable even while gated on
+`mustChangePassword`.
+
+**Request:**
+
+```json
+{
+  "email": "alpha@example.test",
+  "currentPassword": "Initial1!",
+  "newPassword": "NewStrong9#",
+  "confirmPassword": "NewStrong9#"
+}
+```
+
+| Field | Required | Validation |
+|---|---|---|
+| `email` | yes | trimmed, lowercase-compared, valid email format, max 254 chars |
+| `currentPassword` | yes | 1–72 chars (never logged) |
+| `newPassword` | yes | BR-07 policy: 8–72 chars, upper, lower, digit, special |
+| `confirmPassword` | yes | must equal `newPassword` |
+
+**Success `200`:**
+
+```json
+{ "changed": true, "message": "Password updated" }
+```
+
+The stored hash is replaced (bcrypt-12), `mustChangePassword` is cleared, and **all of the user's
+existing sessions are revoked** (a stolen session cannot survive a credential change). The client
+returns the user to `#/login`.
+
+**Errors:**
+
+| Case | Status | Body |
+|---|---|---|
+| Missing/invalid field shape | 400 | `{ "error": "Validation failed", "details": [...] }` |
+| Unknown email, wrong current password, or inactive account — **identical body** | 401 | `{ "error": "Unable to update password with the details provided." }` |
+| New password equals the current one | 400 | `{ "error": "Validation failed", "details": [{ "field": "newPassword", ... }] }` |
+| Rate limited | 429 | `{ "error": "Too many attempts. Try again later." }` |
+
+Masking rule (§1.5) applies in full: the 401 body is byte-identical across unknown email, wrong
+password, and inactive account, so account existence is never revealed.
 
 ---
 

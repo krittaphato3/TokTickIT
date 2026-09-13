@@ -92,12 +92,21 @@ Hash-based routing is retained (`#/…`). Canonical Lab 3 routes:
 
 - Centered card (max-width 440px, white surface, 0.75rem radius, card shadow), page bg `--tok-page-bg`. Card head: brand mark + h1 "Sign in to TokTickIT" + muted subtitle "Use your work email and password."
 - Fields: Email (type email, autocomplete username), Password (type password, autocomplete current-password, show/hide toggle button with eye icon and `aria-pressed`). Both fields have visible `<label>` elements; required asterisk in `--tok-error`.
-- Primary submit button "Sign in" full-width; busy state shows spinner + "Signing in…" with `disabled` + `aria-busy="true"`. No secondary actions. There is deliberately no "Forgot your password?" link — password recovery via email is excluded from Lab 3 and the link must not be rendered.
+- Primary submit button "Sign in" full-width; busy state shows spinner + "Signing in…" with `disabled` + `aria-busy="true"`. No secondary actions.
+- A right-aligned "Forgot password?" link under the Password field navigates to `#/forgot-password` (§3.4). This is NOT an email reset (excluded); it opens the credential-verified reset screen, so its presence does not violate the email exclusions.
+- Visual restyle (mockup `Authentication-Forgot-Mockup.html`, Zen Green): page background is plain white (`--tok-surface`), one centered card (max-width 440px, 16px radius, thin 3px brand gradient line along the top edge), ticket-pictogram brand mark, subtitle "Use your TokTickIT account to continue.", footnote "Protected by role-based access control. Never share your password." Inputs are 48px tall with 16px font (no iOS zoom), embedded Show/Hide toggle inside the field, focus ring `0 0 0 4px rgba(0,107,60,.14)`. Layout centers with CSS grid and respects `env(safe-area-inset-*)`; stacks cleanly at 375px; honors `prefers-reduced-motion`.
 
 ### 3.2 Validation
 
 - Client-side, on submit and on blur: Email required + must match email shape (`name@domain.tld`); Password required (non-empty; length and composition are not pre-validated here — the server is the authority).
 - Invalid fields: red border, error icon + inline message directly below the field, `aria-invalid="true"` + `aria-describedby` pointing at the message id. Message copy: "Enter your email address." / "Enter a valid email address." / "Enter your password." On submit with errors the first invalid field receives focus and no request is sent.
+
+### 3.2.1 Responsive behavior (all three auth screens)
+
+- Breakpoints (auth.css, mobile-first): base 320px+; ≤375 tightens card padding to 16px and caps the rules card with `overflow-y: auto`; ≤480 stacks the field meta row; 481–768 widens gutters to 24px and restores the card shadow; 769–1024 uses 32px gutters; 1025–1440 is the peak card presence (440px cap, 40px gutters); ≥1441 adds page padding only. A `max-height: 480px` landscape rule compacts the brand block and hides the footnote so card + footer coexist.
+- Fluid type: titles/subtitles/labels/buttons use `clamp()` (e.g. title 22→26px). Inputs are ≥16px at every width (iOS zoom guard) and ≥48px tall; Show/Hide toggles, the forgot link, the back link and the submit button all meet the 44×44px WCAG 2.5.5 target minimum.
+- Page shell: `.tok-auth-page` is a flex child of `.tt-app` with `min-height: 100dvh` (vh fallback) so the app footer pins below the card without overlapping on short viewports. `overflow-x: hidden` and `-webkit-tap-highlight-color: transparent` are set globally; the viewport meta allows `maximum-scale=5.0`.
+- The card's 3px gradient accent is an absolutely positioned `::before` and renders at every width; the card shadow is minimal on mobile (performance) and full from 481px up.
 
 ### 3.3 Submission, busy, and feedback
 
@@ -106,6 +115,17 @@ Hash-based routing is retained (`#/…`). Canonical Lab 3 routes:
 - Safe failure (401 invalid credentials): red alert banner at top of card (`role="alert"`), copy "Email or password is incorrect. Check your entries and try again." Field values preserved except password is cleared and focused. No indication of whether the email exists.
 - Inactive account: identical banner and behavior to invalid credentials ("Email or password is incorrect."). The UI never reveals that an account exists but is deactivated; differentiation exists only in server logs, never in client copy or status codes surfaced to the user.
 - Server failure (500 / network): amber-tinted error banner "We could not sign you in. Check your connection and try again." + tertiary "Try again" button that re-submits with preserved email. Validation errors and safe-failure copy are never combined in one banner.
+
+---
+
+### 3.4 Forgot password (`#/forgot-password`) — credential-verified reset
+
+> Traceability: FR-04 | BR-07, BR-16 | AC-06. Mockup: `Authentication-Forgot-Mockup.html`.
+
+- Scope decision (specification §11 AD-04): the lab excludes email-based reset, so "forgot password" is a one-request credential-verified reset — email + current (or initial) password + new password + confirmation. No email is sent, no token exists.
+- Layout: same white minimal card; back link "Back to sign in" above the brand mark; h1 "Reset your password"; subtitle "Verify your account with your current password, then choose a new one."; a persistent info note "TokTickIT does not send password-reset emails. If you no longer know your password, contact your IT administrator."
+- Fields: Email address (pre-filled from `?email=` when arriving from the login link), Current or temporary password (hint: "Use your existing password or the initial password assigned by an administrator."), New password, Confirm new password. Show/Hide toggles on both password fields. Live rules card: 8–72 characters, uppercase, lowercase, number, special character, different-from-current.
+- Submission: busy spinner + "Updating…"; success → green banner "Password updated. You can now sign in with your new password." then redirect to `#/login`; failure → one safe banner "We could not update that password. Check the details and try again, or contact your IT administrator." for unknown email, wrong current password, and inactive account alike (BR-16 masking); server 400 field errors map into inline slots; 429 shows the rate-limit copy.
 
 ---
 
@@ -123,6 +143,7 @@ Hash-based routing is retained (`#/…`). Canonical Lab 3 routes:
 - First-login fields: New Password, Confirm New Password. Voluntary fields add Current Password on top.
 - Password rules card (always visible, updates live with check/x icons, `aria-live="polite"`): minimum 8 characters, maximum 72 characters, contains uppercase letter, contains lowercase letter, contains number, contains special character (`!@#$%^&*` and peers), differs from current password (voluntary) or from the initial password (first-login verified server-side; client checks non-equality only when the current value is known), confirmation matches.
 - Show/hide toggles on each password field. Required asterisks on all fields.
+- Visual restyle (mockup `Authentication-Forgot-Mockup.html`): same white minimal card family as §3.1/§3.4, plus the 5-segment strength meter under New Password (`data-score` 0–5 driving segment colors and a live label "Too weak → Very strong", `aria-live="polite"`) and the rules checklist rendered as dot-bullet items that fill green when met. Back link (voluntary mode only) uses `history.back()`.
 
 ### 4.3 Validation and success
 

@@ -2,13 +2,9 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../../src/App';
+import { stubAuthenticatedFetch, sessionUser } from '../helpers/auth';
 
-const REQUESTERS = [
-  { id: 1, name: 'Dev User Alpha', email: 'alpha@toktickit.test' },
-  { id: 2, name: 'Dev User Beta', email: 'beta@toktickit.test' },
-  { id: 3, name: 'Dev User Gamma', email: 'gamma@toktickit.test' },
-  { id: 4, name: 'Dev User Delta', email: 'delta@toktickit.test' },
-];
+const USER = sessionUser();
 
 const CATEGORIES = [
   { id: 1, name: 'Account and Access' },
@@ -29,8 +25,7 @@ describe('Create Ticket screen', () => {
     createCalls = [];
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (url: string, init?: RequestInit) => {
-        if (url.includes('/api/requesters')) return ok(REQUESTERS);
+      stubAuthenticatedFetch(USER, async (url, init) => {
         if (url.includes('/api/categories')) return ok(CATEGORIES);
         if (url.includes('/api/related-systems')) return ok(RELATED_SYSTEMS);
         if (url.includes('/api/tickets') && init?.method === 'POST') {
@@ -73,7 +68,9 @@ describe('Create Ticket screen', () => {
   }
 
   async function gotoCreateScreen() {
-    await userEvent.click(screen.getByRole('link', { name: 'New Ticket' }));
+    // The auth bootstrap (/api/auth/me) must resolve before the shell renders
+    // the navbar; starting at #/new means no click is needed once it loads.
+    await screen.findByRole('link', { name: 'New Ticket' });
     expect(
       await screen.findByRole('option', { name: 'Hardware' }),
     ).toBeInTheDocument();
@@ -81,6 +78,10 @@ describe('Create Ticket screen', () => {
 
   beforeEach(() => {
     localStorage.clear();
+    // Start on the create route directly (like a real deep link): the
+    // authenticated shell otherwise redirects home to #/my and mounts the
+    // My Tickets screen, which is not the subject of this suite.
+    window.location.hash = '#/new';
     stubFetch();
   });
 
@@ -90,7 +91,7 @@ describe('Create Ticket screen', () => {
     localStorage.clear();
   });
 
-  it('shell: sticky navbar with brand, nav, and requester caption (Step 7)', async () => {
+  it('shell: sticky navbar with brand and nav; no dev-requester caption (Step 7, BR-03)', async () => {
     render(<App />);
 
     const nav = await screen.findByRole('navigation', { name: 'Primary' });
@@ -99,10 +100,12 @@ describe('Create Ticket screen', () => {
     // Brand is a link with the TokTickIT wordmark (home screen also shows the
     // title, so scope to the link role).
     expect(screen.getByRole('link', { name: 'TokTickIT' })).toBeInTheDocument();
-    // The mock caption is exact: "Testing only — not real authentication".
+    // Lab 3: the Development Requester selector is gone — identity is the
+    // session user shown in the header.
     expect(
-      screen.getByText('Testing only — not real authentication'),
-    ).toBeInTheDocument();
+      screen.queryByText('Testing only — not real authentication'),
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByText(USER.name).length).toBeGreaterThan(0);
 
     // Active nav pill lands on New Ticket after navigating.
     await userEvent.click(screen.getByRole('link', { name: 'New Ticket' }));
@@ -115,9 +118,9 @@ describe('Create Ticket screen', () => {
     render(<App />);
     await gotoCreateScreen();
 
-    // Read-only Requester reflects active context requester (BR-05).
+    // Read-only Requester reflects the authenticated session user (BR-03).
     const requester = screen.getByRole('textbox', { name: /^Requester/ }) as HTMLInputElement;
-    expect(requester).toHaveValue('Dev User Alpha');
+    expect(requester).toHaveValue(USER.name);
     expect(requester).toHaveAttribute('readonly');
     expect(requester).toHaveAttribute('tabindex', '-1');
 
@@ -204,14 +207,13 @@ describe('Create Ticket screen', () => {
     let resolveCreate!: (value: unknown) => void;
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (url: string, init?: RequestInit) => {
+      stubAuthenticatedFetch(USER, async (url: string, init?: RequestInit) => {
         if (url.includes('/api/tickets') && init?.method === 'POST') {
           createCalls.push({ url, init: init! });
           return new Promise((resolve) => {
             resolveCreate = resolve;
-          });
+          }) as unknown as Response;
         }
-        if (url.includes('/api/requesters')) return ok(REQUESTERS);
         if (url.includes('/api/categories')) return ok(CATEGORIES);
         if (url.includes('/api/related-systems')) return ok(RELATED_SYSTEMS);
         return ok({});
@@ -259,9 +261,11 @@ describe('Create Ticket screen', () => {
     expect(sent.categoryId).toBe(2);
     expect(sent.relatedSystemId).toBe(1);
     expect(sent.priority).toBe('MEDIUM');
+    // BR-03: no requester identity travels from the client — the session
+    // owns ownership.
     expect(
       (createCalls[0].init.headers as Record<string, string>)['X-Dev-Requester-Id'],
-    ).toBe('1');
+    ).toBeUndefined();
   });
 
   it('failure: server 400 renders tok-alert.error with Try again and preserves all input', async () => {

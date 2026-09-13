@@ -195,6 +195,7 @@ const AUTH_ALLOWLIST: Array<{ method: string; path: string }> = [
   { method: 'POST', path: '/api/auth/login' },
   { method: 'GET', path: '/api/auth/me' },
   { method: 'POST', path: '/api/auth/change-password' },
+  { method: 'POST', path: '/api/auth/forgot-password' },
   { method: 'POST', path: '/api/auth/logout' },
 ];
 
@@ -297,7 +298,9 @@ export function withPasswordGateCode(err: unknown): void {
 
 const loginAttemptsByIp = new Map<string, number[]>();
 const LOGIN_WINDOW_MS = 60 * 1000;
-const LOGIN_MAX = 10;
+// 10/min by default; overridable for local E2E runs where one Playwright
+// process performs many logins from the same IP in quick succession.
+const LOGIN_MAX = Number(process.env.LOGIN_RATE_MAX ?? 10);
 
 export function isLoginRateLimited(ip: string): boolean {
   const now = Date.now();

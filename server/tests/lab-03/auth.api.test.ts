@@ -463,6 +463,152 @@ describe('T-GATE-01 mustChangePassword gate (AC-02)', () => {
   });
 });
 
+describe('T-FORGOT-01 forgot-password (credential-verified reset, AC-01/AC-06, BR-16)', () => {
+  const FORGOT_SAFE = 'Unable to update password with the details provided.';
+
+  it('should return 200 changed:true and old session dies on success', async () => {
+    const fixture = await createTestUser({ label: 'fp01-ok' });
+    try {
+      const login = await request(app)
+        .post('/api/auth/login')
+        .send({ email: fixture.email, password: fixture.password });
+      expect(login.status).toBe(200);
+      const oldCookie = sessionCookieOf(login) as string;
+
+      const res = await request(app)
+        .post('/api/auth/forgot-password')
+        .send({
+          email: fixture.email,
+          currentPassword: fixture.password,
+          newPassword: 'FreshPass9#',
+          confirmPassword: 'FreshPass9#',
+        });
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ changed: true, message: 'Password updated' });
+
+      // New password works; old one no longer does.
+      const relogin = await request(app)
+        .post('/api/auth/login')
+        .send({ email: fixture.email, password: 'FreshPass9#' });
+      expect(relogin.status).toBe(200);
+      const wrong = await request(app)
+        .post('/api/auth/login')
+        .send({ email: fixture.email, password: fixture.password });
+      expect(wrong.status).toBe(401);
+
+      // The pre-reset session was revoked by the reset.
+      const meOld = await request(app).get('/api/auth/me').set('Cookie', oldCookie);
+      expect(meOld.status).toBe(401);
+    } finally {
+      await cleanupTestUsers();
+    }
+  });
+
+  it.each([
+    ['unknown email', { email: 'nobody-fp@toktickit.test', currentPassword: 'Whatever1!', newPassword: 'FreshPass9#', confirmPassword: 'FreshPass9#' }],
+    ['wrong current password', 'wrong-current'],
+    ['inactive account', 'inactive'],
+  ])('should return the same safe 401 with no session for %s', async (_name, payload) => {
+    let body: Record<string, string>;
+    if (payload === 'wrong-current' || payload === 'inactive') {
+      const fixture = await createTestUser({
+        label: payload === 'inactive' ? 'fp01-inactive' : 'fp01-wrong',
+        isActive: payload !== 'inactive',
+      });
+      createdUserIds.push(fixture.id);
+      body = {
+        email: fixture.email,
+        currentPassword: payload === 'wrong-current' ? 'WrongPass1!' : fixture.password,
+        newPassword: 'FreshPass9#',
+        confirmPassword: 'FreshPass9#',
+      };
+    } else {
+      body = payload as Record<string, string>;
+    }
+    try {
+      const res = await request(app).post('/api/auth/forgot-password').send(body);
+      expect(res.status).toBe(401);
+      expect(res.body).toEqual({ error: FORGOT_SAFE });
+      expect(res.headers['set-cookie']).toBeUndefined();
+    } finally {
+      await cleanupTestUsers();
+    }
+  });
+
+  it('should map mustChangePassword users through the same flow (initial password)', async () => {
+    const fixture = await createTestUser({
+      label: 'fp01-initial',
+      mustChangePassword: true,
+      password: 'StartValid1!',
+    });
+    try {
+      const res = await request(app)
+        .post('/api/auth/forgot-password')
+        .send({
+          email: fixture.email,
+          currentPassword: 'StartValid1!',
+          newPassword: 'FreshPass9#',
+          confirmPassword: 'FreshPass9#',
+        });
+      expect(res.status).toBe(200);
+      const after = await prisma.user.findUnique({ where: { id: fixture.id } });
+      expect(after?.mustChangePassword).toBe(false);
+    } finally {
+      await cleanupTestUsers();
+    }
+  });
+
+  it('should return 400 validation details for weak/mismatched new passwords', async () => {
+    const fixture = await createTestUser({ label: 'fp01-invalid' });
+    try {
+      const res = await request(app)
+        .post('/api/auth/forgot-password')
+        .send({
+          email: fixture.email,
+          currentPassword: fixture.password,
+          newPassword: 'short',
+          confirmPassword: 'short',
+        });
+      expect(res.status).toBe(400);
+      expect(res.body.details.some((d: { field: string }) => d.field === 'newPassword')).toBe(true);
+    } finally {
+      await cleanupTestUsers();
+    }
+  });
+
+  it('should stay reachable through the mustChangePassword gate', async () => {
+    const fixture = await createTestUser({
+      label: 'fp01-gated',
+      mustChangePassword: true,
+      password: 'StartValid1!',
+    });
+    try {
+      const login = await request(app)
+        .post('/api/auth/login')
+        .send({ email: fixture.email, password: fixture.password });
+      const cookie = sessionCookieOf(login) as string;
+
+      // While gated, /api/tickets is 403 password_change_required…
+      const gated = await request(app).get('/api/tickets').set('Cookie', cookie);
+      expect(gated.status).toBe(403);
+
+      // …but forgot-password remains usable (it is on the auth allowlist).
+      const res = await request(app)
+        .post('/api/auth/forgot-password')
+        .set('Cookie', cookie)
+        .send({
+          email: fixture.email,
+          currentPassword: 'StartValid1!',
+          newPassword: 'FreshPass9#',
+          confirmPassword: 'FreshPass9#',
+        });
+      expect(res.status).toBe(200);
+    } finally {
+      await cleanupTestUsers();
+    }
+  });
+});
+
 describe('T-MIG-01 seed idempotency quotas (AC-18)', () => {
   it('should hold user quotas (4+1 requesters, 3+1 staff, 1 admin)', async () => {
     const [reqActive, reqInactive, staffActive, staffInactive, adminActive] =

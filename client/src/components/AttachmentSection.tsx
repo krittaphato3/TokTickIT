@@ -1,6 +1,5 @@
 import { useState, useRef } from 'react';
 import { deleteAttachment, uploadAttachment, type AttachmentMeta } from '../api';
-import { useDevRequester } from '../devRequesterContext';
 
 const ALLOWED_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp', 'pdf']);
 const MAX_SIZE = 5 * 1024 * 1024;
@@ -16,7 +15,6 @@ interface Props {
 }
 
 export default function AttachmentSection({ ticketNumber, attachments, onChanged }: Props) {
-  const { activeRequester } = useDevRequester();
   const [pending, setPending] = useState<Array<{id:string,name:string,size:number,error?:string,uploading?:boolean}>>([]);
   const [confirmId, setConfirmId] = useState<number|null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -46,7 +44,7 @@ export default function AttachmentSection({ ticketNumber, attachments, onChanged
       next.push({ id:pid, name:f.name, size:f.size, uploading:true });
       setPending([...next]);
       try {
-        await uploadAttachment(ticketNumber, f, activeRequester!.id);
+        await uploadAttachment(ticketNumber, f);
         setPending(cur=>cur.filter(p=>p.id!==pid));
         onChanged();
       } catch (e:any) {
@@ -87,7 +85,7 @@ export default function AttachmentSection({ ticketNumber, attachments, onChanged
                 <span>
                   <span>Remove this attachment?</span>
                   <button type="button" onClick={async()=>{
-                    await deleteAttachment(ticketNumber, att.id, activeRequester!.id);
+                    await deleteAttachment(ticketNumber, att.id);
                     setConfirmId(null);
                     setLocalRemoved(prev=> new Set([...prev, att.id]));
                     onChanged();

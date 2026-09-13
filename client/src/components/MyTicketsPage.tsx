@@ -8,7 +8,6 @@ import type {
   TicketListMeta,
   TicketStatus,
 } from '../api';
-import { useDevRequester } from '../devRequesterContext';
 import '../styles/my-tickets.css';
 
 type ListStatus = 'loading' | 'ready' | 'error';
@@ -222,7 +221,6 @@ function SortableHeader({ label, sortKey, active, onChange }: SortableHeaderProp
 }
 
 export default function MyTicketsPage({ onNavigate }: { onNavigate?: (hash: string) => void }) {
-  const { activeRequester } = useDevRequester();
   const [status, setStatus] = useState<ListStatus>('loading');
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [meta, setMeta] = useState<TicketListMeta | null>(null);
@@ -243,7 +241,6 @@ export default function MyTicketsPage({ onNavigate }: { onNavigate?: (hash: stri
   }, [searchDraft, filters.search]);
 
   const load = useCallback(async () => {
-    if (!activeRequester) return;
     const seq = ++requestSeq.current;
     // Only the initial fetch (or a retry after an error) shows the loading
     // skeleton; refreshes while data is on screen keep the table mounted so
@@ -251,9 +248,9 @@ export default function MyTicketsPage({ onNavigate }: { onNavigate?: (hash: stri
     // interacted with.
     setStatus((prev) => (prev === 'ready' ? 'ready' : 'loading'));
     try {
+      // Lab 3: ownership is server-side session identity; no requester id is sent.
       const result = await getTickets(
         Object.fromEntries(buildQuery(filters, page)) as never,
-        activeRequester.id,
       );
       if (seq !== requestSeq.current) return; // stale response — discard
       setTickets(result.data);
@@ -263,7 +260,7 @@ export default function MyTicketsPage({ onNavigate }: { onNavigate?: (hash: stri
       if (seq !== requestSeq.current) return;
       setStatus('error');
     }
-  }, [activeRequester, filters, page]);
+  }, [filters, page]);
 
   useEffect(() => {
     void load();
@@ -378,10 +375,6 @@ export default function MyTicketsPage({ onNavigate }: { onNavigate?: (hash: stri
     [tickets, onNavigate],
   );
 
-  if (!activeRequester) {
-    return null;
-  }
-
   const showingText =
     meta == null || meta.totalItems === 0
       ? 'Showing 0 to 0 of 0 tickets'
@@ -411,10 +404,10 @@ export default function MyTicketsPage({ onNavigate }: { onNavigate?: (hash: stri
           )}
           <a
             className="mt-btn mt-btn-primary"
-            href="#/new-ticket"
+            href="#/new"
             onClick={(e) => {
               e.preventDefault();
-              onNavigate?.('#/new-ticket');
+              onNavigate?.('#/new');
             }}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
