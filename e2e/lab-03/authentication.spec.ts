@@ -167,7 +167,9 @@ test.describe('T-E2E-01: authentication journey (AC-01, AC-02, AC-05, AC-06)', (
     await page.getByRole('button', { name: /save and continue/i }).click();
     await expect(page.getByRole('heading', { name: /my tickets/i })).toBeVisible({ timeout: 15000 });
 
-    await page.getByRole('button', { name: /^logout$/i }).click();
+    // Profile-only header: sign-out lives on the Profile page (#/profile).
+    await page.getByRole('link', { name: /^profile$/i }).click();
+    await page.getByRole('button', { name: /^sign out$/i }).click();
     await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible({ timeout: 10000 });
 
     // Session is really gone server-side: /api/auth/me after logout is 401

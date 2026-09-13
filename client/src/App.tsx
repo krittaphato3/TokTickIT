@@ -5,6 +5,7 @@ import ChangePasswordPage from './components/ChangePasswordPage';
 import ForgotPasswordPage from './components/auth/ForgotPasswordPage';
 import CreateTicketPage from './components/CreateTicketPage';
 import LoginPage from './components/LoginPage';
+import ProfilePage from './components/ProfilePage';
 import MyTicketsPage from './components/MyTicketsPage';
 import TicketDetailPage from './components/TicketDetailPage';
 import HomeScreen from './components/HomeScreen';
@@ -19,6 +20,7 @@ export type Route =
   | { name: 'login' }
   | { name: 'forgot-password' }
   | { name: 'change-password'; first: boolean }
+  | { name: 'profile' }
   | { name: 'my' }
   | { name: 'new' }
   | { name: 'tickets-legacy' }
@@ -40,6 +42,7 @@ function parseRoute(hash: string): Route {
     const first = new URLSearchParams(queryPart ?? '').get('first') === '1';
     return { name: 'change-password', first };
   }
+  if (path === '/profile' || path === '/profile/') return { name: 'profile' };
   if (path === '/my' || path === '/my/') return { name: 'my' };
   if (path === '/new' || path === '/new/') return { name: 'new' };
   if (path === '/tickets' || path === '/tickets/') return { name: 'tickets-legacy' };
@@ -53,28 +56,6 @@ function parseRoute(hash: string): Route {
   if (detail) return { name: 'ticket-detail', ticketNumber: detail[1] };
   if (path === '' || path === '/') return { name: 'home' };
   return { name: 'not-found' };
-}
-
-function roleBadgeStyle(role: AuthUser['role']): React.CSSProperties {
-  if (role === 'ADMIN' || role === 'ADMINISTRATOR') {
-    return { background: 'var(--tok-primary)', color: '#fff' };
-  }
-  if (role === 'IT_STAFF') {
-    return { background: 'var(--tok-info-soft, #E9F0FB)', color: 'var(--tok-info, #1D5FBF)' };
-  }
-  return { background: 'var(--tok-primary-soft)', color: 'var(--tok-primary)' };
-}
-
-function roleLabel(role: AuthUser['role']): string {
-  if (role === 'IT_STAFF') return 'IT Staff';
-  if (role === 'ADMIN' || role === 'ADMINISTRATOR') return 'Administrator';
-  return 'Requester';
-}
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 function NavLink({ href, active, label, onNavigate }: { href: string; active: boolean; label: string; onNavigate: (h: string) => void }) {
@@ -98,15 +79,11 @@ function AppHeader({
   minimal,
   activeRoute,
   onNavigate,
-  onLogout,
-  loggingOut,
 }: {
   user: AuthUser;
   minimal: boolean;
   activeRoute: string;
   onNavigate: (hash: string) => void;
-  onLogout: () => void;
-  loggingOut: boolean;
 }) {
   const home = roleHome(user.role);
   const isRequesterLike = user.role === 'REQUESTER';
@@ -151,54 +128,27 @@ function AppHeader({
             </nav>
           )}
         </div>
-        <div className="ms-auto d-flex align-items-center flex-shrink-0" style={{ gap: '0.75rem' }}>
-          <span
-            aria-hidden="true"
-            title={user.name}
-            style={{
-              width: 34, height: 34, borderRadius: '50%', display: 'grid', placeItems: 'center',
-              background: 'var(--tok-primary-soft)', color: 'var(--tok-primary)',
-              fontWeight: 700, fontSize: '0.8125rem', flexShrink: 0,
+        {/* Right cluster — single "Profile" entry for ALL account types.
+            Mirrors the approved mockup (AccountSelection_Demo): green person
+            icon + "Profile" label + caret. Navigates to the Profile page
+            (#/profile); it does NOT open a dropdown or sign out. */}
+        <div className="ms-auto d-flex align-items-center flex-shrink-0">
+          <a
+            className="tok-profile-btn"
+            href="#/profile"
+            title="Profile"
+            onClick={(e) => {
+              e.preventDefault();
+              onNavigate('#/profile');
             }}
           >
-            {initials(user.name)}
-          </span>
-          <span
-            style={{ fontWeight: 600, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-            title={user.name}
-          >
-            {user.name}
-          </span>
-          <span
-            style={{
-              ...roleBadgeStyle(user.role),
-              borderRadius: 999, padding: '0.125rem 0.625rem', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0,
-            }}
-          >
-            {roleLabel(user.role)}
-          </span>
-          <button
-            type="button"
-            className="tok-btn secondary d-none d-md-inline-flex"
-            style={{ minHeight: 44 }}
-            disabled={loggingOut}
-            aria-busy={loggingOut}
-            onClick={onLogout}
-          >
-            {loggingOut ? 'Signing out…' : 'Logout'}
-          </button>
-          <button
-            type="button"
-            className="tok-btn secondary d-inline-flex d-md-none"
-            style={{ minWidth: 44, minHeight: 44, padding: '0 0.625rem' }}
-            disabled={loggingOut}
-            aria-busy={loggingOut}
-            aria-label="Log out"
-            title="Log out"
-            onClick={onLogout}
-          >
-            ⎋
-          </button>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
+            </svg>
+            <span>Profile</span>
+            <span className="tok-profile-caret" aria-hidden="true">▾</span>
+          </a>
         </div>
       </div>
     </header>
@@ -414,7 +364,7 @@ function Shell() {
     }
     return (
       <div className="tt-app">
-        <AppHeader user={user} minimal activeRoute="change-password" onNavigate={navigate} onLogout={handleLogout} loggingOut={loggingOut} />
+        <AppHeader user={user} minimal activeRoute="change-password" onNavigate={navigate} />
         <ChangePasswordPage first />
         <footer className="tok-app-footer">
           <span>TokTickIT — Real Auth + Staff/Admin</span>
@@ -433,6 +383,9 @@ function Shell() {
   if (route.name === 'change-password') {
     activeNav = 'change-password';
     body = <ChangePasswordPage first={route.first} />;
+  } else if (route.name === 'profile') {
+    activeNav = 'profile';
+    body = <ProfilePage onNavigate={navigate} onLogout={handleLogout} />;
   } else if (route.name === 'my') {
     activeNav = 'my';
     body = <MyTicketsPage key={user.id} onNavigate={navigate} />;
@@ -457,7 +410,7 @@ function Shell() {
   return (
     <div className="tt-app">
       <a href="#main-content" className="visually-hidden-focusable">Skip to content</a>
-      <AppHeader user={user} minimal={false} activeRoute={activeNav} onNavigate={navigate} onLogout={handleLogout} loggingOut={loggingOut} />
+      <AppHeader user={user} minimal={false} activeRoute={activeNav} onNavigate={navigate} />
       <div id="main-content">{body}</div>
       <footer className="tok-app-footer">
         <span>TokTickIT — Real Auth + Staff/Admin</span>

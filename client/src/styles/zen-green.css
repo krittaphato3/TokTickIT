@@ -45,7 +45,8 @@ body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:va
 /* ============ Profile dropdown (mockup: AccountSelection_Demo) ============ */
 .tok-profile{position:relative;flex:none}
 .tok-profile-btn{display:inline-flex;align-items:center;gap:.5rem;background:none;border:none;cursor:pointer;
-  color:var(--tok-text);font-weight:600;font-size:.9375rem;padding:.4rem .625rem;border-radius:.5rem}
+  color:var(--tok-text);font-weight:600;font-size:.9375rem;padding:.4rem .625rem;border-radius:.5rem;
+  min-height:44px;text-decoration:none}
 .tok-profile-btn:hover{background:#F2F2F2}
 .tok-profile-btn svg{color:var(--tok-secondary)}
 .tok-profile-btn:focus-visible{outline:3px solid rgba(0,107,60,.28);outline-offset:2px;border-radius:.5rem}
@@ -58,6 +59,48 @@ body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:va
 .tok-profile-item{display:block;width:100%;text-align:left;margin-top:.375rem;padding:.5625rem .625rem;border:none;
   border-radius:.5rem;background:none;color:var(--tok-primary);font-weight:600;cursor:pointer}
 .tok-profile-item:hover{background:var(--tok-primary-soft)}
+
+/* ============ PROFILE PAGE (#/profile) — shared by ALL account types ============ */
+.tok-profile-page .tok-profile-card{max-width:760px;margin:0 auto;padding:2rem}
+.tok-profile-hero{display:flex;align-items:center;gap:1.25rem}
+.tok-profile-avatar{width:72px;height:72px;border-radius:50%;background:var(--tok-primary-soft);color:var(--tok-primary);
+  display:grid;place-items:center;font-weight:700;font-size:1.375rem;flex:none}
+.tok-profile-id{min-width:0}
+.tok-profile-name{font-size:1.25rem;font-weight:700;margin:0;line-height:1.25;color:var(--tok-text)}
+.tok-profile-email{margin:.125rem 0 .5rem;color:var(--tok-text-muted);font-size:.9375rem;overflow:hidden;text-overflow:ellipsis}
+.tok-profile-role{display:inline-block;border-radius:999px;padding:.125rem .625rem;font-size:.75rem;font-weight:700}
+.tok-profile-note{margin:.875rem 0 0;font-size:.8125rem;color:var(--tok-text-muted)}
+.tok-profile-page .tok-divider{margin:1.375rem 0}
+.tok-profile-grid{margin:0;display:grid;grid-template-columns:1fr 1fr;gap:.875rem 1.5rem}
+.tok-profile-row dt{font-size:.6875rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tok-text-muted);margin-bottom:.1875rem}
+.tok-profile-row dd{margin:0;font-size:.9375rem;font-weight:600;color:var(--tok-text);overflow-wrap:anywhere}
+.tok-profile-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.tok-profile-status{display:inline-flex;align-items:center;gap:.375rem}
+.tok-profile-status.ok{color:var(--tok-success)}
+.tok-profile-status.bad{color:var(--tok-error)}
+.tok-profile-status.ok::before,.tok-profile-status.bad::before{content:'';width:.5rem;height:.5rem;border-radius:50%}
+.tok-profile-status.ok::before{background:var(--tok-success)}
+.tok-profile-status.bad::before{background:var(--tok-error)}
+.tok-profile-manage{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+.tok-profile-action{display:flex;align-items:flex-start;gap:.75rem;width:100%;text-align:left;padding:.875rem 1rem;
+  border:1px solid var(--tok-border);border-radius:.625rem;background:#fff;cursor:pointer}
+.tok-profile-action svg{flex:none;margin-top:.125rem;color:var(--tok-primary)}
+.tok-profile-action-text{display:flex;flex-direction:column;gap:.125rem;min-width:0}
+.tok-profile-action-text strong{color:var(--tok-text);font-size:.9375rem}
+.tok-profile-action-text span{color:var(--tok-text-muted);font-size:.8125rem;font-weight:500}
+.tok-profile-action:hover:not(:disabled){background:var(--tok-primary-soft);border-color:rgba(0,107,60,.35)}
+.tok-profile-action:focus-visible{outline:none;box-shadow:var(--tok-ring);border-color:var(--tok-primary)}
+.tok-profile-action:disabled{opacity:.6;cursor:not-allowed}
+.tok-profile-signout{display:flex;justify-content:flex-end;border-top:1px solid var(--tok-border-soft);
+  margin:1.375rem -2rem -2rem;padding:1rem 2rem;border-radius:0 0 var(--tok-radius-card) var(--tok-radius-card)}
+@media (max-width:767.98px){
+  .tok-profile-page .tok-profile-card{padding:1.25rem}
+  .tok-profile-hero{flex-direction:column;text-align:center;gap:.75rem}
+  .tok-profile-grid{grid-template-columns:1fr}
+  .tok-profile-manage{grid-template-columns:1fr}
+  .tok-profile-signout{margin:1.25rem -1.25rem -1.25rem;padding:1rem 1.25rem}
+  .tok-profile-signout .tok-btn{width:100%}
+}
 
 /* ============ PAGE FRAME ============ */
 .tok-main{max-width:1200px;margin:0 auto;padding:1.5rem 1rem 3rem}

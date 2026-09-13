@@ -100,12 +100,16 @@ describe('Create Ticket screen', () => {
     // Brand is a link with the TokTickIT wordmark (home screen also shows the
     // title, so scope to the link role).
     expect(screen.getByRole('link', { name: 'TokTickIT' })).toBeInTheDocument();
-    // Lab 3: the Development Requester selector is gone — identity is the
-    // session user shown in the header.
+    // Lab 3: the Development Requester selector is gone — the header shows a
+    // single "Profile" entry for every account type (identity details moved
+    // to the Profile page at #/profile).
     expect(
       screen.queryByText('Testing only — not real authentication'),
     ).not.toBeInTheDocument();
-    expect(screen.getAllByText(USER.name).length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute(
+      'href',
+      '#/profile',
+    );
 
     // Active nav pill lands on New Ticket after navigating.
     await userEvent.click(screen.getByRole('link', { name: 'New Ticket' }));

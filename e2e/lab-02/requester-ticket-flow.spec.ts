@@ -65,11 +65,16 @@ async function login(page: Page, email: string, password: string) {
 }
 
 async function logout(page: Page) {
-  const button = page.getByRole('button', { name: /^logout$/i });
-  if ((await button.count()) > 0) {
-    await button.first().click();
-    await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible({ timeout: 10000 });
+  // Profile-only header: sign-out lives on the Profile page (#/profile).
+  // Fall back to a navbar Logout button if an older build renders one.
+  const navbarLogout = page.getByRole('button', { name: /^logout$/i });
+  if ((await navbarLogout.count()) > 0) {
+    await navbarLogout.first().click();
+  } else {
+    await page.getByRole('link', { name: /^profile$/i }).first().click();
+    await page.getByRole('button', { name: /^sign out$/i }).click();
   }
+  await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible({ timeout: 10000 });
 }
 
 // Authenticated API probe helper: relies on the browser context storage

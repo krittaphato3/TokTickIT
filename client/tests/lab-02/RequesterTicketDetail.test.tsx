@@ -85,13 +85,13 @@ describe('RequesterTicketDetail', () => {
     window.location.hash = '#/tickets/TTK-2026-000042';
     render(<App />);
     expect(await screen.findByText('No description provided')).toBeInTheDocument();
-    // BR-03: identity comes from the session — user name + role badge in the
-    // header; the Development Requester selector is gone. (The detail grid
-    // also labels a "Requester" field, so assert within the navbar.)
-    expect(screen.getAllByText('Dev User Alpha').length).toBeGreaterThan(0);
+    // BR-03: identity comes from the session — the header shows the single
+    // "Profile" entry for all account types (name/role details live on the
+    // Profile page); the Development Requester selector is gone.
     const navbar = document.querySelector('.tok-navbar') as HTMLElement;
     expect(navbar).not.toBeNull();
-    expect(navbar.textContent).toContain('Requester');
+    expect(navbar.textContent).toContain('Profile');
+    expect(navbar.querySelector('a[href="#/profile"]')).not.toBeNull();
     expect(screen.queryByText('Testing only — not real authentication')).not.toBeInTheDocument();
     expect(document.querySelector('#dev-requester-select')).toBeNull();
   });
