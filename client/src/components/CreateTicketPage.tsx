@@ -9,7 +9,7 @@ import {
   type Priority,
   type RelatedSystem,
 } from '../api';
-import { useDevRequester } from '../devRequesterContext';
+import { useAuth } from '../auth/AuthContext';
 import AttachmentPicker from './AttachmentPicker';
 import {
   FIELD_ORDER,
@@ -26,7 +26,7 @@ export default function CreateTicketPage({
 }: {
   onCreated?: (ticketNumber: string) => void;
 }) {
-  const { activeRequester } = useDevRequester();
+  const { user } = useAuth();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [systems, setSystems] = useState<RelatedSystem[]>([]);
@@ -105,9 +105,9 @@ export default function CreateTicketPage({
 
     setSubmitting(true);
     try {
+      // Lab 3: identity is the authenticated session; no requester id is sent.
       const ticket = await createTicket(
         { ...candidate, title: title.trim() },
-        activeRequester?.id ?? 0,
       );
       setCreatedNumber(ticket.ticketNumber);
       // Sequential per-file upload; failures show inline but ticket persists (compensation)
@@ -115,7 +115,7 @@ export default function CreateTicketPage({
         const errs: string[] = [];
         for (const f of pendingFiles) {
           try {
-            await uploadAttachment(ticket.ticketNumber, f, activeRequester!.id);
+            await uploadAttachment(ticket.ticketNumber, f);
           } catch (e: unknown) {
             errs.push(`${f.name}: ${e instanceof Error ? e.message : 'Upload failed'}`);
           }
@@ -230,7 +230,7 @@ export default function CreateTicketPage({
           </div>
         )}
 
-        {/* REQUESTER CONTEXT */}
+        {/* REQUESTER CONTEXT — the authenticated session user (BR-03) */}
         <section aria-label="Requester context">
           <h2 className="tok-section-label">Requester context</h2>
           <div className="tok-grid-2">
@@ -243,10 +243,10 @@ export default function CreateTicketPage({
                 id="requester"
                 readOnly
                 tabIndex={-1}
-                value={activeRequester?.name ?? ''}
+                value={user?.name ?? ''}
               />
               <p className="tok-hint">
-                Testing only — not real authentication
+                Signed in as {user?.email ?? ''} — tickets are filed under your account
               </p>
             </div>
             <div className="tok-field">

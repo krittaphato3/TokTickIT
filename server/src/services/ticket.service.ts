@@ -104,24 +104,72 @@ export function buildTicketNumber(sequenceValue: bigint | number): string {
   )}`;
 }
 
-// Resolves the Development Requester from the X-Dev-Requester-Id header.
-// Missing/malformed -> 400; unknown id -> 401; inactive -> 403.
-export async function resolveRequester(
+// Lab 3 — "Do not trust client-supplied requester identity" (BR-03).
+// The requester scope is always derived server-side from the authenticated
+// session user; no header/body/query value is ever consulted here.
+// Interim storage note: Lab 3 keeps the Lab 2 Requester table and
+// Ticket.requesterId still points at it (the full repoint to User is a later
+// migration), while User rows are mirrored from Requester with the same ids.
+// Resolution order: (1) id-aligned mirrored row, (2) case-insensitive
+// email-linked row, (3) no linked row: reads scope to a sentinel id that owns
+// nothing (200 empty list / masked 404), while creates provision a linked row
+// for the authenticated user (AD-03 requester-self for any active role).
+// Provisioning is additive only — Lab 2 rows are never modified — and happens
+// solely on ticket creation so read-only callers leave no trace. Inactive ->
+// 403.
+export const NO_LINKED_REQUESTER_ID = -1;
+
+export async function resolveSessionRequester(
   prisma: PrismaClient,
-  header: string | undefined,
+  user: { id: number; name: string; email: string; isActive: boolean },
+  opts?: { createIfMissing?: boolean },
 ) {
-  // Bound the id to Int32-safe digits so an oversized header is rejected as
-  // malformed (400) instead of falling through to a generic 500 from Prisma.
-  if (!header || !/^\d{1,9}$/.test(header)) {
-    throw new HttpError(400, 'Missing or invalid X-Dev-Requester-Id header');
+  let requester = await prisma.requester.findUnique({
+    where: { id: user.id },
+  });
+  if (
+    requester &&
+    requester.email.toLowerCase() !== user.email.toLowerCase()
+  ) {
+    requester = null;
   }
 
-  const requester = await prisma.requester.findUnique({
-    where: { id: Number(header) },
-  });
+  if (!requester) {
+    requester = await prisma.requester.findFirst({
+      where: { email: { equals: user.email, mode: 'insensitive' } },
+    });
+  }
 
   if (!requester) {
-    throw new HttpError(401, 'Unknown development requester');
+    if (!opts?.createIfMissing) {
+      return {
+        id: NO_LINKED_REQUESTER_ID,
+        name: user.name,
+        email: user.email,
+        isActive: user.isActive,
+      };
+    }
+    try {
+      requester = await prisma.requester.create({
+        data: {
+          name: user.name,
+          email: user.email,
+          isActive: user.isActive,
+        },
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+      ) {
+        requester = await prisma.requester.findFirst({
+          where: { email: { equals: user.email, mode: 'insensitive' } },
+        });
+        if (!requester) throw err;
+      } else {
+        throw err;
+      }
+    }
   }
 
   if (!requester.isActive) {
@@ -144,6 +192,14 @@ export async function createTicket(
     throw new HttpError(400, 'Invalid JSON body');
   }
   const data = body as Record<string, unknown>;
+  // BR-03: any client-supplied requester identity is ignored (never trusted).
+  // Warn once so a stale Lab 2 client is visible in server logs, then proceed
+  // with the session-derived requesterId.
+  if ('requesterId' in data || 'requester' in data) {
+    console.warn(
+      '[tickets] ignoring client-supplied requester identity; using session identity',
+    );
+  }
   const issues: { field: string; message: string }[] = [];
 
   // title — required, trimmed, 1..120 characters.
@@ -544,13 +600,19 @@ export async function getTicketDetail(
   }
   const ticket = await prisma.ticket.findUnique({
     where: { ticketNumber },
-    include: { category: true, relatedSystem: true, requester: true, attachments: { where: { removedAt: null } } },
+    // Soft-removed attachments are INCLUDED (with removedAt set) so the
+    // requester's own detail view can still display their "Removed" chips —
+    // Lab 2 soft-remove semantics (api-spec §4.4). Active-count limits are
+    // enforced in attachment.service.ts, which filters removedAt: null.
+    include: { category: true, relatedSystem: true, requester: true, attachments: true },
   });
+  // Masked 404 (api-spec §1.5): absent and cross-owner are indistinguishable
+  // so Requester A cannot probe Requester B's ticket numbers. No 403 here.
   if (!ticket) {
-    throw new HttpError(404, `Ticket ${ticketNumber} does not exist`);
+    throw new HttpError(404, 'Ticket not found');
   }
   if (ticket.requesterId !== requesterId) {
-    throw new HttpError(403, `Ticket ${ticketNumber} does not belong to this requester`);
+    throw new HttpError(404, 'Ticket not found');
   }
   return {
     id: ticket.id,
@@ -572,8 +634,11 @@ export async function getTicketDetail(
       fileName: a.fileName,
       mimeType: a.mimeType,
       sizeBytes: a.sizeBytes,
+      sha256: a.sha256,
       uploadedAt: a.uploadedAt,
       removedAt: a.removedAt,
+      removeReason: a.removeReason,
+      removeNote: a.removeNote,
     })),
     createdAt: ticket.createdAt,
     updatedAt: ticket.updatedAt,

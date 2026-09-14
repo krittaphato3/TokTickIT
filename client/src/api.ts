@@ -8,12 +8,6 @@ export interface Category {
   name: string;
 }
 
-export interface Requester {
-  id: number;
-  name: string;
-  email: string;
-}
-
 export interface SystemStatus {
   online: boolean;
   categories: Array<{ id: number; name: string }>;
@@ -55,19 +49,11 @@ export interface Ticket {
   updatedAt: string;
 }
 
-// Issue 3 — call the backend; if not ok, throw.
-// Throwing on failure lets the UI show a single Offline/error state.
-export async function getRequesters(): Promise<Requester[]> {
-  const response = await fetch(`${API_URL}/api/requesters`);
-  if (!response.ok) {
-    throw new Error(`Requesters request failed with status ${response.status}`);
-  }
-  return (await response.json()) as Requester[];
-}
-
 // Issue #14 — lookup data for the Create Ticket form.
 export async function getCategories(): Promise<Category[]> {
-  const response = await fetch(`${API_URL}/api/categories`);
+  const response = await fetch(`${API_URL}/api/categories`, {
+    credentials: 'include',
+  });
   if (!response.ok) {
     throw new Error(`Categories request failed with status ${response.status}`);
   }
@@ -75,7 +61,9 @@ export async function getCategories(): Promise<Category[]> {
 }
 
 export async function getRelatedSystems(): Promise<RelatedSystem[]> {
-  const response = await fetch(`${API_URL}/api/related-systems`);
+  const response = await fetch(`${API_URL}/api/related-systems`, {
+    credentials: 'include',
+  });
   if (!response.ok) {
     throw new Error(
       `Related systems request failed with status ${response.status}`,
@@ -84,33 +72,189 @@ export async function getRelatedSystems(): Promise<RelatedSystem[]> {
   return (await response.json()) as RelatedSystem[];
 }
 
-// Issue #14 — create a ticket for the active Development Requester.
-// requesterId travels in the X-Dev-Requester-Id header (BR-06); the server
-// assigns ticketNumber, status, and timestamps (FR-02/FR-03).
+// Lab 3 — create a ticket as the authenticated user (BR-03): identity is the
+// server-side session; no requester id is ever sent from the client.
+// The server assigns ticketNumber, status, and timestamps (FR-02/FR-03).
 // Non-2xx: throws ApiError carrying the documented { error, details? } body.
 export class ApiError extends Error {
   status: number;
-  body: { error?: string; details?: { field: string; message: string }[] };
+  code?: string;
+  body: {
+    error?: string;
+    code?: string;
+    details?: { field: string; message: string }[];
+  };
 
   constructor(
     status: number,
-    body: { error?: string; details?: { field: string; message: string }[] },
+    body: {
+      error?: string;
+      code?: string;
+      details?: { field: string; message: string }[];
+    },
   ) {
     super(body.error ?? `Request failed with status ${status}`);
     this.status = status;
     this.body = body;
+    this.code = body.code;
   }
 }
 
-export async function createTicket(
-  input: CreateTicketInput,
-  requesterId: number,
-): Promise<Ticket> {
+// Lab 3 session auth (api-spec §1.1/§2/§3). CSRF token lives in module memory
+// only — never localStorage. Authenticated requests send cookies via
+// credentials:include.
+let csrfToken: string | null = null;
+
+export function getCsrfToken(): string | null {
+  return csrfToken;
+}
+
+export function setCsrfToken(token: string | null): void {
+  csrfToken = token;
+}
+
+function authHeaders(extra?: Record<string, string>, withCsrf = false): Record<string, string> {
+  const headers: Record<string, string> = { ...extra };
+  if (withCsrf && csrfToken) headers['X-CSRF-Token'] = csrfToken;
+  return headers;
+}
+
+export type UserRole = 'REQUESTER' | 'IT_STAFF' | 'ADMIN' | string;
+
+export interface AuthUser {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  isActive: boolean;
+  mustChangePassword: boolean;
+}
+
+export interface LoginResult {
+  user: AuthUser;
+  csrfToken: string;
+}
+
+export interface MeResult {
+  user: AuthUser;
+  csrfToken: string;
+}
+
+export async function login(email: string, password: string): Promise<LoginResult> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/api/auth/login`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+  } catch {
+    throw new ApiError(0, { error: 'Network error' });
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  const result = body as LoginResult;
+  if (result.csrfToken) setCsrfToken(result.csrfToken);
+  return result;
+}
+
+export async function me(): Promise<MeResult> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/api/auth/me`, {
+      credentials: 'include',
+    });
+  } catch {
+    throw new ApiError(0, { error: 'Network error' });
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  const result = body as MeResult;
+  if (result.csrfToken) setCsrfToken(result.csrfToken);
+  return result;
+}
+
+export async function logout(): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/api/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: authHeaders({}, true),
+    });
+  } catch {
+    throw new ApiError(0, { error: 'Network error' });
+  }
+  // Idempotent logout: treat 401 (already expired) as success per BR-08.
+  if (response.status === 401) {
+    setCsrfToken(null);
+    return;
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  setCsrfToken(null);
+}
+
+export interface ChangePasswordInput {
+  currentPassword?: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+export async function changePassword(input: ChangePasswordInput): Promise<{ user: AuthUser }> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/api/auth/change-password`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: authHeaders({ 'Content-Type': 'application/json' }, true),
+      body: JSON.stringify(input),
+    });
+  } catch {
+    throw new ApiError(0, { error: 'Network error' });
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as { user: AuthUser };
+}
+
+// Lab 3 forgot-password (ui-spec §3.4): credential-verified reset. No email is
+// sent (the lab excludes email flows); the user proves ownership with the
+// current/initial password and sets a new one in a single request. Unknown
+// email / wrong password / inactive account all return the same safe 401 so
+// account existence is never revealed.
+export interface ForgotPasswordInput {
+  email: string;
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+export async function forgotPassword(input: ForgotPasswordInput): Promise<{ changed: boolean; message?: string }> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/api/auth/forgot-password`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+  } catch {
+    throw new ApiError(0, { error: 'Network error' });
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as { changed: boolean; message?: string };
+}
+
+export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
   const response = await fetch(`${API_URL}/api/tickets`, {
     method: 'POST',
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      'X-Dev-Requester-Id': String(requesterId),
+      ...authHeaders({}, true),
     },
     body: JSON.stringify(input),
   });
@@ -161,7 +305,6 @@ export interface TicketListResult {
 
 export async function getTickets(
   params: TicketListParams,
-  requesterId: number,
 ): Promise<TicketListResult> {
   const search = new URLSearchParams();
   if (params.page !== undefined) search.set('page', String(params.page));
@@ -181,7 +324,8 @@ export async function getTickets(
   const qs = search.toString();
   const url = `${API_URL}/api/tickets${qs ? `?${qs}` : ''}`;
   const response = await fetch(url, {
-    headers: { 'X-Dev-Requester-Id': String(requesterId) },
+    credentials: 'include',
+    headers: { ...authHeaders({}, true) },
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -196,12 +340,16 @@ export async function getTickets(
 //   return { online: true, categories }.
 // Throwing on failure lets the UI show a single Offline/error state.
 export async function checkSystem(): Promise<SystemStatus> {
-  const healthResponse = await fetch(`${API_URL}/api/health`);
+  const healthResponse = await fetch(`${API_URL}/api/health`, {
+    credentials: 'include',
+  });
   if (!healthResponse.ok) {
     throw new Error(`Health check failed with status ${healthResponse.status}`);
   }
 
-  const categoriesResponse = await fetch(`${API_URL}/api/categories`);
+  const categoriesResponse = await fetch(`${API_URL}/api/categories`, {
+    credentials: 'include',
+  });
   if (!categoriesResponse.ok) {
     throw new Error(`Categories request failed with status ${categoriesResponse.status}`);
   }
@@ -217,28 +365,64 @@ export interface AttachmentMeta {
   sizeBytes: number;
   uploadedAt: string;
   removedAt: string | null;
+  sha256?: string | null;
+  removeReason?: string | null;
+  removeNote?: string | null;
+}
+
+export type AttachmentEventType = 'UPLOAD' | 'REMOVE' | 'RESTORE' | 'DOWNLOAD';
+
+export interface AttachmentEventFile {
+  id: number | null;
+  name: string;
+  size: number;
+  mime: string;
+  sha: string | null;
+}
+
+export interface AttachmentEvent {
+  id: number;
+  type: AttachmentEventType | string;
+  at: string;
+  createdAt: string;
+  by: string;
+  actorName: string;
+  file: AttachmentEventFile;
+  reason?: string | null;
+  note?: string | null;
+  ref?: number | null;
+}
+
+export interface RemoveAttachmentOptions {
+  reasonCode?: string;
+  note?: string;
 }
 
 export interface TicketDetail extends Ticket {
-  requester: Requester;
+  requester: { id: number; name: string; email: string };
   attachments: AttachmentMeta[];
 }
 
-export async function getTicketDetail(ticketNumber: string, requesterId: number): Promise<TicketDetail> {
+export async function getTicketDetail(ticketNumber: string): Promise<TicketDetail> {
   const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}`, {
-    headers: { 'X-Dev-Requester-Id': String(requesterId) },
+    credentials: 'include',
+    headers: { ...authHeaders({}, true) },
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new ApiError(response.status, body);
   return body as TicketDetail;
 }
 
-export async function uploadAttachment(ticketNumber: string, file: File, requesterId: number): Promise<AttachmentMeta> {
+export async function uploadAttachment(ticketNumber: string, file: File): Promise<AttachmentMeta> {
   const form = new FormData();
   form.append('file', file);
+  const headers: Record<string, string> = {
+    ...authHeaders({}, true),
+  };
   const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}/attachments`, {
     method: 'POST',
-    headers: { 'X-Dev-Requester-Id': String(requesterId) },
+    credentials: 'include',
+    headers,
     body: form,
   });
   const body = await response.json().catch(() => ({}));
@@ -246,14 +430,74 @@ export async function uploadAttachment(ticketNumber: string, file: File, request
   return body as AttachmentMeta;
 }
 
-export async function deleteAttachment(ticketNumber: string, attachmentId: number, requesterId: number): Promise<AttachmentMeta> {
-  const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}/attachments/${attachmentId}`, {
+export async function deleteAttachment(
+  ticketNumber: string,
+  attachmentId: number,
+  options?: RemoveAttachmentOptions,
+): Promise<AttachmentMeta> {
+  const hasBody =
+    options !== undefined &&
+    (options.reasonCode !== undefined || options.note !== undefined);
+  const init: RequestInit = {
     method: 'DELETE',
-    headers: { 'X-Dev-Requester-Id': String(requesterId) },
+    credentials: 'include',
+    headers: { ...authHeaders(hasBody ? { 'Content-Type': 'application/json' } : {}, true) },
+  };
+  if (hasBody) {
+    const body: Record<string, string> = {};
+    if (options?.reasonCode !== undefined) body.reasonCode = options.reasonCode;
+    if (options?.note !== undefined) body.note = options.note;
+    init.body = JSON.stringify(body);
+  }
+  const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}/attachments/${attachmentId}`, init);
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as AttachmentMeta;
+}
+
+export async function restoreAttachment(ticketNumber: string, attachmentId: number): Promise<AttachmentMeta> {
+  const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}/attachments/${attachmentId}/restore`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { ...authHeaders({}, true) },
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new ApiError(response.status, body);
   return body as AttachmentMeta;
+}
+
+export async function getTicketEvents(ticketNumber: string): Promise<AttachmentEvent[]> {
+  const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}/events`, {
+    credentials: 'include',
+    headers: { ...authHeaders({}, true) },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as AttachmentEvent[];
+}
+
+export async function downloadAttachment(ticketNumber: string, attachmentId: number): Promise<Blob> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/api/tickets/${ticketNumber}/attachments/${attachmentId}/download`, {
+      credentials: 'include',
+    });
+  } catch {
+    throw new Error('Download failed: network error');
+  }
+  if (!response.ok) {
+    if (response.status === 401) throw new Error('Not authenticated — please sign in again.');
+    if (response.status === 403) throw new Error('Not allowed to download this file.');
+    let message = `Download failed with status ${response.status}`;
+    try {
+      const body = (await response.clone().json()) as { error?: string };
+      if (body && typeof body.error === 'string' && body.error) message = body.error;
+    } catch {
+      // non-JSON error body — keep status message
+    }
+    throw new Error(message);
+  }
+  return await response.blob();
 }
 
 export default API_URL;

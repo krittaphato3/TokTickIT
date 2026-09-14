@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
 import { getTicketDetail, type TicketDetail } from '../api';
-import { useDevRequester } from '../devRequesterContext';
 import AttachmentSection from './AttachmentSection';
 import '../styles/ticket-detail.css';
 
@@ -33,7 +32,6 @@ function fmtDate(iso: string): string {
 }
 
 export default function TicketDetailPage({ ticketNumber, onBack }: { ticketNumber: string; onBack?: () => void }) {
-  const { activeRequester } = useDevRequester();
   const [ticket, setTicket] = useState<TicketDetail | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string>('');
@@ -41,10 +39,9 @@ export default function TicketDetailPage({ ticketNumber, onBack }: { ticketNumbe
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   async function load() {
-    if (!activeRequester) return;
     setStatus('loading');
     try {
-      const t = await getTicketDetail(ticketNumber, activeRequester.id);
+      const t = await getTicketDetail(ticketNumber);
       setTicket(t);
       setStatus('ready');
     } catch (e: unknown) {
@@ -54,7 +51,7 @@ export default function TicketDetailPage({ ticketNumber, onBack }: { ticketNumbe
     }
   }
 
-  useEffect(() => { void load(); }, [ticketNumber, activeRequester?.id]);
+  useEffect(() => { void load(); }, [ticketNumber]);
 
   function onTabKeyDown(e: React.KeyboardEvent) {
     const order: Array<'comments' | 'attachments' | 'actions' | 'log'> = ['comments', 'attachments', 'actions', 'log'];

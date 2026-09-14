@@ -2,12 +2,23 @@ import cors from 'cors';
 import express from 'express';
 import { getPrisma } from './prisma.js';
 import { ticketsRouter } from './routes/tickets.js';
+import { authRouter } from './routes/auth.js';
+import { cookiesMiddleware } from './middleware/cookies.js';
+import {
+  mustChangePasswordGate,
+  optionalAuth,
+  sessionWriteCsrf,
+} from './middleware/auth.js';
 import { HttpError } from './services/ticket.service.js';
 
 export const app = express();
 
-app.use(cors({ origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173' }));
+app.use(cors({ origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173', credentials: true }));
 app.use(express.json());
+app.use(cookiesMiddleware);
+// Lab 3 (AD-01): attach the session identity when a valid cookie is present.
+// Public routes ignore it; protected routes enforce it via requireAuth.
+app.use(optionalAuth);
 
 app.get('/api/health', (_req, res) => {
   res.status(200).json({ status: 'ok', service: 'TokTickIT API' });
@@ -25,6 +36,10 @@ app.get('/api/categories', async (_req, res) => {
   }
 });
 
+// Lab 3 decision: kept public for Lab 2 regression (the Lab 2 selector test
+// expects 200 without a session). The Lab 3 contract removes this endpoint
+// (use GET /api/users as admin); it is marked deprecated here and carries no
+// credentialed data beyond active requester names/emails.
 app.get('/api/requesters', async (_req, res) => {
   try {
     const requesters = await getPrisma().requester.findMany({
@@ -32,6 +47,7 @@ app.get('/api/requesters', async (_req, res) => {
       orderBy: { id: 'asc' },
       select: { id: true, name: true, email: true },
     });
+    res.setHeader('Deprecation', 'true');
     res.status(200).json(requesters);
   } catch {
     res.status(500).json({ error: 'Unable to load requesters from the database' });
@@ -52,6 +68,17 @@ app.get('/api/related-systems', async (_req, res) => {
   }
 });
 
+app.use('/api/auth', authRouter);
+
+// Lab 3 (BR-02): sessions flagged mustChangePassword can only reach the auth
+// allowlist; every other /api/* call below gets 403 password_change_required.
+// Unauthenticated callers pass through here and are rejected with 401 by each
+// router's requireAuth.
+app.use(mustChangePasswordGate);
+// Lab 3 (AD-01): state-changing requests need a valid X-CSRF-Token, except
+// the login and /api/auth/* paths handled by their own guards.
+app.use(sessionWriteCsrf);
+
 app.use('/api/tickets', ticketsRouter);
 
 // Error-handling middleware — registered last as a 4-arg handler. Translates
@@ -66,13 +93,14 @@ app.use(
     _next: express.NextFunction,
   ) => {
     if (err instanceof HttpError) {
+      const code = (err as unknown as { code?: string }).code;
       res
         .status(err.status)
-        .json(
-          err.details
-            ? { error: err.message, details: err.details }
-            : { error: err.message },
-        );
+        .json({
+          error: err.message,
+          ...(err.details ? { details: err.details } : {}),
+          ...(code ? { code } : {}),
+        });
       return;
     }
 

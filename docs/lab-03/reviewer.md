@@ -48,3 +48,9 @@
 ## 5. Final Review Status
 
 Pending peer review, to be completed before merge to lab3-staging/main. This scaffold is intentionally empty-ready: PR links, comment threads, and approvals will be filled in once a peer reviewer is assigned.
+
+## 6. Auth-foundation increment (`feature/lab3-auth`)
+
+- **Scope:** auth foundation only — FR-01..FR-04, BR-01, BR-02, BR-06..BR-09, AC-01, AC-02, AC-05, AC-06, AC-18. Staff queue/detail and admin screens stay placeholder references owned by other issues.
+- **Docs changed:** `specification.md` §7.7, `api-spec.md` §1.1 gate `code` + §11, `tests.md` Final column for T-AUTH-01..05, T-PWD-01, T-SESS-01, T-GATE-01, T-MIG-01 → `Implemented` (`server/tests/lab-03/auth.api.test.ts`).
+- **Review ask:** confirm auth decisions (cookie, 24 h sliding+absolute, CSRF double-submit, bcrypt-12), incremental migration (Requester kept, User mirrored, repoint deferred), and safe-error shapes before merge.

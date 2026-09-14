@@ -1,0 +1,1212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light" />
+  <title>TokTickIT — Sign in</title>
+
+  <style>
+    :root {
+      --bg: #f4f7f5;
+      --surface: #ffffff;
+      --surface-soft: #fbfdfb;
+      --ink: #17211b;
+      --ink-soft: #3d4f45;
+      --muted: #6f8077;
+      --line: #e2e9e4;
+      --line-strong: #cdd8d0;
+      --green: #2f7d5b;
+      --green-dark: #235f45;
+      --green-soft: #e9f4ee;
+      --green-ring: rgba(47, 125, 91, 0.18);
+      --danger: #a33f3f;
+      --danger-soft: #fdf1f0;
+      --info-soft: #f1f8f4;
+      --radius-lg: 26px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+      --shadow: 0 24px 60px -34px rgba(18, 42, 30, 0.34), 0 2px 10px rgba(18, 42, 30, 0.04);
+      --font: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--font);
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(47, 125, 91, 0.12), transparent 30%),
+        radial-gradient(circle at 88% 92%, rgba(47, 125, 91, 0.10), transparent 32%),
+        var(--bg);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    .app {
+      min-height: 100vh;
+      min-height: 100svh;
+      display: grid;
+      place-items: center;
+      padding:
+        max(20px, env(safe-area-inset-top))
+        max(16px, env(safe-area-inset-right))
+        max(24px, env(safe-area-inset-bottom))
+        max(16px, env(safe-area-inset-left));
+    }
+
+    .page {
+      width: min(100%, 440px);
+    }
+
+    .page.is-active {
+      animation: page-enter 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    @keyframes page-enter {
+      from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.99);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .card {
+      position: relative;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(226, 233, 228, 0.95);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      padding: clamp(24px, 5vw, 34px);
+      backdrop-filter: blur(12px);
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #7cc2a0, #2f7d5b 48%, #b8dcc8);
+      opacity: 0.72;
+    }
+
+    .back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin: -6px 0 18px -6px;
+      padding: 6px;
+      border-radius: var(--radius-sm);
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: color 160ms ease, background-color 160ms ease;
+    }
+
+    .back:hover {
+      color: var(--green-dark);
+      background: var(--green-soft);
+    }
+
+    .back svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .brand {
+      display: grid;
+      justify-items: center;
+      text-align: center;
+      gap: 14px;
+      margin-bottom: 26px;
+    }
+
+    .brand-mark {
+      width: 56px;
+      height: 56px;
+      display: grid;
+      place-items: center;
+      border-radius: 18px;
+      color: var(--green);
+      background: linear-gradient(145deg, #f0f8f3, #dcefe4);
+      border: 1px solid #d5e7dd;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    }
+
+    .brand-mark svg {
+      width: 28px;
+      height: 28px;
+    }
+
+    .brand-copy {
+      display: grid;
+      gap: 7px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(22px, 4.8vw, 27px);
+      line-height: 1.12;
+      letter-spacing: -0.03em;
+      font-weight: 650;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .field {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--ink-soft);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }
+
+    input {
+      width: 100%;
+      height: 48px;
+      padding: 0 14px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-md);
+      background: var(--surface-soft);
+      color: var(--ink);
+      font: inherit;
+      font-size: 16px;
+      transition:
+        border-color 160ms ease,
+        box-shadow 160ms ease,
+        background-color 160ms ease;
+    }
+
+    input::placeholder {
+      color: #97a69d;
+    }
+
+    input:hover {
+      border-color: #bccdc2;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--green);
+      background: #fff;
+      box-shadow: 0 0 0 4px var(--green-ring);
+    }
+
+    input:-webkit-autofill,
+    input:-webkit-autofill:focus {
+      -webkit-text-fill-color: var(--ink);
+      -webkit-box-shadow: 0 0 0 1000px var(--surface-soft) inset;
+      transition: background-color 9999s ease-out 0s;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    .input-wrap input {
+      padding-right: 64px;
+    }
+
+    .toggle {
+      position: absolute;
+      top: 50%;
+      right: 8px;
+      transform: translateY(-50%);
+      height: 34px;
+      padding: 0 10px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-size: 12.5px;
+      font-weight: 650;
+      cursor: pointer;
+      transition: background-color 160ms ease, color 160ms ease;
+    }
+
+    .toggle:hover {
+      background: var(--green-soft);
+      color: var(--green-dark);
+    }
+
+    .toggle:focus-visible {
+      outline: 2px solid var(--green);
+      outline-offset: 2px;
+    }
+
+    .field-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      min-height: 18px;
+      margin-top: 7px;
+    }
+
+    .hint,
+    .error {
+      margin: 7px 0 0;
+      font-size: 12.5px;
+      line-height: 1.45;
+    }
+
+    .hint {
+      color: var(--muted);
+    }
+
+    .error {
+      color: var(--danger);
+      font-weight: 550;
+    }
+
+    .field-meta .error {
+      margin: 0;
+      flex: 1;
+    }
+
+    .has-error input {
+      border-color: rgba(163, 63, 63, 0.72);
+      background: var(--danger-soft);
+    }
+
+    .has-error input:focus {
+      box-shadow: 0 0 0 4px rgba(163, 63, 63, 0.12);
+    }
+
+    .link {
+      color: var(--green-dark);
+      font-size: 13px;
+      font-weight: 650;
+      text-decoration: none;
+      border-radius: 6px;
+    }
+
+    .link:hover {
+      text-decoration: underline;
+    }
+
+    .link:focus-visible {
+      outline: 2px solid var(--green);
+      outline-offset: 3px;
+    }
+
+    .alert {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 18px;
+      padding: 12px 14px;
+      border: 1px solid transparent;
+      border-radius: 16px;
+      font-size: 13.5px;
+      line-height: 1.5;
+    }
+
+    .alert svg {
+      width: 18px;
+      height: 18px;
+      flex: 0 0 auto;
+      margin-top: 1px;
+    }
+
+    .alert-text {
+      flex: 1;
+    }
+
+    .alert-error {
+      color: #8d3434;
+      background: #fef3f2;
+      border-color: #f3cbc8;
+    }
+
+    .alert-success {
+      color: #226247;
+      background: #eff8f2;
+      border-color: #c9e6d6;
+    }
+
+    .alert-info {
+      color: #405b4c;
+      background: var(--info-soft);
+      border-color: #d5e6dc;
+    }
+
+    .form-actions {
+      margin-top: 22px;
+    }
+
+    .btn {
+      width: 100%;
+      height: 50px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      border: 0;
+      border-radius: var(--radius-md);
+      background: linear-gradient(180deg, #368a64, #2a6d50);
+      color: #fff;
+      font: inherit;
+      font-size: 15px;
+      font-weight: 650;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      box-shadow:
+        0 12px 24px -16px rgba(35, 95, 69, 0.95),
+        inset 0 1px 0 rgba(255, 255, 255, 0.16);
+      transition: transform 160ms ease, filter 160ms ease, box-shadow 160ms ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.03);
+    }
+
+    .btn:active {
+      transform: translateY(0) scale(0.995);
+    }
+
+    .btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.68;
+      transform: none;
+      filter: none;
+    }
+
+    .btn:focus-visible {
+      outline: 3px solid var(--green-ring);
+      outline-offset: 3px;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.42);
+      border-top-color: #fff;
+      animation: spin 720ms linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .strength {
+      display: flex;
+      gap: 5px;
+      margin-top: 12px;
+    }
+
+    .strength span {
+      height: 4px;
+      flex: 1;
+      border-radius: 999px;
+      background: #e6ebe7;
+      transition: background-color 220ms ease;
+    }
+
+    .strength[data-score="1"] span:nth-child(-n+1),
+    .strength[data-score="2"] span:nth-child(-n+2) {
+      background: #cf8a84;
+    }
+
+    .strength[data-score="3"] span:nth-child(-n+3) {
+      background: #d2a765;
+    }
+
+    .strength[data-score="4"] span:nth-child(-n+4) {
+      background: #6aa87f;
+    }
+
+    .strength[data-score="5"] span:nth-child(-n+5) {
+      background: var(--green);
+    }
+
+    .strength-label {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 12.5px;
+      font-weight: 550;
+    }
+
+    .rules {
+      list-style: none;
+      display: grid;
+      gap: 8px;
+      margin: 14px 0 0;
+      padding: 0;
+    }
+
+    .rules li {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: var(--muted);
+      font-size: 12.5px;
+      line-height: 1.35;
+      transition: color 180ms ease;
+    }
+
+    .rules .dot {
+      width: 18px;
+      height: 18px;
+      flex: 0 0 auto;
+      display: inline-grid;
+      place-items: center;
+      border: 1.5px solid var(--line-strong);
+      border-radius: 50%;
+      background: #fff;
+      color: transparent;
+      font-size: 10px;
+      font-weight: 800;
+      transition:
+        background-color 180ms ease,
+        border-color 180ms ease,
+        color 180ms ease;
+    }
+
+    .rules li.is-met {
+      color: var(--green-dark);
+      font-weight: 550;
+    }
+
+    .rules li.is-met .dot {
+      background: var(--green);
+      border-color: var(--green);
+      color: #fff;
+    }
+
+    .footnote {
+      margin: 22px 0 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    @media (max-width: 480px) {
+      .card {
+        padding: 24px 18px;
+        border-radius: 22px;
+      }
+
+      .brand {
+        margin-bottom: 22px;
+      }
+
+      .field-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+
+      .btn {
+        height: 48px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app">
+    <!-- ============================= -->
+    <!-- PAGE 1: LOGIN                 -->
+    <!-- ============================= -->
+    <section class="page" id="page-login" aria-labelledby="login-title" hidden>
+      <form class="card" id="login-form" novalidate>
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M3.5 8.2c0-1.2 1-2.2 2.2-2.2h12.6c1.2 0 2.2 1 2.2 2.2v1.4a2.4 2.4 0 0 0 0 4.8v1.4c0 1.2-1 2.2-2.2 2.2H5.7c-1.2 0-2.2-1-2.2-2.2v-1.4a2.4 2.4 0 0 0 0-4.8V8.2Z"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M12 7v10"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-dasharray="2.2 2.2"
+                stroke-linecap="round"
+              />
+            </svg>
+          </span>
+
+          <div class="brand-copy">
+            <h1 id="login-title">Sign in</h1>
+            <p class="subtitle">Use your TokTickIT account to continue.</p>
+          </div>
+        </div>
+
+        <div class="alert" id="login-alert" role="alert" aria-live="assertive" hidden>
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <circle cx="10" cy="10" r="7.25" stroke="currentColor" stroke-width="1.4" />
+            <path d="M10 6.75v4M10 13.1h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+          <span class="alert-text"></span>
+        </div>
+
+        <div class="field">
+          <label for="login-email">Email address</label>
+          <input
+            id="login-email"
+            name="email"
+            type="email"
+            inputmode="email"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+            placeholder="name@toktickit.dev"
+            aria-describedby="login-email-error"
+            required
+          />
+          <p class="error" id="login-email-error" hidden></p>
+        </div>
+
+        <div class="field">
+          <label for="login-password">Password</label>
+          <div class="input-wrap">
+            <input
+              id="login-password"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              placeholder="Enter your password"
+              aria-describedby="login-password-error"
+              required
+            />
+            <button
+              type="button"
+              class="toggle"
+              data-toggle="login-password"
+              aria-pressed="false"
+              aria-label="Show password"
+            >
+              <span class="toggle-text">Show</span>
+            </button>
+          </div>
+
+          <div class="field-meta">
+            <p class="error" id="login-password-error" hidden></p>
+            <a class="link" id="forgot-link" href="#/change-password">Forgot password?</a>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn" id="login-submit" type="submit">
+            <span class="btn-label">Sign in</span>
+            <span class="spinner" aria-hidden="true" hidden></span>
+          </button>
+        </div>
+
+        <p class="footnote">
+          Protected by role-based access control. Never share your password.
+        </p>
+      </form>
+    </section>
+
+    <!-- ============================= -->
+    <!-- PAGE 2: CHANGE PASSWORD       -->
+    <!-- ============================= -->
+    <section class="page" id="page-change" aria-labelledby="change-title" hidden>
+      <form class="card" id="change-form" novalidate>
+        <a class="back" href="#/login">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path
+              d="M12.5 15 7.5 10l5-5"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          Back to sign in
+        </a>
+
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M3.5 8.2c0-1.2 1-2.2 2.2-2.2h12.6c1.2 0 2.2 1 2.2 2.2v1.4a2.4 2.4 0 0 0 0 4.8v1.4c0 1.2-1 2.2-2.2 2.2H5.7c-1.2 0-2.2-1-2.2-2.2v-1.4a2.4 2.4 0 0 0 0-4.8V8.2Z"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M12 7v10"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-dasharray="2.2 2.2"
+                stroke-linecap="round"
+              />
+            </svg>
+          </span>
+
+          <div class="brand-copy">
+            <h1 id="change-title">Change password</h1>
+            <p class="subtitle">Verify your account, then choose a new password.</p>
+          </div>
+        </div>
+
+        <div class="alert" id="change-alert" role="alert" aria-live="assertive" hidden>
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <circle cx="10" cy="10" r="7.25" stroke="currentColor" stroke-width="1.4" />
+            <path d="M10 6.75v4M10 13.1h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+          <span class="alert-text"></span>
+        </div>
+
+        <div class="field">
+          <label for="change-email">Email address</label>
+          <input
+            id="change-email"
+            name="email"
+            type="email"
+            inputmode="email"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+            placeholder="name@toktickit.dev"
+            aria-describedby="change-email-error"
+            required
+          />
+          <p class="error" id="change-email-error" hidden></p>
+        </div>
+
+        <div class="field">
+          <label for="change-current">Current or temporary password</label>
+          <div class="input-wrap">
+            <input
+              id="change-current"
+              name="current-password"
+              type="password"
+              maxlength="72"
+              autocomplete="current-password"
+              placeholder="Enter current or initial password"
+              aria-describedby="change-current-hint change-current-error"
+              required
+            />
+            <button
+              type="button"
+              class="toggle"
+              data-toggle="change-current"
+              aria-pressed="false"
+              aria-label="Show password"
+            >
+              <span class="toggle-text">Show</span>
+            </button>
+          </div>
+          <p class="hint" id="change-current-hint">
+            Use your existing password or the initial password assigned by an administrator.
+          </p>
+          <p class="error" id="change-current-error" hidden></p>
+        </div>
+
+        <div class="field">
+          <label for="change-new">New password</label>
+          <div class="input-wrap">
+            <input
+              id="change-new"
+              name="new-password"
+              type="password"
+              maxlength="72"
+              autocomplete="new-password"
+              placeholder="Create a new password"
+              aria-describedby="change-new-error password-rules strength-label"
+              required
+            />
+            <button
+              type="button"
+              class="toggle"
+              data-toggle="change-new"
+              aria-pressed="false"
+              aria-label="Show password"
+            >
+              <span class="toggle-text">Show</span>
+            </button>
+          </div>
+
+          <p class="error" id="change-new-error" hidden></p>
+
+          <div class="strength" id="strength" data-score="0" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <p class="strength-label" id="strength-label" aria-live="polite">
+            Use a strong, unique password.
+          </p>
+
+          <ul class="rules" id="password-rules">
+            <li data-rule="length">
+              <span class="dot" aria-hidden="true">✓</span>
+              <span>8–72 characters</span>
+            </li>
+            <li data-rule="upper">
+              <span class="dot" aria-hidden="true">✓</span>
+              <span>One uppercase letter</span>
+            </li>
+            <li data-rule="lower">
+              <span class="dot" aria-hidden="true">✓</span>
+              <span>One lowercase letter</span>
+            </li>
+            <li data-rule="number">
+              <span class="dot" aria-hidden="true">✓</span>
+              <span>One number</span>
+            </li>
+            <li data-rule="special">
+              <span class="dot" aria-hidden="true">✓</span>
+              <span>One special character</span>
+            </li>
+            <li data-rule="different">
+              <span class="dot" aria-hidden="true">✓</span>
+              <span>Different from current password</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="field">
+          <label for="change-confirm">Confirm new password</label>
+          <div class="input-wrap">
+            <input
+              id="change-confirm"
+              name="confirm-password"
+              type="password"
+              maxlength="72"
+              autocomplete="new-password"
+              placeholder="Re-enter new password"
+              aria-describedby="change-confirm-error"
+              required
+            />
+            <button
+              type="button"
+              class="toggle"
+              data-toggle="change-confirm"
+              aria-pressed="false"
+              aria-label="Show password"
+            >
+              <span class="toggle-text">Show</span>
+            </button>
+          </div>
+          <p class="error" id="change-confirm-error" hidden></p>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn" id="change-submit" type="submit">
+            <span class="btn-label">Update password</span>
+            <span class="spinner" aria-hidden="true" hidden></span>
+          </button>
+        </div>
+
+        <p class="footnote">
+          You will return to sign in after your password is updated.
+        </p>
+      </form>
+    </section>
+  </main>
+
+  <script>
+    /*
+      Static UI reference only.
+      Replace the simulated setTimeout blocks with real backend API calls.
+
+      Demo behavior:
+      - inactive@example.com shows an inactive-account response
+      - initial@example.com demonstrates mandatory first-login password change
+      - passwords shorter than 8 characters show an invalid-credential response
+    */
+
+    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+    const loginForm = document.getElementById("login-form");
+    const loginEmail = document.getElementById("login-email");
+    const loginPassword = document.getElementById("login-password");
+    const loginAlert = document.getElementById("login-alert");
+    const loginSubmit = document.getElementById("login-submit");
+    const forgotLink = document.getElementById("forgot-link");
+
+    const changeForm = document.getElementById("change-form");
+    const changeEmail = document.getElementById("change-email");
+    const changeCurrent = document.getElementById("change-current");
+    const changeNew = document.getElementById("change-new");
+    const changeConfirm = document.getElementById("change-confirm");
+    const changeAlert = document.getElementById("change-alert");
+    const changeSubmit = document.getElementById("change-submit");
+    const strength = document.getElementById("strength");
+    const strengthLabel = document.getElementById("strength-label");
+
+    function pageIdFromHash(hash) {
+      return String(hash).replace(/^#\/?/, "") === "change-password"
+        ? "page-change"
+        : "page-login";
+    }
+
+    function showPage(hash, options = {}) {
+      const activeId = pageIdFromHash(hash);
+
+      document.querySelectorAll(".page").forEach((page) => {
+        const isActive = page.id === activeId;
+        page.classList.toggle("is-active", isActive);
+        page.hidden = !isActive;
+      });
+
+      document.title =
+        activeId === "page-change"
+          ? "TokTickIT — Change password"
+          : "TokTickIT — Sign in";
+
+      if (options.focus) {
+        const target = document.querySelector(`#${activeId} input`);
+        if (target) {
+          requestAnimationFrame(() => target.focus({ preventScroll: true }));
+        }
+      }
+
+      window.scrollTo({ top: 0 });
+    }
+
+    window.addEventListener("hashchange", () => {
+      showPage(location.hash, { focus: true });
+    });
+
+    forgotLink.addEventListener("click", () => {
+      changeEmail.value = loginEmail.value.trim();
+
+      if (pageIdFromHash(location.hash) === "page-change") {
+        showPage("#/change-password", { focus: true });
+      }
+    });
+
+    document.querySelectorAll(".toggle").forEach((button) => {
+      button.addEventListener("click", () => {
+        const input = document.getElementById(button.dataset.toggle);
+        if (!input) return;
+
+        const isPassword = input.type === "password";
+        const start = input.selectionStart;
+        const end = input.selectionEnd;
+
+        input.type = isPassword ? "text" : "password";
+        button.setAttribute("aria-pressed", String(isPassword));
+        button.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
+        button.querySelector(".toggle-text").textContent = isPassword ? "Hide" : "Show";
+
+        try {
+          input.setSelectionRange(start, end);
+        } catch (error) {
+          /* Older browsers may not support selection on password inputs. */
+        }
+
+        input.focus({ preventScroll: true });
+      });
+    });
+
+    function fieldError(input, message) {
+      const field = input.closest(".field");
+      if (field) field.classList.add("has-error");
+
+      input.setAttribute("aria-invalid", "true");
+
+      const error = document.getElementById(`${input.id}-error`);
+      if (error) {
+        error.textContent = message;
+        error.hidden = false;
+      }
+    }
+
+    function clearFieldError(input) {
+      const field = input.closest(".field");
+      if (field) field.classList.remove("has-error");
+
+      input.removeAttribute("aria-invalid");
+
+      const error = document.getElementById(`${input.id}-error`);
+      if (error) {
+        error.textContent = "";
+        error.hidden = true;
+      }
+    }
+
+    function showAlert(alert, type, message) {
+      alert.className = `alert alert-${type}`;
+      alert.querySelector(".alert-text").textContent = message;
+      alert.hidden = false;
+    }
+
+    function hideAlert(alert) {
+      alert.hidden = true;
+    }
+
+    function setLoading(button, isLoading, loadingText) {
+      const label = button.querySelector(".btn-label");
+      const spinner = button.querySelector(".spinner");
+
+      button.disabled = isLoading;
+      spinner.hidden = !isLoading;
+
+      if (isLoading) {
+        button.dataset.originalLabel = label.textContent;
+        label.textContent = loadingText || "Working";
+      } else if (button.dataset.originalLabel) {
+        label.textContent = button.dataset.originalLabel;
+      }
+    }
+
+    document.querySelectorAll(".page input").forEach((input) => {
+      input.addEventListener("input", () => clearFieldError(input));
+    });
+
+    function getPasswordChecks(value, current) {
+      return {
+        length: value.length >= 8 && value.length <= 72,
+        upper: /[A-Z]/.test(value),
+        lower: /[a-z]/.test(value),
+        number: /\d/.test(value),
+        special: /[^A-Za-z0-9]/.test(value),
+        different: Boolean(value) && Boolean(current) && value !== current,
+      };
+    }
+
+    function updatePasswordUI() {
+      const checks = getPasswordChecks(changeNew.value, changeCurrent.value);
+
+      Object.keys(checks).forEach((rule) => {
+        const item = document.querySelector(`#password-rules li[data-rule="${rule}"]`);
+        if (item) item.classList.toggle("is-met", checks[rule]);
+      });
+
+      const score = ["length", "upper", "lower", "number", "special"].reduce(
+        (total, rule) => total + (checks[rule] ? 1 : 0),
+        0
+      );
+
+      strength.dataset.score = String(score);
+
+      const labels = [
+        "Use a strong, unique password.",
+        "Too weak",
+        "Weak",
+        "Fair",
+        "Strong",
+        "Very strong",
+      ];
+
+      strengthLabel.textContent = changeNew.value
+        ? labels[Math.max(score, 1)]
+        : labels[0];
+
+      return checks;
+    }
+
+    changeCurrent.addEventListener("input", updatePasswordUI);
+    changeNew.addEventListener("input", updatePasswordUI);
+    changeConfirm.addEventListener("input", () => {
+      if (!changeConfirm.value || changeConfirm.value === changeNew.value) {
+        clearFieldError(changeConfirm);
+      }
+    });
+
+    loginForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      hideAlert(loginAlert);
+      clearFieldError(loginEmail);
+      clearFieldError(loginPassword);
+
+      const email = loginEmail.value.trim();
+      const password = loginPassword.value;
+      let firstInvalid = null;
+
+      if (!email) {
+        fieldError(loginEmail, "Email address is required.");
+        firstInvalid = loginEmail;
+      } else if (!EMAIL_RE.test(email)) {
+        fieldError(loginEmail, "Enter a valid email address.");
+        if (!firstInvalid) firstInvalid = loginEmail;
+      }
+
+      if (!password) {
+        fieldError(loginPassword, "Password is required.");
+        if (!firstInvalid) firstInvalid = loginPassword;
+      }
+
+      if (firstInvalid) {
+        firstInvalid.focus();
+        return;
+      }
+
+      setLoading(loginSubmit, true, "Signing in");
+
+      window.setTimeout(() => {
+        setLoading(loginSubmit, false);
+
+        const normalizedEmail = email.toLowerCase();
+
+        if (normalizedEmail.startsWith("inactive@")) {
+          showAlert(
+            loginAlert,
+            "error",
+            "This account is inactive. Contact your IT administrator."
+          );
+          return;
+        }
+
+        if (password.length < 8) {
+          showAlert(loginAlert, "error", "Email or password is incorrect.");
+          return;
+        }
+
+        if (normalizedEmail.startsWith("initial@")) {
+          showAlert(
+            loginAlert,
+            "info",
+            "Initial password detected. You must change it before continuing."
+          );
+
+          loginForm.reset();
+
+          window.setTimeout(() => {
+            changeEmail.value = normalizedEmail;
+            location.hash = "#/change-password";
+            showPage("#/change-password", { focus: true });
+            showAlert(
+              changeAlert,
+              "info",
+              "Choose a new password to activate your account."
+            );
+          }, 1000);
+
+          return;
+        }
+
+        showAlert(loginAlert, "success", "Signed in successfully.");
+        loginForm.reset();
+      }, 900);
+    });
+
+    changeForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      hideAlert(changeAlert);
+      clearFieldError(changeEmail);
+      clearFieldError(changeCurrent);
+      clearFieldError(changeNew);
+      clearFieldError(changeConfirm);
+
+      const email = changeEmail.value.trim();
+      const current = changeCurrent.value;
+      const next = changeNew.value;
+      const confirm = changeConfirm.value;
+
+      let firstInvalid = null;
+
+      if (!email) {
+        fieldError(changeEmail, "Email address is required.");
+        firstInvalid = changeEmail;
+      } else if (!EMAIL_RE.test(email)) {
+        fieldError(changeEmail, "Enter a valid email address.");
+        if (!firstInvalid) firstInvalid = changeEmail;
+      }
+
+      if (!current) {
+        fieldError(changeCurrent, "Current or temporary password is required.");
+        if (!firstInvalid) firstInvalid = changeCurrent;
+      }
+
+      const checks = updatePasswordUI();
+
+      if (!next) {
+        fieldError(changeNew, "New password is required.");
+        if (!firstInvalid) firstInvalid = changeNew;
+      } else if (next === current) {
+        fieldError(changeNew, "New password must be different from the current password.");
+        if (!firstInvalid) firstInvalid = changeNew;
+      } else if (!Object.values(checks).every(Boolean)) {
+        fieldError(changeNew, "New password does not meet all requirements.");
+        if (!firstInvalid) firstInvalid = changeNew;
+      }
+
+      if (!confirm) {
+        fieldError(changeConfirm, "Confirm your new password.");
+        if (!firstInvalid) firstInvalid = changeConfirm;
+      } else if (confirm !== next) {
+        fieldError(changeConfirm, "Passwords do not match.");
+        if (!firstInvalid) firstInvalid = changeConfirm;
+      }
+
+      if (firstInvalid) {
+        firstInvalid.focus();
+        return;
+      }
+
+      setLoading(changeSubmit, true, "Updating");
+
+      window.setTimeout(() => {
+        setLoading(changeSubmit, false);
+
+        showAlert(changeAlert, "success", "Password changed successfully.");
+        changeForm.reset();
+        updatePasswordUI();
+
+        window.setTimeout(() => {
+          location.hash = "#/login";
+          showPage("#/login", { focus: true });
+          showAlert(
+            loginAlert,
+            "success",
+            "Your password has been changed. Sign in with your new password."
+          );
+        }, 1200);
+      }, 1000);
+    });
+
+    updatePasswordUI();
+    showPage(location.hash || "#/login");
+  </script>
+</body>
+</html>
