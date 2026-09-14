@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ApiError } from '../api';
 import { roleHome, useAuth } from '../auth/AuthContext';
@@ -48,7 +48,24 @@ const STRENGTH_LABELS = [
 
 export default function ChangePasswordPage({ first }: { first: boolean }) {
   const { user, changePassword } = useAuth();
-  const voluntary = !first || user?.mustChangePassword === false;
+  const liveVoluntary = !first || user?.mustChangePassword === false;
+  // Lock the forced/voluntary mode for the lifetime of this mount: the
+  // change-password success response flips user.mustChangePassword to false,
+  // which must not morph a forced form into the voluntary variant mid-flow.
+  const forcedAtMountRef = useRef<boolean | null>(null);
+  if (forcedAtMountRef.current === null) {
+    forcedAtMountRef.current = first && user?.mustChangePassword !== false;
+  }
+  const [justCompleted, setJustCompleted] = useState(false);
+  const voluntary = forcedAtMountRef.current ? false : liveVoluntary;
+  const navTimerRef = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (navTimerRef.current !== null) window.clearTimeout(navTimerRef.current);
+    },
+    [],
+  );
 
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
@@ -103,8 +120,9 @@ export default function ChangePasswordPage({ first }: { first: boolean }) {
         : { newPassword: next, confirmPassword: confirm };
       const updated = await changePassword(input);
       setBanner({ kind: 'success', text: 'Password saved. Continuing to your workspace…' });
+      if (!voluntary) setJustCompleted(true);
       const home = roleHome(updated.role).replace(/^#/, '');
-      window.setTimeout(() => {
+      navTimerRef.current = window.setTimeout(() => {
         window.location.hash = home;
       }, 800);
     } catch (err) {
@@ -131,6 +149,37 @@ export default function ChangePasswordPage({ first }: { first: boolean }) {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (justCompleted) {
+    return (
+      <main className="tok-auth-page">
+        <div className="tok-auth-card tok-auth-card--success">
+          <div className="tok-auth-brand">
+            <span className="cp-lock-badge" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.8" />
+                <path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                <circle cx="12" cy="15" r="1.4" fill="currentColor" />
+              </svg>
+            </span>
+            <div>
+              <h1 className="tok-auth-title" id="cp-title">
+                Choose a new password
+              </h1>
+              <p className="tok-auth-subtitle">Pick a strong, unique password for your account.</p>
+            </div>
+          </div>
+          <AuthAlert banner={banner} />
+          <div className="cp-success-loader" aria-hidden="true">
+            <span className="cp-success-spinner" />
+          </div>
+          <span className="cp-sr-only" role="status">
+            Continuing to your workspace
+          </span>
+        </div>
+      </main>
+    );
   }
 
   return (

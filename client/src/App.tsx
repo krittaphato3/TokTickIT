@@ -74,6 +74,19 @@ function NavLink({ href, active, label, onNavigate }: { href: string; active: bo
   );
 }
 
+function headerInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function headerRoleBadge(role: string): string {
+  if (role === 'IT_STAFF') return 'IT STAFF';
+  if (role === 'ADMIN' || role === 'ADMINISTRATOR') return 'ADMIN';
+  return 'REQUESTER';
+}
+
 function AppHeader({
   user,
   minimal,
@@ -177,6 +190,9 @@ function AppHeader({
     }
   }
 
+  const initials = headerInitials(user.name);
+  const roleBadge = headerRoleBadge(user.role);
+
   return (
     <header className="tok-navbar">
       <div className="container-fluid px-3 px-md-4 d-flex align-items-center flex-nowrap" style={{ minHeight: 56, paddingTop: '.625rem', paddingBottom: '.625rem', gap: '1.25rem' }}>
@@ -216,12 +232,11 @@ function AppHeader({
             </nav>
           )}
         </div>
-        {/* Right cluster — account menu for ALL account types. Mirrors the
-            approved mockup (AccountSelection_Demo): green person icon +
-            "Profile" label + caret toggles a menu with "Profile" (#/profile)
-            and "Sign out" (onLogout). In minimal (forced-change) mode the
-            Profile item is hidden (other routes are blocked by the gate) but
-            Sign out stays functional. */}
+        {/* Right cluster — account menu for ALL account types. Matches
+            docs/mockups/Profile-Mockup.html: avatar pill + menu card with
+            "View profile" (#/profile), disabled "Account settings" (Coming
+            soon), and danger "Sign out" (onLogout). Minimal mode keeps the
+            header + Sign out only. */}
         <div className="ms-auto d-flex align-items-center flex-shrink-0">
           {showMenu ? (
             <div className="tok-profile" ref={wrapRef}>
@@ -230,6 +245,7 @@ function AppHeader({
                 type="button"
                 className="tok-profile-btn"
                 title="Account"
+                aria-label={`Profile menu — ${user.name}`}
                 aria-haspopup="menu"
                 aria-expanded={open}
                 aria-controls="tok-profile-menu"
@@ -242,12 +258,10 @@ function AppHeader({
                   }
                 }}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="8" r="4" />
-                  <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
-                </svg>
-                <span>Profile</span>
-                <span className="tok-profile-caret" aria-hidden="true">▾</span>
+                <span className="tok-avatar tok-avatar--sm" aria-hidden="true">{initials}</span>
+                <span className="tok-profile-trigger-name">{user.name}</span>
+                <span className="visually-hidden" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>Profile</span>
+                <svg className="tok-profile-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9" /></svg>
               </button>
               {open ? (
                 <div
@@ -258,41 +272,70 @@ function AppHeader({
                   className="tok-profile-menu"
                   onKeyDown={onMenuKeyDown}
                 >
-                  <div className="tok-profile-head">Signed in as</div>
-                  <div className="tok-profile-account">{user.name} · {user.email}</div>
+                  <div className="tok-menu-header">
+                    <span className="tok-avatar tok-avatar--lg" aria-hidden="true">{initials}</span>
+                    <div className="tok-menu-identity">
+                      <p className="tok-menu-label">Signed in as</p>
+                      <p className="tok-menu-name">{user.name}</p>
+                      <p className="tok-menu-email" title={user.email}>{user.email}</p>
+                    </div>
+                    <span className="tok-menu-badge">{roleBadge}</span>
+                  </div>
                   {minimal ? null : (
+                    <>
+                      <div className="tok-menu-group" role="none">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          data-menuitem
+                          className="tok-menu-item"
+                          onClick={goProfile}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+                          <span>View profile</span>
+                        </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          data-menuitem
+                          className="tok-menu-item"
+                          disabled
+                          aria-disabled="true"
+                          title="Coming soon"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
+                          <span>Account settings</span>
+                        </button>
+                      </div>
+                      <div className="tok-menu-sep" role="none" />
+                    </>
+                  )}
+                  <div className="tok-menu-group" role="none">
                     <button
                       type="button"
                       role="menuitem"
                       data-menuitem
-                      className="tok-profile-item"
-                      onClick={goProfile}
+                      className="tok-menu-item tok-menu-item--danger"
+                      disabled={signingOut}
+                      aria-busy={signingOut || undefined}
+                      onClick={doSignOut}
                     >
-                      Profile
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
+                      <span>{signingOut ? 'Signing out…' : 'Sign out'}</span>
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    role="menuitem"
-                    data-menuitem
-                    className="tok-profile-item"
-                    disabled={signingOut}
-                    aria-busy={signingOut || undefined}
-                    onClick={doSignOut}
-                  >
-                    {signingOut ? 'Signing out…' : 'Sign out'}
-                  </button>
+                  </div>
+                  <div className="tok-menu-footer">
+                    <span aria-hidden="true"> </span>
+                    <span>© 2025 TokTickit</span>
+                  </div>
                 </div>
               ) : null}
             </div>
           ) : (
             <span className="tok-profile-btn" aria-disabled="true" title="Profile">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="12" cy="8" r="4" />
-                <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
-              </svg>
-              <span>Profile</span>
-              <span className="tok-profile-caret" aria-hidden="true">▾</span>
+              <span className="tok-avatar tok-avatar--sm" aria-hidden="true">{initials}</span>
+              <span className="tok-profile-trigger-name">{user.name}</span>
+              <svg className="tok-profile-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9" /></svg>
             </span>
           )}
         </div>

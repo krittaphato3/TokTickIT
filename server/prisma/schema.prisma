@@ -112,6 +112,7 @@ model Ticket {
   category     Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   relatedSystem RelatedSystem @relation(fields: [relatedSystemId], references: [id], onDelete: Restrict)
   attachments  Attachment[]
+  attachmentEvents AttachmentEvent[]
 
   @@index([requesterId, createdAt(sort: Desc)])
   @@index([categoryId])
@@ -129,12 +130,36 @@ model Attachment {
   storedName String   @unique
   mimeType   String
   sizeBytes  Int
+  sha256     String?
+  removeReason String?
+  removeNote   String?
   uploadedAt DateTime @default(now())
   removedAt  DateTime?
 
   ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@index([ticketId])
+}
+
+model AttachmentEvent {
+  id           Int      @id @default(autoincrement())
+  ticketId     Int
+  attachmentId Int?
+  type         String
+  actorId      Int?
+  actorName    String
+  fileName     String
+  mimeType     String
+  sizeBytes    Int
+  sha256       String?
+  reason       String?
+  note         String?
+  createdAt    DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@index([ticketId, createdAt(sort: Desc)])
 }
 
 model RelatedSystem {

@@ -365,6 +365,37 @@ export interface AttachmentMeta {
   sizeBytes: number;
   uploadedAt: string;
   removedAt: string | null;
+  sha256?: string | null;
+  removeReason?: string | null;
+  removeNote?: string | null;
+}
+
+export type AttachmentEventType = 'UPLOAD' | 'REMOVE' | 'RESTORE' | 'DOWNLOAD';
+
+export interface AttachmentEventFile {
+  id: number | null;
+  name: string;
+  size: number;
+  mime: string;
+  sha: string | null;
+}
+
+export interface AttachmentEvent {
+  id: number;
+  type: AttachmentEventType | string;
+  at: string;
+  createdAt: string;
+  by: string;
+  actorName: string;
+  file: AttachmentEventFile;
+  reason?: string | null;
+  note?: string | null;
+  ref?: number | null;
+}
+
+export interface RemoveAttachmentOptions {
+  reasonCode?: string;
+  note?: string;
 }
 
 export interface TicketDetail extends Ticket {
@@ -399,15 +430,74 @@ export async function uploadAttachment(ticketNumber: string, file: File): Promis
   return body as AttachmentMeta;
 }
 
-export async function deleteAttachment(ticketNumber: string, attachmentId: number): Promise<AttachmentMeta> {
-  const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}/attachments/${attachmentId}`, {
+export async function deleteAttachment(
+  ticketNumber: string,
+  attachmentId: number,
+  options?: RemoveAttachmentOptions,
+): Promise<AttachmentMeta> {
+  const hasBody =
+    options !== undefined &&
+    (options.reasonCode !== undefined || options.note !== undefined);
+  const init: RequestInit = {
     method: 'DELETE',
+    credentials: 'include',
+    headers: { ...authHeaders(hasBody ? { 'Content-Type': 'application/json' } : {}, true) },
+  };
+  if (hasBody) {
+    const body: Record<string, string> = {};
+    if (options?.reasonCode !== undefined) body.reasonCode = options.reasonCode;
+    if (options?.note !== undefined) body.note = options.note;
+    init.body = JSON.stringify(body);
+  }
+  const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}/attachments/${attachmentId}`, init);
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as AttachmentMeta;
+}
+
+export async function restoreAttachment(ticketNumber: string, attachmentId: number): Promise<AttachmentMeta> {
+  const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}/attachments/${attachmentId}/restore`, {
+    method: 'POST',
     credentials: 'include',
     headers: { ...authHeaders({}, true) },
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new ApiError(response.status, body);
   return body as AttachmentMeta;
+}
+
+export async function getTicketEvents(ticketNumber: string): Promise<AttachmentEvent[]> {
+  const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}/events`, {
+    credentials: 'include',
+    headers: { ...authHeaders({}, true) },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as AttachmentEvent[];
+}
+
+export async function downloadAttachment(ticketNumber: string, attachmentId: number): Promise<Blob> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/api/tickets/${ticketNumber}/attachments/${attachmentId}/download`, {
+      credentials: 'include',
+    });
+  } catch {
+    throw new Error('Download failed: network error');
+  }
+  if (!response.ok) {
+    if (response.status === 401) throw new Error('Not authenticated — please sign in again.');
+    if (response.status === 403) throw new Error('Not allowed to download this file.');
+    let message = `Download failed with status ${response.status}`;
+    try {
+      const body = (await response.clone().json()) as { error?: string };
+      if (body && typeof body.error === 'string' && body.error) message = body.error;
+    } catch {
+      // non-JSON error body — keep status message
+    }
+    throw new Error(message);
+  }
+  return await response.blob();
 }
 
 export default API_URL;

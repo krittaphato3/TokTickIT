@@ -6,7 +6,9 @@ import {
   deleteAttachmentHandler,
   downloadAttachmentHandler,
   getTicketDetailHandler,
+  listAttachmentEventsHandler,
   listTicketsHandler,
+  restoreAttachmentHandler,
   uploadAttachmentHandler,
 } from '../controllers/tickets.controller.js';
 
@@ -45,3 +47,9 @@ ticketsRouter.get('/:ticketNumber/attachments/:attachmentId/download', downloadA
 
 // Soft-remove — DELETE /api/tickets/:ticketNumber/attachments/:attachmentId
 ticketsRouter.delete('/:ticketNumber/attachments/:attachmentId', deleteAttachmentHandler);
+
+// Restore — POST /api/tickets/:ticketNumber/attachments/:attachmentId/restore
+ticketsRouter.post('/:ticketNumber/attachments/:attachmentId/restore', restoreAttachmentHandler);
+
+// Audit ledger — GET /api/tickets/:ticketNumber/events (newest-first)
+ticketsRouter.get('/:ticketNumber/events', listAttachmentEventsHandler);

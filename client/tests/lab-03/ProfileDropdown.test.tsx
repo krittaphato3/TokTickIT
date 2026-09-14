@@ -1,13 +1,15 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../../src/App';
 import { sessionUser, stubAuthenticatedFetch } from '../helpers/auth';
 
-// Header Profile dropdown QOL: the Profile toggle opens an accessible menu
-// with "Profile" (#/profile) and "Sign out" (Shell.handleLogout). In the
-// mustChangePassword gate the header stays minimal but still exposes
-// Sign out (Profile item hidden since other routes are blocked).
+// Header Profile dropdown (docs/mockups/Profile-Mockup.html): the avatar pill
+// opens an accessible menu card with "View profile" (#/profile), disabled
+// "Account settings" (Coming soon), and danger "Sign out"
+// (Shell.handleLogout). In the mustChangePassword gate the header stays
+// minimal but still exposes Sign out (other items hidden since routes are
+// blocked). The card header shows SIGNED IN AS + name/email + real role badge.
 
 const USER = sessionUser();
 
@@ -36,16 +38,25 @@ async function openMenu() {
 }
 
 describe('Header Profile dropdown', () => {
-  it('opens a menu with Profile and Sign out items', async () => {
+  it('opens a menu with View profile, disabled Account settings, and Sign out', async () => {
     const { menu } = await openMenu();
     expect(menu).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /^profile$/i })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /sign out/i })).toBeInTheDocument();
+    const card = within(menu);
+    expect(card.getByText(/signed in as/i)).toBeInTheDocument();
+    expect(card.getByText(USER.name)).toBeInTheDocument();
+    expect(card.getByText(USER.email)).toBeInTheDocument();
+    expect(card.getByText('REQUESTER')).toBeInTheDocument();
+    expect(card.getByRole('menuitem', { name: /view profile/i })).toBeInTheDocument();
+    const settings = card.getByRole('menuitem', { name: /account settings/i });
+    expect(settings).toBeDisabled();
+    expect(settings).toHaveAttribute('title', 'Coming soon');
+    expect(card.getByRole('menuitem', { name: /sign out/i })).toBeInTheDocument();
+    expect(card.getByText('© 2025 TokTickit')).toBeInTheDocument();
   });
 
-  it('navigates to #/profile from the Profile menu item and closes the menu', async () => {
+  it('navigates to #/profile from the View profile menu item and closes the menu', async () => {
     await openMenu();
-    await userEvent.click(screen.getByRole('menuitem', { name: /^profile$/i }));
+    await userEvent.click(screen.getByRole('menuitem', { name: /view profile/i }));
     expect(window.location.hash).toBe('#/profile');
     expect(screen.getByRole('heading', { name: USER.name })).toBeInTheDocument();
     expect(screen.queryByRole('menu', { name: /account/i })).toBeNull();
@@ -88,7 +99,7 @@ describe('Header Profile dropdown', () => {
     expect(screen.queryByRole('menu', { name: /account/i })).toBeNull();
   });
 
-  it('exposes Sign out (without Profile) in the mustChangePassword gate', async () => {
+  it('exposes Sign out (without View profile / Account settings) in the mustChangePassword gate', async () => {
     cleanup();
     window.location.hash = '#/change-password?first=1';
     vi.unstubAllGlobals();
@@ -104,7 +115,8 @@ describe('Header Profile dropdown', () => {
     await userEvent.click(toggle);
     const menu = await screen.findByRole('menu', { name: /account/i });
     expect(menu).toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /^profile$/i })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: /view profile/i })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: /account settings/i })).toBeNull();
     expect(screen.getByRole('menuitem', { name: /sign out/i })).toBeInTheDocument();
   });
 

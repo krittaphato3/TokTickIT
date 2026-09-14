@@ -14,9 +14,16 @@ import {
   ensureAttachmentIdFormat,
   ensureTicketNumberFormat,
   getUploadsDir,
+  listAttachmentEvents,
+  recordAttachmentEvent,
+  removeAttachment,
   resolveOwnedTicket,
+  restoreAttachment,
+  toAttachmentDto,
   uploadAttachment,
+  validateRemoveBody,
   ALLOWED_MIME,
+  type AttachmentActor,
 } from '../services/attachment.service.js';
 import { NOT_AUTHENTICATED } from '../middleware/auth.js';
 
@@ -43,6 +50,12 @@ async function sessionRequesterId(
   warnOnUntrustedIdentity(req);
   const requester = await resolveSessionRequester(getPrisma(), user, opts);
   return requester.id;
+}
+
+function sessionActor(req: Request): AttachmentActor {
+  const user = req.auth?.user;
+  if (!user) throw new HttpError(401, NOT_AUTHENTICATED);
+  return { id: user.id, name: user.name || user.email };
 }
 
 export async function createTicketHandler(
@@ -116,15 +129,9 @@ export async function uploadAttachmentHandler(
     }
     // multer limit already checks 5MB; double-check for direct calls
     if (file.size > 5 * 1024 * 1024) throw new HttpError(413, 'File exceeds the 5 MB limit');
-    const row = await uploadAttachment(prisma, ticket.id, file);
-    res.status(201).json({
-      id: row.id,
-      fileName: row.fileName,
-      mimeType: row.mimeType,
-      sizeBytes: row.sizeBytes,
-      uploadedAt: row.uploadedAt,
-      removedAt: row.removedAt,
-    });
+    const actor = sessionActor(req);
+    const row = await uploadAttachment(prisma, ticket.id, file, actor);
+    res.status(201).json(toAttachmentDto(row));
   } catch (err) {
     // Multer fileSize limit
     if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
@@ -155,6 +162,22 @@ export async function downloadAttachmentHandler(
     if (att.removedAt) throw new HttpError(404, 'Attachment has been removed');
     const filePath = path.join(getUploadsDir(), att.storedName);
     if (!fs.existsSync(filePath)) throw new HttpError(404, 'Attachment not found');
+    // Audit the download without breaking the stream: failures are swallowed.
+    try {
+      const actor = sessionActor(req);
+      await recordAttachmentEvent(prisma, {
+        ticketId: ticket.id,
+        attachmentId: att.id,
+        type: 'DOWNLOAD',
+        actor,
+        fileName: att.fileName,
+        mimeType: att.mimeType,
+        sizeBytes: att.sizeBytes,
+        sha256: att.sha256,
+      });
+    } catch {
+      // never break streaming on audit failure
+    }
     res.setHeader('Content-Type', att.mimeType);
     res.setHeader('Content-Disposition', `attachment; filename="${att.fileName}"`);
     const stream = fs.createReadStream(filePath);
@@ -177,23 +200,56 @@ export async function deleteAttachmentHandler(
     ensureTicketNumberFormat(ticketNumber);
     const attachmentId = ensureAttachmentIdFormat(attachmentIdRaw);
     const ticket = await resolveOwnedTicket(prisma, requesterId, ticketNumber);
-    const att = await prisma.attachment.findFirst({
-      where: { id: attachmentId, ticketId: ticket.id },
-    });
-    if (!att) throw new HttpError(404, 'Attachment not found');
-    if (att.removedAt) throw new HttpError(404, 'Attachment has already been removed');
-    const updated = await prisma.attachment.update({
-      where: { id: attachmentId },
-      data: { removedAt: new Date() },
-    });
-    res.status(200).json({
-      id: updated.id,
-      fileName: updated.fileName,
-      mimeType: updated.mimeType,
-      sizeBytes: updated.sizeBytes,
-      uploadedAt: updated.uploadedAt,
-      removedAt: updated.removedAt,
-    });
+    const { reasonCode, note } = validateRemoveBody(req.body);
+    const actor = sessionActor(req);
+    const updated = await removeAttachment(
+      prisma,
+      ticket.id,
+      attachmentId,
+      actor,
+      reasonCode,
+      note,
+    );
+    res.status(200).json(toAttachmentDto(updated));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function restoreAttachmentHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const prisma = getPrisma();
+    const requesterId = await sessionRequesterId(req);
+    const ticketNumber = req.params.ticketNumber as string;
+    const attachmentIdRaw = req.params.attachmentId as string;
+    ensureTicketNumberFormat(ticketNumber);
+    const attachmentId = ensureAttachmentIdFormat(attachmentIdRaw);
+    const ticket = await resolveOwnedTicket(prisma, requesterId, ticketNumber);
+    const actor = sessionActor(req);
+    const updated = await restoreAttachment(prisma, ticket.id, attachmentId, actor);
+    res.status(200).json(toAttachmentDto(updated));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listAttachmentEventsHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const prisma = getPrisma();
+    const requesterId = await sessionRequesterId(req);
+    const ticketNumber = req.params.ticketNumber as string;
+    ensureTicketNumberFormat(ticketNumber);
+    const ticket = await resolveOwnedTicket(prisma, requesterId, ticketNumber);
+    const events = await listAttachmentEvents(prisma, ticket.id);
+    res.status(200).json(events);
   } catch (err) {
     next(err);
   }
