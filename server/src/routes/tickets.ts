@@ -11,6 +11,11 @@ import {
   restoreAttachmentHandler,
   uploadAttachmentHandler,
 } from '../controllers/tickets.controller.js';
+import {
+  createCommentHandler,
+  listCommentsHandler,
+  requesterStatusChangeHandler,
+} from '../controllers/comments.controller.js';
 
 export const ticketsRouter = Router();
 
@@ -53,3 +58,14 @@ ticketsRouter.post('/:ticketNumber/attachments/:attachmentId/restore', restoreAt
 
 // Audit ledger — GET /api/tickets/:ticketNumber/events (newest-first)
 ticketsRouter.get('/:ticketNumber/events', listAttachmentEventsHandler);
+
+// Lab 3 §7 — Public Comments (BR-04/BR-14). Requester: own ticket only
+// (masked 404 otherwise); staff/admin: any ticket via the alias routes.
+// Append-only: no PATCH/DELETE routes exist for comments.
+ticketsRouter.get('/:ticketNumber/comments', listCommentsHandler);
+ticketsRouter.post('/:ticketNumber/comments', createCommentHandler);
+
+// Lab 3 §7.3 — requester-limited status change: REOPENED from RESOLVED/CLOSED
+// on the requester's own ticket only (BR-05 exception). Requester attempts to
+// set RESOLVED/CLOSED return 403 "Only IT Staff may resolve or close tickets".
+ticketsRouter.patch('/:ticketNumber/status', requesterStatusChangeHandler);

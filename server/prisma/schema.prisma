@@ -65,6 +65,7 @@ model User {
   updatedAt           DateTime  @updatedAt
   sessions            Session[]
   ownedTickets        Ticket[]  @relation("TicketOwner")
+  publicComments      PublicComment[] @relation("PublicCommentAuthor")
 
   @@index([role, isActive])
   @@index([createdAt(sort: Desc)])
@@ -113,6 +114,7 @@ model Ticket {
   relatedSystem RelatedSystem @relation(fields: [relatedSystemId], references: [id], onDelete: Restrict)
   attachments  Attachment[]
   attachmentEvents AttachmentEvent[]
+  publicComments  PublicComment[]
 
   @@index([requesterId, createdAt(sort: Desc)])
   @@index([categoryId])
@@ -121,6 +123,24 @@ model Ticket {
   @@index([ownerId])
   @@index([status, createdAt(sort: Desc)])
   @@index([updatedAt(sort: Desc)])
+}
+
+// Lab 3 Public Comments (FR-08/BR-14). Append-only: no update/delete paths
+// exist in code or migrations. `body` stores raw text (1..2000 trimmed chars);
+// the client escapes HTML on render. `authorId`/`createdAt` are server-derived
+// (BR-14) and never accepted from the client.
+model PublicComment {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  authorId  Int
+  body      String   @db.VarChar(2000)
+  appearsResolved Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User   @relation("PublicCommentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([ticketId, createdAt(sort: Asc)])
 }
 
 model Attachment {

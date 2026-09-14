@@ -215,6 +215,17 @@ Scope is FR-01..FR-04, BR-01, BR-02, BR-06..BR-09, AC-01, AC-02, AC-05, AC-06, A
 - **Seeded-user policy:** local-dev only credentials table in the seed script header (never production); idempotent upsert on `email` (lowercased, trimmed); quotas 4 active + 1 inactive Requester, 3 active + 1 inactive IT Staff, 1 active Administrator; seeded rows start with `mustChangePassword=true` and a documented initial password.
 - **Test traceability (this increment):** `T-AUTH-01..05`, `T-PWD-01`, `T-SESS-01`, `T-GATE-01`, `T-MIG-01` → AC-01, AC-02, AC-05, AC-06, AC-18. Implemented in `server/tests/lab-03/auth.api.test.ts` (see `tests.md` §2 Final column).
 
+### 7.8 Requester-regression increment (issue #41 — `feature/lab3-requester-regression`)
+
+Scope is FR-05, FR-08, FR-09 (requester-masked half), FR-10; BR-03, BR-04, BR-05, BR-11, BR-14, BR-17; AC-03, AC-04 (masked half), AC-07, AC-12, AC-13 (masked half), AC-14. Staff queue/detail and admin screens stay placeholder references owned by other issues.
+
+- **PublicComment model (§7.3 concretized):** `id`, `ticketId` (cascade), `authorId` → `User` (restrict), `body` VarChar(2000), `appearsResolved` Boolean default false, `createdAt`; index `(ticketId, createdAt asc)`. Append-only — no update/delete code paths exist. One migration: `20260914143757_lab3_public_comments`. No `InternalNote` table yet — that lands with the staff detail issue; requester-facing masking is enforced by route absence and re-tested when the routes appear.
+- **Comment surface (§12, requester rows):** `GET|POST /api/tickets/:ticketNumber/comments` registered on the tickets router behind the global session/CSRF gates. Requester scope resolves ownership through the same `resolveSessionRequester` email-link path as the ticket endpoints; absent and foreign tickets are the identical masked 404 (BR-11). Staff/admin may comment on any ticket via the requester routes in this increment; the §7 staff aliases arrive with the staff detail issue.
+- **Appears-resolved mechanics (FR-10/BR-05):** `POST …/comments` with `{ body, appearsResolved: true }` — Requester authors only (other roles' hints are ignored); flagged comment + `Ticket.appearsResolvedAt` written in one transaction; status never changes; a second active signal → 409 until a staff status change clears the episode.
+- **Requester status route (§7.3):** `PATCH /api/tickets/:ticketNumber/status` implemented — REOPENED from RESOLVED/CLOSED only on own tickets; every other target (including RESOLVED/CLOSED) → 403 `Only IT Staff may resolve or close tickets`. No requester UI calls it in this issue; enforced server-side regardless.
+- **Selector removal:** `GET /api/requesters` deleted (falls through to default 404); the Lab 2 selector-data test re-pinned to the removal contract (api-spec §10). Client never sent requester ids since the auth increment; the requester detail screen now renders the live thread and signal per ui-spec §5 (Lab 2 mock tabs and Resolution Summary removed).
+- **Test traceability (this increment):** T-AUTHZ-02/03/05, T-REQ-01, T-STAT-04, T-MIG-02 → `server/tests/lab-03/authorization.api.test.ts`; T-COMM-01..04, T-STAT-03 → `server/tests/lab-03/comments-notes.api.test.ts`; T-REQ-02, T-COMM-05 (requester half), T-STAT-03 (client half) → `client/tests/lab-03/RequesterTicketDetail.test.tsx` (see `tests.md` §2 Final column).
+
 ## 8. API Contract
 
 Full paths, shapes, validation tables, and examples live in [`api-spec.md`](./api-spec.md). Summary of the normative surface:
