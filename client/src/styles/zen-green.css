@@ -59,6 +59,8 @@ body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:va
 .tok-profile-item{display:block;width:100%;text-align:left;margin-top:.375rem;padding:.5625rem .625rem;border:none;
   border-radius:.5rem;background:none;color:var(--tok-primary);font-weight:600;cursor:pointer}
 .tok-profile-item:hover{background:var(--tok-primary-soft)}
+.tok-profile-item:focus-visible{outline:none;background:var(--tok-primary-soft);box-shadow:var(--tok-ring)}
+.tok-profile-item:disabled{opacity:.6;cursor:wait}
 
 /* ============ PROFILE PAGE (#/profile) — shared by ALL account types ============ */
 .tok-profile-page .tok-profile-card{max-width:760px;margin:0 auto;padding:2rem}
@@ -362,6 +364,23 @@ body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:va
 @media (max-width:767.98px){
   .tok-card.tok-selection-card{padding:24px 18px 0 !important}
 }
+
+/* ============ SIGN-OUT TOAST (bottom-right, near system clock) ============ */
+.tok-toast-stack{position:fixed;right:16px;bottom:16px;z-index:1000;display:flex;flex-direction:column;gap:8px;max-width:min(360px,calc(100vw - 32px))}
+.tok-toast{display:flex;align-items:center;gap:10px;background:var(--tok-surface);color:var(--tok-text);
+  border:1px solid rgba(30,122,70,.3);border-left:4px solid var(--tok-success);border-radius:12px;
+  padding:12px 10px 12px 14px;box-shadow:0 12px 32px -12px rgba(30,42,37,.35),0 2px 6px rgba(30,42,37,.12);
+  font-size:.875rem;line-height:1.45;animation:tok-toast-in 240ms cubic-bezier(.2,.8,.2,1)}
+.tok-toast-success{background:#fff}
+.tok-toast-icon{width:24px;height:24px;flex:none;display:grid;place-items:center;border-radius:50%;
+  background:var(--tok-primary-soft);color:var(--tok-success);font-weight:800;font-size:.875rem}
+.tok-toast-text{flex:1;min-width:0;font-weight:600;color:var(--tok-success)}
+.tok-toast-close{flex:none;min-width:32px;min-height:32px;display:grid;place-items:center;border:0;border-radius:8px;
+  background:transparent;color:var(--tok-text-muted);font-size:1.125rem;line-height:1;cursor:pointer}
+.tok-toast-close:hover{background:var(--tok-primary-soft);color:var(--tok-text)}
+.tok-toast-close:focus-visible{outline:none;box-shadow:var(--tok-ring)}
+@keyframes tok-toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.tok-toast{animation:none}}
 
 /* ============ LAB 3 AUTH (login / change-password, ui-spec §3-§4) ============ */
 .tok-auth-page{width:100%;min-height:calc(100vh - 106px);align-items:flex-start !important;padding:32px 16px;

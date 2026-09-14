@@ -101,15 +101,16 @@ describe('Create Ticket screen', () => {
     // title, so scope to the link role).
     expect(screen.getByRole('link', { name: 'TokTickIT' })).toBeInTheDocument();
     // Lab 3: the Development Requester selector is gone — the header shows a
-    // single "Profile" entry for every account type (identity details moved
-    // to the Profile page at #/profile).
+    // single "Profile" account-menu toggle for every account type (identity
+    // details moved to the Profile page at #/profile, reachable from the
+    // menu's "Profile" item).
     expect(
       screen.queryByText('Testing only — not real authentication'),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute(
-      'href',
-      '#/profile',
-    );
+    const profileToggle = screen.getByRole('button', { name: /profile/i });
+    expect(profileToggle).toHaveClass('tok-profile-btn');
+    expect(profileToggle).toHaveAttribute('aria-haspopup', 'menu');
+    expect(profileToggle).toHaveAttribute('aria-expanded', 'false');
 
     // Active nav pill lands on New Ticket after navigating.
     await userEvent.click(screen.getByRole('link', { name: 'New Ticket' }));

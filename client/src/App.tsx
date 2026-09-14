@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AuthProvider, roleHome, useAuth } from './auth/AuthContext';
 import type { AuthUser } from './auth/AuthContext';
 import ChangePasswordPage from './components/ChangePasswordPage';
@@ -79,16 +79,104 @@ function AppHeader({
   minimal,
   activeRoute,
   onNavigate,
+  onLogout,
 }: {
   user: AuthUser;
   minimal: boolean;
   activeRoute: string;
   onNavigate: (hash: string) => void;
+  onLogout?: () => Promise<void>;
 }) {
   const home = roleHome(user.role);
   const isRequesterLike = user.role === 'REQUESTER';
   const isStaff = user.role === 'IT_STAFF';
   const isAdmin = user.role === 'ADMIN' || user.role === 'ADMINISTRATOR';
+  // The dropdown is available in all authenticated modes including the
+  // forced-change flow: minimal mode hides primary nav + the Profile menu
+  // item (other routes are blocked by the gate), but Sign out stays
+  // functional since POST /api/auth/logout is allowlisted during the gate.
+  const showMenu = typeof onLogout === 'function';
+  const [open, setOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const toggleRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: PointerEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setOpen(false);
+        toggleRef.current?.focus();
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open ]);
+
+  function focusMenuItem(index: number) {
+    const items = Array.from(
+      menuRef.current?.querySelectorAll<HTMLElement>('[data-menuitem]:not(:disabled)') ?? [],
+    );
+    if (items.length === 0) return;
+    const next = items[((index % items.length) + items.length) % items.length];
+    next?.focus();
+  }
+
+  function focusFirstMenuItem() {
+    focusMenuItem(0);
+  }
+
+  function onMenuKeyDown(e: React.KeyboardEvent) {
+    const items = Array.from(
+      menuRef.current?.querySelectorAll<HTMLElement>('[data-menuitem]:not(:disabled)') ?? [],
+    );
+    const current = items.indexOf(document.activeElement as HTMLElement);
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      focusMenuItem(current + 1);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      focusMenuItem(current <= 0 ? items.length - 1 : current - 1);
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      focusMenuItem(0);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      focusMenuItem(items.length - 1);
+    } else if (e.key === 'Tab') {
+      setOpen(false);
+    }
+  }
+
+  function goProfile() {
+    setOpen(false);
+    onNavigate('#/profile');
+  }
+
+  async function doSignOut() {
+    if (signingOut || typeof onLogout !== 'function') return;
+    setSigningOut(true);
+    try {
+      await onLogout();
+    } finally {
+      // Shell unmounts the header on logout; guard state writes in case the
+      // component is still mounted (e.g. a failed request that kept session).
+      setSigningOut(false);
+      setOpen(false);
+    }
+  }
+
   return (
     <header className="tok-navbar">
       <div className="container-fluid px-3 px-md-4 d-flex align-items-center flex-nowrap" style={{ minHeight: 56, paddingTop: '.625rem', paddingBottom: '.625rem', gap: '1.25rem' }}>
@@ -128,27 +216,85 @@ function AppHeader({
             </nav>
           )}
         </div>
-        {/* Right cluster — single "Profile" entry for ALL account types.
-            Mirrors the approved mockup (AccountSelection_Demo): green person
-            icon + "Profile" label + caret. Navigates to the Profile page
-            (#/profile); it does NOT open a dropdown or sign out. */}
+        {/* Right cluster — account menu for ALL account types. Mirrors the
+            approved mockup (AccountSelection_Demo): green person icon +
+            "Profile" label + caret toggles a menu with "Profile" (#/profile)
+            and "Sign out" (onLogout). In minimal (forced-change) mode the
+            Profile item is hidden (other routes are blocked by the gate) but
+            Sign out stays functional. */}
         <div className="ms-auto d-flex align-items-center flex-shrink-0">
-          <a
-            className="tok-profile-btn"
-            href="#/profile"
-            title="Profile"
-            onClick={(e) => {
-              e.preventDefault();
-              onNavigate('#/profile');
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <circle cx="12" cy="8" r="4" />
-              <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
-            </svg>
-            <span>Profile</span>
-            <span className="tok-profile-caret" aria-hidden="true">▾</span>
-          </a>
+          {showMenu ? (
+            <div className="tok-profile" ref={wrapRef}>
+              <button
+                ref={toggleRef}
+                type="button"
+                className="tok-profile-btn"
+                title="Account"
+                aria-haspopup="menu"
+                aria-expanded={open}
+                aria-controls="tok-profile-menu"
+                onClick={() => setOpen((v) => !v)}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowDown' && !open) {
+                    e.preventDefault();
+                    setOpen(true);
+                    requestAnimationFrame(() => focusFirstMenuItem());
+                  }
+                }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
+                </svg>
+                <span>Profile</span>
+                <span className="tok-profile-caret" aria-hidden="true">▾</span>
+              </button>
+              {open ? (
+                <div
+                  ref={menuRef}
+                  id="tok-profile-menu"
+                  role="menu"
+                  aria-label="Account"
+                  className="tok-profile-menu"
+                  onKeyDown={onMenuKeyDown}
+                >
+                  <div className="tok-profile-head">Signed in as</div>
+                  <div className="tok-profile-account">{user.name} · {user.email}</div>
+                  {minimal ? null : (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      data-menuitem
+                      className="tok-profile-item"
+                      onClick={goProfile}
+                    >
+                      Profile
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    data-menuitem
+                    className="tok-profile-item"
+                    disabled={signingOut}
+                    aria-busy={signingOut || undefined}
+                    onClick={doSignOut}
+                  >
+                    {signingOut ? 'Signing out…' : 'Sign out'}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <span className="tok-profile-btn" aria-disabled="true" title="Profile">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="8" r="4" />
+                <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
+              </svg>
+              <span>Profile</span>
+              <span className="tok-profile-caret" aria-hidden="true">▾</span>
+            </span>
+          )}
         </div>
       </div>
     </header>
@@ -244,14 +390,35 @@ function AdminPlaceholder() {
   );
 }
 
+function SignOutToast({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="tok-toast-stack">
+      <div className="tok-toast tok-toast-success" role="status" aria-live="polite">
+        <span className="tok-toast-icon" aria-hidden="true">
+          ✓
+        </span>
+        <span className="tok-toast-text">You have been signed out.</span>
+        <button
+          type="button"
+          className="tok-toast-close"
+          aria-label="Dismiss notification"
+          onClick={onClose}
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function Shell() {
   const { user, loading, logout } = useAuth();
   const [route, setRoute] = useState<Route>(() => parseRoute(window.location.hash));
   const [loggingOut, setLoggingOut] = useState(false);
-  const [signedOut, setSignedOut] = useState(false);
+  const [signedOutToast, setSignedOutToast] = useState(false);
 
   function navigate(hash: string) {
-    setSignedOut(false);
+    setSignedOutToast(false);
     setRoute(parseRoute(hash));
     if (window.location.hash === hash) {
       setRoute(parseRoute(hash));
@@ -262,12 +429,23 @@ function Shell() {
 
   useEffect(() => {
     const onHashChange = () => {
-      setSignedOut(false);
-      setRoute(parseRoute(window.location.hash));
+      const next = parseRoute(window.location.hash);
+      // Preserve the signed-out toast across the logout redirect to #/login
+      // (the hash assignment in handleLogout would otherwise wipe it via this
+      // listener); any other navigation clears it.
+      setSignedOutToast((prev) => (prev && next.name === 'login' ? prev : false));
+      setRoute(next);
     };
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
+
+  // Auto-dismiss the toast after ~4s so no stale notification lingers.
+  useEffect(() => {
+    if (!signedOutToast) return;
+    const t = window.setTimeout(() => setSignedOutToast(false), 4000);
+    return () => window.clearTimeout(t);
+  }, [signedOutToast]);
 
   // Legacy Lab 2 hash redirects (ui-spec §2.3).
   useEffect(() => {
@@ -291,7 +469,7 @@ function Shell() {
       // Even if the API call fails, session state is cleared client-side.
     } finally {
       setLoggingOut(false);
-      setSignedOut(true);
+      setSignedOutToast(true);
       window.location.hash = '/login';
       setRoute({ name: 'login' });
     }
@@ -335,8 +513,11 @@ function Shell() {
         {route.name === 'forgot-password' ? (
           <ForgotPasswordPage />
         ) : (
-          <LoginPage notice={signedOut ? 'You have been signed out.' : null} />
+          <LoginPage notice={null} />
         )}
+        {signedOutToast && route.name !== 'forgot-password' ? (
+          <SignOutToast onClose={() => setSignedOutToast(false)} />
+        ) : null}
         <footer className="tok-app-footer">
           <span>TokTickIT — Real Auth + Staff/Admin</span>
           <span>Zen Green Theme · Lab 3</span>
@@ -364,7 +545,7 @@ function Shell() {
     }
     return (
       <div className="tt-app">
-        <AppHeader user={user} minimal activeRoute="change-password" onNavigate={navigate} />
+        <AppHeader user={user} minimal activeRoute="change-password" onNavigate={navigate} onLogout={handleLogout} />
         <ChangePasswordPage first />
         <footer className="tok-app-footer">
           <span>TokTickIT — Real Auth + Staff/Admin</span>
@@ -410,7 +591,10 @@ function Shell() {
   return (
     <div className="tt-app">
       <a href="#main-content" className="visually-hidden-focusable">Skip to content</a>
-      <AppHeader user={user} minimal={false} activeRoute={activeNav} onNavigate={navigate} />
+      {/* Forced-change users always get the minimal header (no nav, Profile
+          menu item hidden) so the change-password flow cannot be bypassed —
+          Sign out stays available via the account menu. */}
+      <AppHeader user={user} minimal={user.mustChangePassword} activeRoute={activeNav} onNavigate={navigate} onLogout={handleLogout} />
       <div id="main-content">{body}</div>
       <footer className="tok-app-footer">
         <span>TokTickIT — Real Auth + Staff/Admin</span>

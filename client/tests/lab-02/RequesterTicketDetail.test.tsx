@@ -86,12 +86,14 @@ describe('RequesterTicketDetail', () => {
     render(<App />);
     expect(await screen.findByText('No description provided')).toBeInTheDocument();
     // BR-03: identity comes from the session — the header shows the single
-    // "Profile" entry for all account types (name/role details live on the
-    // Profile page); the Development Requester selector is gone.
+    // "Profile" account-menu toggle for all account types (name/role details
+    // live on the Profile page, reachable from the menu); the Development
+    // Requester selector is gone.
     const navbar = document.querySelector('.tok-navbar') as HTMLElement;
     expect(navbar).not.toBeNull();
     expect(navbar.textContent).toContain('Profile');
-    expect(navbar.querySelector('a[href="#/profile"]')).not.toBeNull();
+    expect(navbar.querySelector('.tok-profile-btn[aria-haspopup="menu"]')).not.toBeNull();
+    expect(navbar.querySelector('a[href="#/profile"]')).toBeNull();
     expect(screen.queryByText('Testing only — not real authentication')).not.toBeInTheDocument();
     expect(document.querySelector('#dev-requester-select')).toBeNull();
   });
