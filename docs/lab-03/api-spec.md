@@ -794,12 +794,32 @@ transition. Formal `RESOLVED`/`CLOSED` remains staff-only (§6.4). Empty body �
 `400 Validation failed → { field: "body", message: "Comment must not be empty" }`; over 2000 chars →
 `400 … { field: "body", message: "Comment must be at most 2000 characters" }`.
 
+**Implemented mechanics (issue #41):** the `appearsResolved` hint is honored only for REQUESTER
+authors — staff/admin comments silently ignore it (the signal belongs to the requester, FR-10).
+When accepted, the flagged comment and the ticket's `appearsResolvedAt` stamp are written in one
+transaction; `Ticket.status` is never touched. A second active signal (one already stamped and not
+cleared by a staff status change) returns `409 { "error": "Problem-appears-resolved was already
+indicated for this ticket" }` while plain comments keep working. The length limit applies to the
+trimmed body. The comment response shape additionally carries `"appearsResolved": false|true`.
+`GET /api/tickets/:number` (§4.3) responses include `appearsResolvedAt` (null when absent) so the
+requester detail screen can render the pale-green indication banner after reload.
+
+**Implementation status:** §7.1/§7.2 requester-facing routes ship in issue #41
+(`GET|POST /api/tickets/:number/comments` in the tickets router; author and createdAt
+server-derived; append-only — no PATCH/DELETE comment routes exist). The
+`/api/staff/tickets/:number/comments` aliases ship with the staff detail issue.
+
 ### 7.3 `PATCH /api/tickets/:number/status` — Limited requester transition (own ticket)
+
+> **Implementation status (issue #41):** route implemented and enforce-checked; the §7.3 route
+> is registered but no requester UI calls it in this issue (the BR-05 comment signal is the
+> only requester surface in scope). Behavior below is the enforced contract.
 
 Requires session + CSRF; REQUESTER on own ticket only. Allowed: `CLOSED→REOPENED`,
 `RESOLVED→REOPENED` (re-engage). Body `{ "status": "REOPENED" }`. Success `200` returns
 `{ id, ticketNumber, status, updatedAt }`. Any other target, including `RESOLVED` or `CLOSED`,
-→ `403 { "error": "Only IT Staff may resolve or close tickets" }`. This REOPEN-only transition is the sole BR-05 exception to staff-only resolution.
+→ `403 { "error": "Only IT Staff may resolve or close tickets" }`. Reopening from any other
+status → `409`. This REOPEN-only transition is the sole BR-05 exception to staff-only resolution.
 
 ---
 

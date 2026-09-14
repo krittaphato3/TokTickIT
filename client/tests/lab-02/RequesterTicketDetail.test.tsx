@@ -21,9 +21,20 @@ const TICKET = {
   attachments: [
     { id: 10, fileName: 'shot.png', mimeType: 'image/png', sizeBytes: 1024, uploadedAt: '2026-08-18T09:45:00.000Z', removedAt: null },
   ],
+  appearsResolvedAt: null,
   createdAt: '2026-08-18T09:30:00.000Z',
   updatedAt: '2026-08-18T09:31:00.000Z',
 };
+
+const COMMENTS = [
+  {
+    id: 11,
+    body: 'First comment.',
+    author: { id: 1, name: 'Dev User Alpha', role: 'REQUESTER' },
+    appearsResolved: false,
+    createdAt: '2026-08-19T09:00:00.000Z',
+  },
+];
 
 function ok(body: unknown) {
   return { ok: true, status: 200, json: async () => body } as Response;
@@ -33,6 +44,7 @@ describe('RequesterTicketDetail', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.stubGlobal('fetch', stubAuthenticatedFetch(USER, (url) => {
+      if (url.includes('/api/tickets/TTK-2026-000042/comments')) return ok(COMMENTS);
       if (url.includes('/api/tickets/TTK-2026-000042')) return ok(TICKET);
       return ok({});
     }));
@@ -66,19 +78,23 @@ describe('RequesterTicketDetail', () => {
     expect(screen.getByText('Ticket Owner')).toBeInTheDocument();
     expect(screen.getByText('Unassigned')).toBeInTheDocument();
     expect(screen.getAllByText('Dev User Alpha').length).toBeGreaterThan(0);
-    // all four tabs render
+    // all tabs render — Lab 3 tab set is Public Comments + Attachments only
+    // (Service Actions removed per ui-spec §5; no Event Log tab).
     expect(screen.getByRole('tab', { name: /Public Comments/ })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Service Actions/ })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Event Log/ })).toBeInTheDocument();
-    // mock tab captions present in DOM (even when tab not active)
-    expect(screen.getByText(/UI preview only — commenting arrives in a later lab/)).toBeInTheDocument();
-    expect(screen.getByText(/Read-only preview — service actions arrive in a later lab/)).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Attachments/ })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /Service Actions/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /Event Log/ })).not.toBeInTheDocument();
+    // live comment thread replaces the Lab 2 mock caption
+    expect(screen.queryByText(/UI preview only — commenting arrives in a later lab/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Read-only preview — service actions arrive in a later lab/)).not.toBeInTheDocument();
+    expect(await screen.findByText('First comment.')).toBeInTheDocument();
   });
 
   it('shows fallback when description empty; header shows the authenticated user, not a selector', async () => {
     const empty = { ...TICKET, description: null };
     cleanup();
     vi.stubGlobal('fetch', stubAuthenticatedFetch(USER, (url) => {
+      if (url.includes('/api/tickets/TTK-2026-000042/comments')) return ok([]);
       if (url.includes('/api/tickets/TTK-2026-000042')) return ok(empty);
       return ok({});
     }));

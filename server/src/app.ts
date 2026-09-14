@@ -36,23 +36,10 @@ app.get('/api/categories', async (_req, res) => {
   }
 });
 
-// Lab 3 decision: kept public for Lab 2 regression (the Lab 2 selector test
-// expects 200 without a session). The Lab 3 contract removes this endpoint
-// (use GET /api/users as admin); it is marked deprecated here and carries no
-// credentialed data beyond active requester names/emails.
-app.get('/api/requesters', async (_req, res) => {
-  try {
-    const requesters = await getPrisma().requester.findMany({
-      where: { isActive: true },
-      orderBy: { id: 'asc' },
-      select: { id: true, name: true, email: true },
-    });
-    res.setHeader('Deprecation', 'true');
-    res.status(200).json(requesters);
-  } catch {
-    res.status(500).json({ error: 'Unable to load requesters from the database' });
-  }
-});
+// Lab 3: REMOVED — the Development Requester selector it served is gone
+// (BR-03/AC-03, ui-spec §2.3). Identity is the authenticated session user;
+// admins list users via GET /api/users (§9, later issue). The route now
+// falls through to Express's default 404.
 
 app.get('/api/related-systems', async (_req, res) => {
   try {

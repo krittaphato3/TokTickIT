@@ -401,6 +401,56 @@ export interface RemoveAttachmentOptions {
 export interface TicketDetail extends Ticket {
   requester: { id: number; name: string; email: string };
   attachments: AttachmentMeta[];
+  // Lab 3 BR-05 — problem-appears-resolved signal timestamp (null = none).
+  appearsResolvedAt?: string | null;
+}
+
+// Lab 3 §7 — Public Comments (FR-08/BR-14). Append-only thread shared by
+// requester, IT staff, and admin. Author and createdAt are server-derived;
+// bodies are plain text the UI renders escaped.
+export interface PublicComment {
+  id: number;
+  body: string;
+  author: { id: number; name: string; role: string };
+  appearsResolved: boolean;
+  createdAt: string;
+}
+
+export const MAX_COMMENT_LENGTH = 2000;
+
+export async function getTicketComments(ticketNumber: string): Promise<PublicComment[]> {
+  const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}/comments`, {
+    credentials: 'include',
+    headers: { ...authHeaders({}, true) },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as PublicComment[];
+}
+
+export interface CreateCommentInput {
+  body: string;
+  // BR-05: requester-only signal; the server ignores it for staff/admin and
+  // rejects a second active signal with 409.
+  appearsResolved?: boolean;
+}
+
+export async function createTicketComment(
+  ticketNumber: string,
+  input: CreateCommentInput,
+): Promise<PublicComment> {
+  const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}/comments`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders({}, true),
+    },
+    body: JSON.stringify(input),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as PublicComment;
 }
 
 export async function getTicketDetail(ticketNumber: string): Promise<TicketDetail> {

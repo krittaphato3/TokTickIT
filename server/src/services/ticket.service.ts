@@ -629,6 +629,9 @@ export async function getTicketDetail(
     relatedSystem: ticket.relatedSystem
       ? { id: ticket.relatedSystem.id, name: ticket.relatedSystem.name }
       : null,
+    // Lab 3 BR-05 — the requester's own appears-resolved signal timestamp.
+    // Read-only projection of the requester's own ticket; no leak.
+    appearsResolvedAt: ticket.appearsResolvedAt,
     attachments: ticket.attachments.map((a) => ({
       id: a.id,
       fileName: a.fileName,
