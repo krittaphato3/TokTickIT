@@ -296,6 +296,25 @@ export function withPasswordGateCode(err: unknown): void {
   }
 }
 
+// Lab 3 authorization matrix (§12): role gates for staff surfaces. Applied
+// after requireAuth so req.auth is guaranteed present; wrong role is a 403
+// (never a masked 404 — the queue itself is not a per-ticket secret, and
+// hiding it from requesters is a navigation concern, not an existence leak).
+export const STAFF_ACCESS_REQUIRED = 'IT Staff access required';
+
+export function requireStaffRole(req: Request, _res: Response, next: NextFunction): void {
+  const user = req.auth?.user;
+  if (!user) {
+    next(new HttpError(401, NOT_AUTHENTICATED));
+    return;
+  }
+  if (user.role !== 'IT_STAFF' && user.role !== 'ADMINISTRATOR') {
+    next(new HttpError(403, STAFF_ACCESS_REQUIRED));
+    return;
+  }
+  next();
+}
+
 const loginAttemptsByIp = new Map<string, number[]>();
 const LOGIN_WINDOW_MS = 60 * 1000;
 // 10/min by default; overridable for local E2E runs where one Playwright
