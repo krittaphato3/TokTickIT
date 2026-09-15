@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import { getPrisma } from './prisma.js';
 import { ticketsRouter } from './routes/tickets.js';
+import { staffRouter } from './routes/staff.js';
 import { authRouter } from './routes/auth.js';
 import { cookiesMiddleware } from './middleware/cookies.js';
 import {
@@ -67,6 +68,9 @@ app.use(mustChangePasswordGate);
 app.use(sessionWriteCsrf);
 
 app.use('/api/tickets', ticketsRouter);
+// Lab 3 §5 — staff surface (auth + role gated inside the router; registered
+// before the error middleware like every other router).
+app.use('/api/staff', staffRouter);
 
 // Error-handling middleware — registered last as a 4-arg handler. Translates
 // HttpError (status + optional details) and JSON body-parse failures into the

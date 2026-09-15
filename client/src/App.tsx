@@ -8,6 +8,7 @@ import LoginPage from './components/LoginPage';
 import ProfilePage from './components/ProfilePage';
 import MyTicketsPage from './components/MyTicketsPage';
 import TicketDetailPage from './components/TicketDetailPage';
+import StaffTicketQueue from './components/StaffTicketQueue';
 import HomeScreen from './components/HomeScreen';
 
 // UI states: idle, loading, success, error.
@@ -409,18 +410,6 @@ function NotFound({ home }: { home: string }) {
   );
 }
 
-function StaffPlaceholder() {
-  return (
-    <main className="tok-main">
-      <div className="tok-card" style={{ maxWidth: 640, margin: '2rem auto' }}>
-        <h1 className="h4">Ticket Queue</h1>
-        <p className="tok-hint">The staff queue ships in the next issue. Your session is authenticated as IT Staff.</p>
-        <a href="#/change-password" onClick={(e) => { e.preventDefault(); window.location.hash = '/change-password'; }}>Change password</a>
-      </div>
-    </main>
-  );
-}
-
 function AdminPlaceholder() {
   return (
     <main className="tok-main">
@@ -621,7 +610,10 @@ function Shell() {
     body = <TicketDetailPage ticketNumber={route.ticketNumber} onBack={() => navigate('#/my')} />;
   } else if (route.name === 'staff-queue') {
     activeNav = 'staff-queue';
-    body = isStaff || isAdmin ? <StaffPlaceholder /> : <Forbidden home={home} message="You do not have access to the staff queue." />;
+    // Server-side enforcement (BR-20): GET /api/staff/tickets rejects
+    // requesters with 403 regardless of this client-side guard; the screen's
+    // failure state surfaces that 403 if a requester session ever lands here.
+    body = isStaff || isAdmin ? <StaffTicketQueue onNavigate={navigate} /> : <Forbidden home={home} message="You do not have access to the staff queue." />;
   } else if (route.name === 'admin-users') {
     activeNav = 'admin-users';
     body = isAdmin ? <AdminPlaceholder /> : <Forbidden home={home} message="User management is restricted to administrators." />;

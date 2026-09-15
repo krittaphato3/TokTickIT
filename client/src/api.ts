@@ -453,6 +453,113 @@ export async function createTicketComment(
   return body as PublicComment;
 }
 
+// ---------------------------------------------------------------------------
+// Lab 3 §5 — IT Staff Ticket Queue (api-spec §5.1). Cross-ticket read surface
+// for IT_STAFF/ADMINISTRATOR sessions; the server rejects REQUESTER with 403
+// (BR-20). Query params mirror the documented contract exactly; nothing is
+// sent for absent filters. Internal Notes never appear in queue rows.
+// ---------------------------------------------------------------------------
+
+// The full Lab 3 status axis (ui-spec §6.1 filter options; the DB's interim
+// PENDING value is legacy and never sent by this client).
+export type StaffTicketStatus =
+  | 'NEW'
+  | 'OPEN'
+  | 'IN_PROGRESS'
+  | 'WAITING_FOR_REQUESTER'
+  | 'RESOLVED'
+  | 'CLOSED'
+  | 'REOPENED'
+  | 'CANCELLED';
+
+export type StaffSortField = 'createdAt' | 'updatedAt' | 'priority' | 'number';
+
+export interface StaffQueueParams {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  status?: StaffTicketStatus;
+  categoryId?: number;
+  reqPriority?: Priority;
+  itPriority?: Priority;
+  ownerId?: number;
+  assigned?: boolean;
+  sort?: StaffSortField;
+  order?: SortDir;
+}
+
+export interface StaffQueueTicket {
+  id: number;
+  ticketNumber: string;
+  title: string;
+  status: StaffTicketStatus;
+  priority: Priority;
+  itPriority: Priority | null;
+  owner: { id: number; name: string; email: string } | null;
+  requester: { id: number; name: string; email: string };
+  category: { id: number; name: string };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StaffQueueMeta {
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
+export interface StaffQueueResult {
+  data: StaffQueueTicket[];
+  meta: StaffQueueMeta;
+}
+
+export async function getStaffTickets(
+  params: StaffQueueParams,
+): Promise<StaffQueueResult> {
+  const search = new URLSearchParams();
+  if (params.page !== undefined) search.set('page', String(params.page));
+  if (params.pageSize !== undefined) search.set('pageSize', String(params.pageSize));
+  if (params.q !== undefined && params.q !== '') search.set('q', params.q);
+  if (params.status !== undefined) search.set('status', params.status);
+  if (params.categoryId !== undefined) search.set('categoryId', String(params.categoryId));
+  if (params.reqPriority !== undefined) search.set('reqPriority', params.reqPriority);
+  if (params.itPriority !== undefined) search.set('itPriority', params.itPriority);
+  if (params.ownerId !== undefined) search.set('ownerId', String(params.ownerId));
+  if (params.assigned !== undefined) search.set('assigned', String(params.assigned));
+  if (params.sort !== undefined) search.set('sort', params.sort);
+  if (params.order !== undefined) search.set('order', params.order);
+
+  const qs = search.toString();
+  const url = `${API_URL}/api/staff/tickets${qs ? `?${qs}` : ''}`;
+  const response = await fetch(url, {
+    credentials: 'include',
+    headers: { ...authHeaders({}, true) },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as StaffQueueResult;
+}
+
+// Owner filter options: active IT Staff + Administrator users only (BR-12).
+export interface QueueOwner {
+  id: number;
+  name: string;
+  email: string;
+}
+
+export async function getQueueOwners(): Promise<QueueOwner[]> {
+  const response = await fetch(`${API_URL}/api/staff/owners`, {
+    credentials: 'include',
+    headers: { ...authHeaders({}, true) },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as QueueOwner[];
+}
+
 export async function getTicketDetail(ticketNumber: string): Promise<TicketDetail> {
   const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}`, {
     credentials: 'include',

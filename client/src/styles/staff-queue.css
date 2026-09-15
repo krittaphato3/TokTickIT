@@ -1,0 +1,96 @@
+/* Lab 3 §6 — IT Staff Ticket Queue (ui-spec §6). Extends the My Tickets
+   layout language (same .mt-* classes) with the 8 Lab 3 status badges
+   (§11.1), the Owner filter column, and the Open action column. Zen Green
+   tokens only. */
+
+/* Page head result count (aria-live="polite") */
+.sq-count {
+  font-size: 0.875rem;
+  color: var(--tok-text-muted);
+  align-self: center;
+  white-space: nowrap;
+}
+
+/* Queue filter card: search + 5 selects (search widest, per §6.1 grid). */
+.mt-filter-card.sq-filter {
+  grid-template-columns: minmax(200px, 1.6fr) repeat(5, minmax(120px, 1fr));
+}
+
+/* Open action button (§6.2 column 10 + full-width mobile card variant). */
+.sq-open-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 0.875rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--tok-border);
+  background: var(--tok-surface);
+  color: var(--tok-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sq-open-btn:hover {
+  background: var(--tok-primary-soft);
+  border-color: var(--tok-secondary);
+  color: var(--tok-primary);
+}
+.sq-open-btn--full {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 0.5rem;
+}
+
+/* Muted date columns (§6.2 columns 2 and 9). */
+td.sq-date {
+  color: var(--tok-text-muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+/* Status badge glyphs (never color-only, §11.1). */
+.sq-glyph {
+  font-size: 0.6875rem;
+  line-height: 1;
+}
+
+/* ---- §11.1 status badges beyond the Lab 2 set ---- */
+.st-waiting {
+  background: var(--tok-warning-soft);
+  color: #9a5b00;
+  border-color: #f0d9b5;
+}
+.st-closed {
+  background: #eef1ef;
+  color: #4b5752;
+  border-color: #d4dbd6;
+}
+.st-reopened {
+  background: var(--tok-error-soft);
+  color: var(--tok-error);
+  border-color: #f3c4be;
+}
+.st-cancelled {
+  background: var(--tok-surface);
+  color: #4b5752;
+  border-style: dashed;
+  border-color: #b9c4be;
+}
+
+/* ---- Responsive: §13 matrix ---- */
+@media (max-width: 991px) {
+  .mt-filter-card.sq-filter {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .mt-filter-card.sq-filter {
+    grid-template-columns: 1fr;
+  }
+  .sq-count {
+    width: 100%;
+  }
+}

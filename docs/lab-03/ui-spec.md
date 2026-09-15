@@ -181,6 +181,21 @@ Hash-based routing is retained (`#/…`). Canonical Lab 3 routes:
 ## 6. IT Staff Ticket Queue (`#/staff/queue`)
 
 > Traceability: FR-06 | BR-13, BR-15, BR-19 | AC-08.
+>
+> **Implemented (staff-queue issue):** §6.1–§6.4 shipped on `#/staff/queue` —
+> `client/src/components/StaffTicketQueue.tsx` + `client/src/styles/staff-queue.css`,
+> mounted in the shell for IT_STAFF/ADMINISTRATOR sessions (the former placeholder is
+> gone). Requesters keep the Forbidden state (§10). Query contract per api-spec §5.1:
+> debounced search `q`, Category, Requested Priority, IT Priority, Status (8 values),
+> Owner (`All Owners` / `Unassigned` / active staff names from `GET /api/staff/owners`);
+> header sort on Number/Created/Updated with `aria-sort` cycling and natural defaults
+> (number asc, dates desc); page size 20 with the Lab 2 pagination window; result count
+> in the head (`aria-live="polite"`); loading skeleton, empty, no-results, failure
+> (Try again preserves filters), and Forbidden states per §6.4. Desktop renders the
+> 10-column table (9 data columns + Open action); <768px renders stacked cards with a
+> full-width Open button; no horizontal scroll at any width. Open (button and number
+> link) targets `#/staff/tickets/:number`, which resolves to Not Found until the staff
+> detail issue ships.
 
 ### 6.1 Page head and query controls
 
