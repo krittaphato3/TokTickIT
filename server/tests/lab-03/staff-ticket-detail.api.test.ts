@@ -604,6 +604,294 @@ describe('Attachment continuity on the staff detail read', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Combined ops pass: owner + IT Priority changed together (T-OWN-01/T-PRIO-01
+// reviewer ask #1). The §6.2/§6.3 API exposes owner and IT Priority as two
+// PATCHes, so "together" means one staff ops pass: claim (BR-13 copy fires)
+// then edit IT Priority in the same pass — asserting each write lands and
+// the copy interaction behaves when a priority edit follows immediately.
+// ---------------------------------------------------------------------------
+describe('Combined ops — owner and IT Priority changed in one pass (BR-12 + BR-13)', () => {
+  it('claim then edit IT Priority in one pass: both writes land, copy fires once and is not re-copied', async () => {
+    const t = await createProbeTicket({ priority: 'HIGH', itPriority: null });
+
+    // Step 1 — claim: BR-13 copies Requested Priority into the null IT Priority.
+    const claim = await withWriteAuth(
+      staff,
+      request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`),
+    ).send({ ownerId: staff.userId });
+    expect(claim.status).toBe(200);
+    expect(claim.body.owner.id).toBe(staff.userId);
+    expect(claim.body.itPriorityCopied).toBe(true);
+    expect(claim.body.itPriority).toBe('HIGH');
+
+    // Step 2 — same ops pass: independent IT Priority edit on the claimed ticket.
+    const prio = await withWriteAuth(
+      staff,
+      request(app).patch(`/api/staff/tickets/${t.ticketNumber}/it-priority`),
+    ).send({ itPriority: 'CRITICAL' });
+    expect(prio.status).toBe(200);
+    expect(prio.body.itPriority).toBe('CRITICAL');
+    // Requested Priority is immutable (BR-13).
+    expect(prio.body.priority).toBe('HIGH');
+
+    const row = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
+    expect(row.ownerId).toBe(staff.userId);
+    expect(row.itPriority).toBe('CRITICAL');
+    expect(row.priority).toBe('HIGH');
+
+    // A reassign right after the edit must NOT re-fire the copy (owner now set).
+    const reassign = await withWriteAuth(
+      staff,
+      request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`),
+    ).send({ ownerId: staffB.userId });
+    expect(reassign.status).toBe(200);
+    expect(reassign.body.itPriorityCopied).toBe(false);
+    expect(reassign.body.itPriority).toBe('CRITICAL');
+    await deleteProbe(t.ticketNumber);
+  });
+
+  it('claim + priority edit in one pass by two different staff: second write still IT_STAFF-gated', async () => {
+    const t = await createProbeTicket({ priority: 'MEDIUM', itPriority: null });
+    const claim = await withWriteAuth(
+      staff,
+      request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`),
+    ).send({ ownerId: staffB.userId });
+    expect(claim.status).toBe(200);
+    expect(claim.body.itPriorityCopied).toBe(true);
+
+    // The same combined pass from a second staff account: priority edit allowed,
+    // then requester write refused so the pass cannot be completed by them.
+    const prio = await withWriteAuth(
+      staffB,
+      request(app).patch(`/api/staff/tickets/${t.ticketNumber}/it-priority`),
+    ).send({ itPriority: 'LOW' });
+    expect(prio.status).toBe(200);
+    expect(prio.body.itPriority).toBe('LOW');
+
+    const reqRes = await withWriteAuth(
+      requester,
+      request(app).patch(`/api/staff/tickets/${t.ticketNumber}/it-priority`),
+    ).send({ itPriority: 'LOW' });
+    expect(reqRes.status).toBe(403);
+    const row = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
+    expect(row.ownerId).toBe(staffB.userId);
+    expect(row.itPriority).toBe('LOW');
+    await deleteProbe(t.ticketNumber);
+  });
+
+  it('combined REOPEN+reason flow lands owner, priority and status writes in one pass', async () => {
+    const t = await createProbeTicket({ status: 'RESOLVED', ownerId: staff.userId, priority: 'LOW', itPriority: 'LOW' });
+    const claim = await withWriteAuth(
+      staff,
+      request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`),
+    ).send({ ownerId: staffB.userId });
+    expect(claim.status).toBe(200);
+    const prio = await withWriteAuth(
+      staff,
+      request(app).patch(`/api/staff/tickets/${t.ticketNumber}/it-priority`),
+    ).send({ itPriority: 'HIGH' });
+    expect(prio.status).toBe(200);
+    const status = await withWriteAuth(
+      staff,
+      request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`),
+    ).send({ status: 'REOPENED', confirm: true, reason: 'Reopen after combined ops pass.' });
+    expect(status.status).toBe(200);
+    expect(status.body.status).toBe('REOPENED');
+
+    const row = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
+    expect(row.ownerId).toBe(staffB.userId);
+    expect(row.itPriority).toBe('HIGH');
+    expect(row.status).toBe('REOPENED');
+    await deleteProbe(t.ticketNumber);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Reopen reason enforcement across every reopen-capable source (reviewer ask
+// #2). REOPENED is reachable from RESOLVED, CLOSED and CANCELLED; each must
+// demand a non-empty reason and refuse the write without one.
+// ---------------------------------------------------------------------------
+describe('Reopen without a reason — every reopen-capable source refuses (BR-15)', () => {
+  const reopenSources = ['RESOLVED', 'CLOSED', 'CANCELLED'] as const;
+  const cases = reopenSources.map(
+    (from) =>
+      it(`REOPENED from ${from} requires a reason (400 without)`, async () => {
+        const t = await createProbeTicket({ status: from });
+        const res = await withWriteAuth(
+          staff,
+          request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`),
+        ).send({ status: 'REOPENED', confirm: true });
+        expect(res.status).toBe(400);
+        expect(res.body.details[0].field).toBe('reason');
+        expect(res.body.details[0].message).toContain(`reopen from ${from}`);
+        // Whitespace-only reason is also refused and nothing is written.
+        const ws = await withWriteAuth(
+          staff,
+          request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`),
+        ).send({ status: 'REOPENED', confirm: true, reason: '   ' });
+        expect(ws.status).toBe(400);
+        const row = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
+        expect(row.status).toBe(from);
+        await deleteProbe(t.ticketNumber);
+      }, 20_000),
+  );
+  void cases;
+
+  it('REOPENED with a valid reason succeeds from every reopen-capable source (companion to the negative cases)', async () => {
+    // Sanity companion: with a valid reason the transition succeeds from all
+    // three sources — asserting the negative tests above are the only barrier.
+    for (const from of reopenSources) {
+      const t = await createProbeTicket({ status: from });
+      const ok = await withWriteAuth(
+        staff,
+        request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`),
+      ).send({ status: 'REOPENED', confirm: true, reason: `Legit reopen from ${from}.` });
+      expect(ok.status).toBe(200);
+      expect(ok.body.status).toBe('REOPENED');
+      await deleteProbe(t.ticketNumber);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Consolidated non-permitted API matrix (reviewer ask #3). Every /api/staff/*
+// route × every role that must not use it. Reads: REQUESTER 403 (masked
+// surface), ADMIN 200 view-only per AD-02, no-session 401. Writes: REQUESTER
+// 403, ADMIN 403 (service re-check), no-session 401. Internal notes are the
+// §1.5 exception: REQUESTER gets the masked 404 instead of 403.
+// ---------------------------------------------------------------------------
+describe('Non-permitted API matrix — every staff route × every disallowed caller (BR-20, §12)', () => {
+  it('every staff route refuses REQUESTER (403, notes masked 404) with no data', async () => {
+    const t = await createProbeTicket();
+    const readRoutes: Array<[string, request.Test]> = [
+      ['GET /api/staff/tickets', withCookie(requester, request(app).get('/api/staff/tickets'))],
+      ['GET /api/staff/owners', withCookie(requester, request(app).get('/api/staff/owners'))],
+      ['GET detail', withCookie(requester, request(app).get(`/api/staff/tickets/${t.ticketNumber}`))],
+      ['GET comments', withCookie(requester, request(app).get(`/api/staff/tickets/${t.ticketNumber}/comments`))],
+      ['GET download', withCookie(requester, request(app).get(`/api/staff/tickets/${t.ticketNumber}/attachments/1/download`))],
+    ];
+    for (const [label, req] of readRoutes) {
+      const res = await req;
+      expect(res.status, label).toBe(403);
+      expect(JSON.stringify(res.body), label).not.toContain(t.ticketNumber);
+      expect(JSON.stringify(res.body), label).not.toContain('requester');
+    }
+
+    const noteRoutes: Array<[string, request.Test]> = [
+      ['GET notes', withCookie(requester, request(app).get(`/api/staff/tickets/${t.ticketNumber}/internal-notes`))],
+      ['POST notes', withWriteAuth(requester, request(app).post(`/api/staff/tickets/${t.ticketNumber}/internal-notes`)).send({ body: 'nope' })],
+    ];
+    for (const [label, req] of noteRoutes) {
+      const res = await req;
+      expect(res.status, label).toBe(404);
+      expect(res.body.error, label).toBe('Not found');
+    }
+
+    const writeRoutes: Array<[string, request.Test]> = [
+      ['PATCH owner', withWriteAuth(requester, request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`)).send({ ownerId: requester.userId })],
+      ['PATCH it-priority', withWriteAuth(requester, request(app).patch(`/api/staff/tickets/${t.ticketNumber}/it-priority`)).send({ itPriority: 'HIGH' })],
+      ['PATCH status', withWriteAuth(requester, request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`)).send({ status: 'OPEN' })],
+      ['POST comment', withWriteAuth(requester, request(app).post(`/api/staff/tickets/${t.ticketNumber}/comments`)).send({ body: 'nope' })],
+    ];
+    for (const [label, req] of writeRoutes) {
+      const res = await req;
+      expect(res.status, label).toBe(403);
+    }
+    await deleteProbe(t.ticketNumber);
+  });
+
+  it('every staff write route refuses ADMINISTRATOR on owner/priority/status with 403 and changes nothing (AD-02 view-only; comments/notes stay allowed per BR-04)', async () => {
+    const t = await createProbeTicket({ status: 'OPEN', ownerId: staff.userId, itPriority: 'LOW' });
+    const before = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
+
+    // AD-02 view-only writes: owner, IT Priority, status.
+    const attempts: Array<[string, request.Test]> = [
+      ['PATCH owner', withWriteAuth(admin, request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`)).send({ ownerId: admin.userId })],
+      ['PATCH it-priority', withWriteAuth(admin, request(app).patch(`/api/staff/tickets/${t.ticketNumber}/it-priority`)).send({ itPriority: 'CRITICAL' })],
+      ['PATCH status', withWriteAuth(admin, request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`)).send({ status: 'IN_PROGRESS' })],
+    ];
+    for (const [label, req] of attempts) {
+      const res = await req;
+      expect(res.status, label).toBe(403);
+    }
+
+    // BR-04: admin participation on the threads is allowed (not a staff-write surface).
+    const adminComment = await withWriteAuth(
+      admin,
+      request(app).post(`/api/staff/tickets/${t.ticketNumber}/comments`),
+    ).send({ body: 'Admin comment from the matrix test.' });
+    expect(adminComment.status).toBe(201);
+    expect(adminComment.body.author.role).toBe('ADMINISTRATOR');
+    const adminNote = await withWriteAuth(
+      admin,
+      request(app).post(`/api/staff/tickets/${t.ticketNumber}/internal-notes`),
+    ).send({ body: 'Admin note from the matrix test.' });
+    expect(adminNote.status).toBe(201);
+    expect(adminNote.body.author.role).toBe('ADMINISTRATOR');
+
+    const after = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
+    expect(after.ownerId).toBe(before.ownerId);
+    expect(after.itPriority).toBe(before.itPriority);
+    expect(after.status).toBe(before.status);
+
+    // ADMIN reads still work (view-only) and the thread writes did land.
+    const detail = await withCookie(admin, request(app).get(`/api/staff/tickets/${t.ticketNumber}`));
+    expect(detail.status).toBe(200);
+    expect(detail.body.internalNoteCount).toBe(1);
+    expect(detail.body.commentCount).toBe(1);
+    await deleteProbe(t.ticketNumber);
+  });
+
+  it('every staff route returns 401 without a session and leaks no ticket data', async () => {
+    const t = await createProbeTicket();
+    // Fire the requests lazily so .send() belongs to a live request chain.
+    const attempts: Array<[string, () => request.Test]> = [
+      ['GET /api/staff/tickets', () => request(app).get('/api/staff/tickets')],
+      ['GET /api/staff/owners', () => request(app).get('/api/staff/owners')],
+      ['GET detail', () => request(app).get(`/api/staff/tickets/${t.ticketNumber}`)],
+      ['GET comments', () => request(app).get(`/api/staff/tickets/${t.ticketNumber}/comments`)],
+      ['GET notes', () => request(app).get(`/api/staff/tickets/${t.ticketNumber}/internal-notes`)],
+      ['GET download', () => request(app).get(`/api/staff/tickets/${t.ticketNumber}/attachments/1/download`)],
+      ['PATCH owner', () => request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`).send({ ownerId: staff.userId })],
+      ['PATCH it-priority', () => request(app).patch(`/api/staff/tickets/${t.ticketNumber}/it-priority`).send({ itPriority: 'HIGH' })],
+      ['PATCH status', () => request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`).send({ status: 'OPEN' })],
+      ['POST comment', () => request(app).post(`/api/staff/tickets/${t.ticketNumber}/comments`).send({ body: 'x' })],
+      ['POST note', () => request(app).post(`/api/staff/tickets/${t.ticketNumber}/internal-notes`).send({ body: 'x' })],
+    ];
+    for (const [label, fire] of attempts) {
+      const res = await fire();
+      expect(res.status, label).toBe(401);
+      expect(res.body.error).toBe('Not authenticated');
+      expect(JSON.stringify(res.body), label).not.toContain(t.ticketNumber);
+    }
+    await deleteProbe(t.ticketNumber);
+  });
+
+  it('client-supplied requester identity on ticket create is ignored — server forces session identity (BR-03)', async () => {
+    // Body id AND the legacy Lab 2 header both point at the staff user; the
+    // created ticket must still belong to the session requester.
+    const created = await withWriteAuth(
+      requester,
+      request(app)
+        .post('/api/tickets')
+        .set('X-Dev-Requester-Id', String(staff.userId))
+        .send({
+          title: 'Matrix BR-03 probe',
+          description: 'd',
+          categoryId: 1,
+          relatedSystemId: 1,
+          priority: 'LOW',
+          requesterId: staff.userId,
+        }),
+    );
+    expect(created.status).toBe(201);
+    expect(created.body.requester.id).toBe(requester.requesterId);
+    expect(created.body.requester.id).not.toBe(staff.userId);
+    await prisma.ticket.deleteMany({ where: { ticketNumber: created.body.ticketNumber } });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Public Comments via the staff aliases (§7) + Internal Notes (§8)
 // ---------------------------------------------------------------------------
 describe('Staff comment aliases (§7)', () => {
