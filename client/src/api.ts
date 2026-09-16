@@ -543,6 +543,186 @@ export async function getStaffTickets(
   return body as StaffQueueResult;
 }
 
+// ---------------------------------------------------------------------------
+// Lab 3 §6/§7/§8 — IT Staff Ticket Detail operations (api-spec §6). Server
+// enforces every rule (BR-12/13/15, §12 matrix); these wrappers only shape
+// the calls. IT Priority, Owner, and Status edits are IT_STAFF-only — an
+// Administrator session receives 403 (view-only) from the server.
+// ---------------------------------------------------------------------------
+
+export interface StaffTicketDetail {
+  id: number;
+  ticketNumber: string;
+  title: string;
+  description: string | null;
+  status: StaffTicketStatus;
+  priority: Priority;
+  itPriority: Priority | null;
+  owner: { id: number; name: string; email: string; role: string; isActive: boolean } | null;
+  requester: { id: number; name: string; email: string };
+  category: { id: number; name: string };
+  relatedSystem: { id: number; name: string } | null;
+  appearsResolvedAt: string | null;
+  attachments: Array<{
+    id: number;
+    fileName: string;
+    mimeType: string;
+    sizeBytes: number;
+    uploadedAt: string;
+    removedAt: string | null;
+  }>;
+  commentCount: number;
+  internalNoteCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OwnerChangeResult {
+  id: number;
+  ticketNumber: string;
+  status: StaffTicketStatus;
+  owner: { id: number; name: string; email: string } | null;
+  itPriority: Priority | null;
+  itPriorityCopied: boolean;
+  updatedAt: string;
+}
+
+export async function getStaffTicketDetail(ticketNumber: string): Promise<StaffTicketDetail> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketNumber}`, {
+    credentials: 'include',
+    headers: { ...authHeaders({}, true) },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as StaffTicketDetail;
+}
+
+export async function changeTicketOwner(
+  ticketNumber: string,
+  ownerId: number | null,
+): Promise<OwnerChangeResult> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketNumber}/owner`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...authHeaders({}, true) },
+    body: JSON.stringify({ ownerId }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as OwnerChangeResult;
+}
+
+export async function setItPriority(
+  ticketNumber: string,
+  itPriority: Priority,
+): Promise<{ id: number; ticketNumber: string; priority: Priority; itPriority: Priority | null; updatedAt: string }> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketNumber}/it-priority`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...authHeaders({}, true) },
+    body: JSON.stringify({ itPriority }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as { id: number; ticketNumber: string; priority: Priority; itPriority: Priority | null; updatedAt: string };
+}
+
+export interface StatusChangeResult {
+  id: number;
+  ticketNumber: string;
+  status: StaffTicketStatus;
+  updatedAt: string;
+  comment: { id: number; body: string } | null;
+}
+
+// BR-15: `confirm` is required for cancel/resolve/close transitions and
+// `reason` for reopening from RESOLVED/CLOSED/CANCELLED. The server is the
+// authority on both; the client only supplies what the UI collected.
+export async function changeTicketStatus(
+  ticketNumber: string,
+  status: StaffTicketStatus,
+  options?: { confirm?: boolean; reason?: string },
+): Promise<StatusChangeResult> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketNumber}/status`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...authHeaders({}, true) },
+    body: JSON.stringify({ status, ...(options?.confirm ? { confirm: true } : {}), ...(options?.reason ? { reason: options.reason } : {}) }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as StatusChangeResult;
+}
+
+// §8 — Internal Notes (FR-09/BR-04): IT_STAFF/ADMIN only; requesters get a
+// masked 404 from the server and never render this surface (BR-20).
+export interface InternalNote {
+  id: number;
+  body: string;
+  author: { id: number; name: string; role: string };
+  createdAt: string;
+}
+
+export async function getInternalNotes(ticketNumber: string): Promise<InternalNote[]> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketNumber}/internal-notes`, {
+    credentials: 'include',
+    headers: { ...authHeaders({}, true) },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as InternalNote[];
+}
+
+export async function createInternalNote(ticketNumber: string, body: string): Promise<InternalNote> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketNumber}/internal-notes`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...authHeaders({}, true) },
+    body: JSON.stringify({ body }),
+  });
+  const bodyJson = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, bodyJson);
+  return bodyJson as InternalNote;
+}
+
+// §7 staff aliases — identical shapes to the requester-facing comment API.
+export async function getStaffTicketComments(ticketNumber: string): Promise<PublicComment[]> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketNumber}/comments`, {
+    credentials: 'include',
+    headers: { ...authHeaders({}, true) },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as PublicComment[];
+}
+
+export async function createStaffTicketComment(
+  ticketNumber: string,
+  body: string,
+): Promise<PublicComment> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketNumber}/comments`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...authHeaders({}, true) },
+    body: JSON.stringify({ body }),
+  });
+  const bodyJson = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, bodyJson);
+  return bodyJson as PublicComment;
+}
+
+// §7.3 — staff attachment download (read-only viewer; ui-spec §7.3).
+export async function downloadStaffAttachment(ticketNumber: string, attachmentId: number): Promise<Blob> {
+  const response = await fetch(`${API_URL}/api/staff/tickets/${ticketNumber}/attachments/${attachmentId}/download`, {
+    credentials: 'include',
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new ApiError(response.status, body);
+  }
+  return await response.blob();
+}
+
 // Owner filter options: active IT Staff + Administrator users only (BR-12).
 export interface QueueOwner {
   id: number;
