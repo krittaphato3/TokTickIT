@@ -66,6 +66,7 @@ model User {
   sessions            Session[]
   ownedTickets        Ticket[]  @relation("TicketOwner")
   publicComments      PublicComment[] @relation("PublicCommentAuthor")
+  internalNotes       InternalNote[] @relation("InternalNoteAuthor")
 
   @@index([role, isActive])
   @@index([createdAt(sort: Desc)])
@@ -115,6 +116,7 @@ model Ticket {
   attachments  Attachment[]
   attachmentEvents AttachmentEvent[]
   publicComments  PublicComment[]
+  internalNotes   InternalNote[]
 
   @@index([requesterId, createdAt(sort: Desc)])
   @@index([categoryId])
@@ -139,6 +141,24 @@ model PublicComment {
 
   ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   author User   @relation("PublicCommentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([ticketId, createdAt(sort: Asc)])
+}
+
+// Lab 3 §8 — Internal Notes (FR-09/BR-04). Append-only: no update/delete
+// paths exist in code or migrations. `body` stores raw text (1..2000 trimmed
+// chars); authorId/createdAt are server-derived (BR-14) and never accepted
+// from the client. Requester access is blocked at the route layer with a
+// masked 404 (api-spec §1.5) — requesters never read or write this table.
+model InternalNote {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  authorId  Int
+  body      String   @db.VarChar(2000)
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User   @relation("InternalNoteAuthor", fields: [authorId], references: [id], onDelete: Restrict)
 
   @@index([ticketId, createdAt(sort: Asc)])
 }

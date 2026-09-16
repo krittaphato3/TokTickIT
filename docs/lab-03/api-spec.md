@@ -498,15 +498,15 @@ Already removed → `404 Attachment has already been removed`.
 
 ## 5. IT Staff Ticket Queue API
 
-> **Implementation status (staff-queue issue):** §5.1 is implemented and enforce-checked
+> **Implementation status (staff-queue + staff-detail issues):** §5.1 is implemented and enforce-checked
 > (`server/src/routes/staff.ts` + `server/src/services/staff-queue.service.ts`; suite
 > `server/tests/lab-03/staff-queue.api.test.ts`, 40 passing tests). The router registers
 > `GET /api/staff/tickets` and the queue's Owner-filter source `GET /api/staff/owners`
 > (list of active IT Staff/Administrator users, BR-12). Both are double-gated server-side:
 > `requireAuth` (401 without a session; 403 + session destruction for inactive accounts)
 > then `requireStaffRole` (403 `"IT Staff access required"` for REQUESTER). Hidden UI
-> links never substitute for these checks (BR-20). No operational writes ship in this
-> issue — §6 routes are a later issue.
+> links never substitute for these checks (BR-20). The §6 operational routes ship in the
+> staff-detail issue (see §6 status note).
 
 ### 5.1 `GET /api/staff/tickets` — Cross-ticket search/filter/sort/pagination (IT_STAFF, ADMIN)
 
@@ -629,6 +629,20 @@ Requester call → `403` (same gate as §5.1). Unauthenticated → `401`.
 ---
 
 ## 6. IT Staff Ticket Operations API (IT_STAFF only — ADMIN view-only per AD-02, see §12)
+
+> **Implementation status (staff-detail issue):** §6.1–§6.4 are implemented and
+> enforce-checked (`server/src/services/staff-ticket.service.ts`, controllers under
+> `server/src/controllers/staff-ticket.controller.ts`, routes in
+> `server/src/routes/staff.ts`; suite
+> `server/tests/lab-03/staff-ticket-detail.api.test.ts`, 54 passing tests).
+> Authorization layering: `requireAuth` + per-route `requireStaffRole` at the router
+> (REQUESTER → 403 on every staff path), plus an in-service IT_STAFF-only re-check on
+> every write so ADMIN writes fail closed with 403 (view-only per AD-02) even if a
+> router gate were dropped. One documented deviation from the shapes below: invalid
+> owner candidates (requester or inactive user) return **409**
+> `Owner must be an active IT Staff or Administrator` exactly as the §6.2 error table
+> specifies — the BR-12 "422/400" phrasing in the specification is superseded by this
+> section's conflict semantics, and unknown ids return 404 `User not found`.
 
 ### 6.1 `GET /api/staff/tickets/:number` — One ticket for staff operations
 
@@ -760,7 +774,7 @@ Malformed value → `400`.
 }
 ```
 
-**Status transition matrix (BR-15):** rows = current, ✓ = allowed for IT_STAFF only (ADMIN is view-only per AD-02/BR-20: GET queue/detail/comments/notes allowed, PATCH owner/it-priority/status → `403`; see §12). Confirmations, owner guards, and audit comments per BR-15 apply.
+**Status transition matrix (BR-15) — implemented verbatim:** rows = current, ✓ = allowed for IT_STAFF only (ADMIN is view-only per AD-02/BR-20: GET queue/detail/comments/notes allowed, PATCH owner/it-priority/status → `403`; see §12).
 
 | From \ To | NEW | OPEN | IN_PROGRESS | WAITING_FOR_REQUESTER | RESOLVED | CLOSED | REOPENED | CANCELLED |
 |---|---|---|---|---|---|---|---|---|
@@ -859,10 +873,13 @@ trimmed body. The comment response shape additionally carries `"appearsResolved"
 `GET /api/tickets/:number` (§4.3) responses include `appearsResolvedAt` (null when absent) so the
 requester detail screen can render the pale-green indication banner after reload.
 
-**Implementation status:** §7.1/§7.2 requester-facing routes ship in issue #41
-(`GET|POST /api/tickets/:number/comments` in the tickets router; author and createdAt
-server-derived; append-only — no PATCH/DELETE comment routes exist). The
-`/api/staff/tickets/:number/comments` aliases ship with the staff detail issue.
+**Implementation status:** §7.1/§7.2 requester-facing routes shipped in issue #41
+(`GET|POST /api/tickets/:number/comments`; author and createdAt server-derived; append-only —
+no PATCH/DELETE comment routes exist). The `GET|POST /api/staff/tickets/:number/comments`
+aliases shipped with the staff-detail issue: identical handlers and shape, gated by the staff
+router (`requireStaffRole` → requester 403 on the staff path), with one addition — the staff
+detail's status transitions append their audit system comment (actor, from → to, timestamp) to
+this same public thread (BR-15).
 
 ### 7.3 `PATCH /api/tickets/:number/status` — Limited requester transition (own ticket)
 
@@ -883,6 +900,16 @@ status → `409`. This REOPEN-only transition is the sole BR-05 exception to sta
 Author and `createdAt` server-derived. Append-only. Length: trimmed 1–2000 chars.
 Requester calls (even on own ticket) return `404 { "error": "Not found" }` with no note content —
 indistinguishable from a missing ticket, per §1.5.
+
+> **Implementation status (staff-detail issue):** §8.1/§8.2 are implemented and
+> enforce-checked (`server/src/services/internal-note.service.ts`,
+> `server/src/controllers/internal-note.controller.ts`, routes in
+> `server/src/routes/staff.ts`; InternalNote table added by migration
+> `20260916120000_lab3_staff_detail_ops`). The notes routes are deliberately NOT
+> role-gated at the router: the handler itself throws the requester masked 404
+> `Not found` (§1.5) — identical body for an absent ticket — so probing reveals no
+> existence signal, while IT_STAFF/ADMIN pass through normally. Body validation runs
+> before ticket lookup (malformed input is 400 even for probing callers).
 
 ### 8.1 `GET /api/staff/tickets/:number/internal-notes` — List notes
 

@@ -9,6 +9,7 @@ import ProfilePage from './components/ProfilePage';
 import MyTicketsPage from './components/MyTicketsPage';
 import TicketDetailPage from './components/TicketDetailPage';
 import StaffTicketQueue from './components/StaffTicketQueue';
+import StaffTicketDetail from './components/StaffTicketDetail';
 import HomeScreen from './components/HomeScreen';
 
 // UI states: idle, loading, success, error.
@@ -28,6 +29,7 @@ export type Route =
   | { name: 'new-ticket-legacy' }
   | { name: 'select-requester-legacy' }
   | { name: 'ticket-detail'; ticketNumber: string }
+  | { name: 'staff-ticket-detail'; ticketNumber: string }
   | { name: 'staff-queue' }
   | { name: 'admin-users' }
   | { name: 'not-found' };
@@ -52,6 +54,8 @@ function parseRoute(hash: string): Route {
     return { name: 'select-requester-legacy' };
   }
   if (path === '/staff/queue' || path === '/staff/queue/') return { name: 'staff-queue' };
+  const staffDetail = path.match(/^\/staff\/tickets\/(TTK-\d{4}-\d{6})$/);
+  if (staffDetail) return { name: 'staff-ticket-detail', ticketNumber: staffDetail[1] };
   if (path === '/admin/users' || path === '/admin/users/') return { name: 'admin-users' };
   const detail = path.match(/^\/tickets\/(TTK-\d{4}-\d{6})$/);
   if (detail) return { name: 'ticket-detail', ticketNumber: detail[1] };
@@ -614,6 +618,16 @@ function Shell() {
     // requesters with 403 regardless of this client-side guard; the screen's
     // failure state surfaces that 403 if a requester session ever lands here.
     body = isStaff || isAdmin ? <StaffTicketQueue onNavigate={navigate} /> : <Forbidden home={home} message="You do not have access to the staff queue." />;
+  } else if (route.name === 'staff-ticket-detail') {
+    activeNav = 'staff-queue';
+    // Server-side enforcement (BR-20): GET /api/staff/tickets/:number refuses
+    // requesters with 403 regardless of this client-side guard; the screen's
+    // forbidden state surfaces that 403 if a requester session lands here.
+    body = isStaff || isAdmin ? (
+      <StaffTicketDetail ticketNumber={route.ticketNumber} onBack={() => navigate('#/staff/queue')} />
+    ) : (
+      <Forbidden home={home} message="You do not have access to staff ticket operations." />
+    );
   } else if (route.name === 'admin-users') {
     activeNav = 'admin-users';
     body = isAdmin ? <AdminPlaceholder /> : <Forbidden home={home} message="User management is restricted to administrators." />;

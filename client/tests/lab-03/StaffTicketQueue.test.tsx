@@ -137,6 +137,34 @@ beforeEach(() => {
     stubAuthenticatedFetch(STAFF, (url, init) => {
       if (url.includes('/api/categories')) return jsonResponse(CATEGORIES);
       if (url.includes('/api/staff/owners')) return jsonResponse(OWNERS);
+      // Staff detail route now mounts the real StaffTicketDetail screen
+      // (staff detail issue), so the Open-navigation test needs a valid
+      // detail/comments/notes payload behind it. Checked BEFORE the generic
+      // queue branch because both share the /api/staff/tickets prefix.
+      if (/\/api\/staff\/tickets\/TTK-\d{4}-\d{6}$/.test(url)) {
+        const number = url.split('/').pop() ?? 'TTK-2026-000000';
+        return jsonResponse({
+          id: 1,
+          ticketNumber: number,
+          title: 'Queue navigation stub',
+          description: null,
+          status: 'NEW',
+          priority: 'MEDIUM',
+          itPriority: null,
+          owner: null,
+          requester: { id: 1, name: 'Dev User Alpha', email: 'alpha@toktickit.test' },
+          category: { id: 1, name: CATEGORIES[0]?.name ?? 'Hardware' },
+          relatedSystem: { id: 1, name: 'Printer' },
+          appearsResolvedAt: null,
+          attachments: [],
+          commentCount: 0,
+          internalNoteCount: 0,
+          createdAt: '2026-09-10T09:30:00.000Z',
+          updatedAt: '2026-09-10T09:30:00.000Z',
+        });
+      }
+      if (url.includes('/internal-notes')) return jsonResponse([]);
+      if (url.includes('/comments')) return jsonResponse([]);
       if (url.includes('/api/staff/tickets')) {
         queueCalls.push(url);
         return fetchHandler(url, init);

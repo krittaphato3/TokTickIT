@@ -13,8 +13,8 @@ import {
 // Lab 3 Issue #41 — Public Comments (api-spec §7, FR-08/FR-09/FR-10,
 // BR-04/BR-05/BR-14). Rows owned here (docs/lab-03/tests.md §2):
 //   T-COMM-01  public comment visibility per role (AC-12)
-//   T-COMM-02  internal notes stay requester-masked (masked 404, no leak) —
-//              notes routes do not exist yet; absence asserted 404-safe
+//   T-COMM-02  internal notes stay requester-masked (masked 404, no leak);
+//              staff success half completed with the staff detail issue
 //   T-COMM-03  append-only: no edit/delete paths (404/405)
 //   T-COMM-04  empty/whitespace/2001-char bodies -> 400 with details
 //   T-STAT-03  appears-resolved indication: timestamp set, status unchanged,
@@ -235,27 +235,37 @@ describe('T-STAT-03 — problem-appears-resolved indication (FR-10, BR-05, AC-14
 });
 
 describe('T-COMM-02 — internal notes stay requester-invisible (FR-09, BR-04, AC-04)', () => {
-  it('note routes do not exist yet; probe returns a safe error with no note data', async () => {
+  it('requester is masked-404 on list and create; staff succeeds (notes shipped with staff detail issue)', async () => {
     const alpha = await fixture({ label: 'cm02', withLinkedRequester: true });
     const staff = await fixture({ label: 'cm02-s', role: 'IT_STAFF' });
     const ticket = await createTicketAs(alpha, 'Notes probe ticket');
 
-    // The internal-notes surface ships with the staff detail issue. Today the
-    // routes are absent (404). Contract to hold either way: a requester gets
-    // no note content and no existence signal (masked 404 or absent-route
-    // 404), never 200 and never 403-with-content.
+    // Staff half (completed with the staff-detail issue): notes list and
+    // create work for IT Staff on any ticket.
+    const staffPost = await withWriteAuth(staff, request(app).post(`/api/staff/tickets/${ticket.ticketNumber}/internal-notes`)).send({
+      body: 'Internal triage context — requester never sees this.',
+    });
+    expect(staffPost.status).toBe(201);
+    expect(staffPost.body.author.role).toBe('IT_STAFF');
+
+    const staffList = await withCookie(staff, request(app).get(`/api/staff/tickets/${ticket.ticketNumber}/internal-notes`));
+    expect(staffList.status).toBe(200);
+    expect(staffList.body.map((n: { body: string }) => n.body)).toContain(
+      'Internal triage context — requester never sees this.',
+    );
+
+    // Requester half: masked 404 with no note content and no existence
+    // signal, identical for a missing ticket — never 200, never 403-with-
+    // content (BR-04 / api-spec §1.5).
     const list = await withCookie(alpha, request(app).get(`/api/staff/tickets/${ticket.ticketNumber}/internal-notes`));
     expect(list.status).toBe(404);
     expect(list.body).not.toHaveProperty('notes');
-    expect(JSON.stringify(list.body)).not.toMatch(/internal/i);
+    expect(list.body).not.toHaveProperty('data');
+    expect(JSON.stringify(list.body)).not.toMatch(/internal|triage/i);
 
     const post = await withWriteAuth(alpha, request(app).post(`/api/staff/tickets/${ticket.ticketNumber}/internal-notes`)).send({
       body: 'should never land',
     });
     expect(post.status).toBe(404);
-
-    // Staff sees the same absent route today — no partial surface.
-    const staffList = await withCookie(staff, request(app).get(`/api/staff/tickets/${ticket.ticketNumber}/internal-notes`));
-    expect(staffList.status).toBe(404);
   });
 });

@@ -1,0 +1,140 @@
+/* Lab 3 §7 — IT Staff Ticket Detail (ui-spec §7). Reuses the requester
+   ticket-detail shell (.td-card/.td-tabs/.td-badge) so the screen feels
+   native; this file adds the ops grid, save bar, banners, and the amber
+   Internal Notes treatment that keeps private content visually distinct
+   from Public Comments (BR-04). */
+
+.std-page { max-width: 1200px; margin: 0 auto; padding: 0 1rem 3rem; }
+@media (min-width: 992px) { .std-page { padding: 0 1.5rem 3rem; } }
+
+.std-header { padding: 18px 24px; }
+.std-head-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.std-title { font-size: 1.25rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* Requester appears-resolved indication (BR-05): pale-green banner, never a
+   status change — wording tells staff it is an indication, not resolution. */
+.std-resolved-hint {
+  margin-top: 12px;
+  background: var(--tok-primary-soft);
+  border: 1px solid #BFE0CE;
+  color: var(--tok-success);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* Grouped fields: read-only (gray-green) left, editable (white with green
+   accent) right per ui-spec §7.1. */
+.std-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.std-field label { display: block; font-weight: 700; font-size: 0.85rem; margin-bottom: 6px; }
+.std-field .td-ro { min-height: 40px; }
+.std-field select.std-editable {
+  border-left: 3px solid var(--tok-primary);
+  background-color: var(--tok-field-editable);
+}
+.std-field select.std-editable:disabled {
+  border-left-color: var(--tok-border);
+  background: var(--tok-field-readonly);
+  color: var(--tok-text-muted);
+  cursor: not-allowed;
+}
+.std-span2 { grid-column: span 2; }
+.std-span4 { grid-column: 1 / -1; }
+
+.std-savebar {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  border-top: 1px solid var(--tok-border-soft);
+  padding-top: 14px;
+  margin-top: 4px;
+}
+
+/* Feedback banners (§10): success green, conflict amber, failure red. */
+.std-banner {
+  display: flex; align-items: center; gap: 12px;
+  border-radius: 8px; padding: 10px 14px;
+  font-size: 0.875rem; margin-top: 14px;
+}
+.std-banner.success { background: var(--tok-primary-soft); color: var(--tok-success); border: 1px solid #BFE0CE; }
+.std-banner.conflict { background: #FFF4E5; color: #9A5B00; border: 1px solid #F0D9B5; }
+.std-banner.error { background: var(--tok-error-soft); color: var(--tok-error); border: 1px solid rgba(179,38,30,.35); }
+.std-banner span { flex: 1; }
+.std-banner-x { border: 0; background: none; color: inherit; cursor: pointer; font-size: 0.9rem; padding: 4px; }
+
+/* Tabs: the Internal tab is amber-tinted to signal private content. */
+.std-tab-internal { color: #9A5B00; }
+.std-tab-internal.active { color: #9A5B00; border-bottom-color: #B26A00; }
+
+/* Internal Notes thread: amber panel, amber borders — unmistakably not the
+   white/green public thread (BR-04). */
+.std-internal-warning {
+  display: flex; gap: 8px; align-items: flex-start;
+  background: #FFF4E5;
+  border: 1px solid #F0D9B5;
+  color: #9A5B00;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.std-note {
+  background: #FFF8EE;
+  border: 1px solid #F0D9B5;
+  border-left: 4px solid #B26A00;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+}
+.std-badge-internal,
+.td-b-internal { background: #FFF4E5; color: #9A5B00; border-color: #F0D9B5; }
+.std-note-empty { margin: 4px 0 12px; }
+
+/* Composers: public (green hint) vs internal (amber hint + amber button). */
+.std-composer { margin-top: 14px; }
+.std-public-hint { color: var(--tok-text-muted); font-size: 0.8125rem; }
+.std-internal-hint { color: #9A5B00; font-size: 0.8125rem; }
+.std-composer-internal .td-post-btn {
+  background: #B26A00;
+  border-color: #B26A00;
+}
+.std-composer-internal .td-post-btn:hover { background: #9A5B00; }
+
+/* Attachments (staff read-only viewer — view/download only). */
+.std-att-list { list-style: none; margin: 0; padding: 0; }
+.std-att-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 12px 4px;
+  border-bottom: 1px solid #EDF1EE;
+}
+.std-att-row:last-child { border-bottom: 0; }
+.std-att-name { font-weight: 600; font-size: 0.9rem; }
+
+/* Full-page states: forbidden / not found / failure (§10). */
+.std-state {
+  background: var(--tok-surface);
+  border: 1px solid var(--tok-border-soft);
+  border-radius: 12px;
+  padding: 40px 24px;
+  text-align: center;
+  max-width: 560px;
+  margin: 40px auto;
+}
+.std-state-icon { font-size: 2rem; display: block; margin-bottom: 8px; }
+.std-state h1 { font-size: 1.125rem; margin: 0 0 6px; }
+.std-state p { color: var(--tok-text-muted); margin: 0 0 18px; }
+
+/* Responsive: 2-col grid on tablet, single column on mobile. */
+@media (max-width: 991.98px) {
+  .std-grid { grid-template-columns: repeat(2, 1fr); }
+  .std-span2 { grid-column: span 2; }
+}
+@media (max-width: 767.98px) {
+  .std-grid { grid-template-columns: 1fr; }
+  .std-span2, .std-span4 { grid-column: 1 / -1; }
+  .std-title { font-size: 1.05rem; }
+  .std-page .td-tab { padding: 10px 12px; font-size: 0.85rem; }
+}
