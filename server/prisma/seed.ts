@@ -82,19 +82,19 @@ const RELATED_SYSTEMS = [
 
 const DEMO_TICKET_NUMBER_BASE = 800000;
 
-const OWNER_POOL = [
-  'Michael Brown',
-  'Sarah Johnson',
-  'David Lee',
-  'Jennifer Anderson',
-] as const;
-
+// Lab 3 §6 (queue seed): ownership now points at REAL User rows — active
+// IT Staff quota users (BR-12: an owner must be an active IT Staff or
+// Administrator). Resolved by email at seed time; unassigned tickets carry
+// null ownerId + null ownerName.
 const DEMO_STATUSES = [
   'NEW',
   'OPEN',
-  'PENDING',
   'IN_PROGRESS',
+  'WAITING_FOR_REQUESTER',
   'RESOLVED',
+  'CLOSED',
+  'REOPENED',
+  'CANCELLED',
 ] as const;
 
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const;
@@ -166,6 +166,15 @@ async function seedDemoTickets(): Promise<void> {
     { requesterId: 4, count: 10 },
   ];
 
+  const staffOwners = await prisma.user.findMany({
+    where: {
+      email: { in: QUOTA_STAFF.filter((s) => s.isActive).map((s) => s.email) },
+      isActive: true,
+      role: 'IT_STAFF',
+    },
+    orderBy: { id: 'asc' },
+  });
+
   await prisma.$transaction(async (tx) => {
     // Idempotency: wipe the dedicated demo band AND any stray tickets the
     // dev-fixture requesters accumulated from manual testing, so every seed
@@ -186,13 +195,16 @@ async function seedDemoTickets(): Promise<void> {
     for (const plan of plans) {
       for (let i = 0; i < plan.count; i += 1) {
         const [summary, categoryName] = pick(DEMO_SUMMARIES, n);
-        const status = pick(DEMO_STATUSES, Math.floor(n / 3));
+        const status = pick(DEMO_STATUSES, Math.floor(n / 2));
         const priority = pick(PRIORITIES, Math.floor(n / 2));
         // IT priority sometimes equals the requested one, sometimes differs,
         // sometimes is unset.
         const itPriority =
           n % 7 === 0 ? null : n % 3 === 0 ? priority : pick(PRIORITIES, n + 1);
-        const ownerName = n % 9 === 0 ? null : pick(OWNER_POOL, n);
+        // Lab 3 queue seed — a mixed assigned/unassigned set owned by real
+        // active IT Staff users (roughly a third unassigned).
+        const owner = n % 3 === 0 || staffOwners.length === 0 ? null : staffOwners[n % staffOwners.length];
+        const createdAt = new Date(Date.now() - (n + 1) * 3600 * 1000);
 
         await tx.ticket.create({
           data: {
@@ -202,11 +214,13 @@ async function seedDemoTickets(): Promise<void> {
             status,
             priority,
             ...(itPriority === null ? {} : { itPriority }),
-            ownerName,
+            ownerId: owner?.id ?? null,
+            ownerName: owner?.name ?? null,
             requesterId: plan.requesterId,
             categoryId: categoryByName.get(categoryName)!,
             relatedSystemId: pick(systems, n).id,
-            createdAt: new Date(Date.now() - (n + 1) * 3600 * 1000),
+            createdAt,
+            updatedAt: new Date(createdAt.getTime() + (n % 5) * 17 * 60 * 1000),
           },
         });
         n += 1;
@@ -356,6 +370,12 @@ async function main(): Promise<void> {
   const requesterCount = await prisma.requester.count();
   const systemCount = await prisma.relatedSystem.count();
   const alphaTickets = await prisma.ticket.count({ where: { requesterId: 1 } });
+  const assignedTickets = await prisma.ticket.count({ where: { ownerId: { not: null } } });
+  const unassignedTickets = await prisma.ticket.count({ where: { ownerId: null } });
+  const queueStatusCounts = await prisma.ticket.groupBy({
+    by: ['status'],
+    _count: { status: true },
+  });
   const activeRequesters = await prisma.user.count({
     where: { role: 'REQUESTER', isActive: true },
   });
@@ -373,6 +393,11 @@ async function main(): Promise<void> {
   });
   console.log(
     `Seeded ${categoryCount} categories, ${requesterCount} requesters, ${systemCount} related systems, ${alphaTickets} demo tickets for Dev User Alpha.`,
+  );
+  console.log(
+    `Queue seed — assigned=${assignedTickets}, unassigned=${unassignedTickets}; statuses: ` +
+      queueStatusCounts.map((s) => `${s.status}=${s._count.status}`).join(', ') +
+      '.',
   );
   console.log(
     `User quotas — REQUESTER active=${activeRequesters}/inactive=${inactiveRequesters}, ` +

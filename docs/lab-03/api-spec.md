@@ -498,6 +498,16 @@ Already removed → `404 Attachment has already been removed`.
 
 ## 5. IT Staff Ticket Queue API
 
+> **Implementation status (staff-queue issue):** §5.1 is implemented and enforce-checked
+> (`server/src/routes/staff.ts` + `server/src/services/staff-queue.service.ts`; suite
+> `server/tests/lab-03/staff-queue.api.test.ts`, 40 passing tests). The router registers
+> `GET /api/staff/tickets` and the queue's Owner-filter source `GET /api/staff/owners`
+> (list of active IT Staff/Administrator users, BR-12). Both are double-gated server-side:
+> `requireAuth` (401 without a session; 403 + session destruction for inactive accounts)
+> then `requireStaffRole` (403 `"IT Staff access required"` for REQUESTER). Hidden UI
+> links never substitute for these checks (BR-20). No operational writes ship in this
+> issue — §6 routes are a later issue.
+
 ### 5.1 `GET /api/staff/tickets` — Cross-ticket search/filter/sort/pagination (IT_STAFF, ADMIN)
 
 Requires session cookie. Requester role → `403` (no leak; queue is invisible to requesters).
@@ -570,6 +580,51 @@ Rules: all supplied criteria combine with AND. `priority` sort uses effective ra
 
 Example: `GET /api/staff/tickets?q=vpn&status=NEW&sort=updatedAt&order=desc&page=1&pageSize=20`.
 Invalid example: `GET /api/staff/tickets?sort=owner` → `400 { "error": "sort must be one of createdAt, updatedAt, priority, number" }`.
+
+#### Implemented notes (staff-queue issue)
+
+- **Searchable fields (`q`):** `ticketNumber`, `title`, `description` — case-insensitive
+  substring with SQL wildcard escaping (`%`, `_`, `\` matched literally). Trimmed;
+  absent/blank = no filter.
+- **Filterable fields:** `status` (exact enum), `categoryId` (must exist → else 400),
+  `reqPriority`, `itPriority` (exact enum; `null` IT priorities never match a value
+  filter), `ownerId` (must reference an **active** IT_STAFF/ADMIN user → else 400
+  naming the field), `assigned` (`true`/`false`). All AND-combine. `ownerId` +
+  `assigned=false` → `400` (contradictory).
+- **Sortable fields:** `createdAt` (default, `desc`), `updatedAt`, `number`
+  (lexicographic on the zero-padded `ticketNumber` ⇒ chronological), `priority`
+  (effective rank `itPriority ?? requested priority`, Critical 4 → Low 1). Every
+  ordering ties-break on `createdAt DESC, id DESC` for deterministic pages.
+- **Default ordering:** `createdAt DESC` (BR-19). **Page size:** default 20, range 1–100.
+- **Pagination metadata:** `{ page, pageSize, totalItems, totalPages, hasNextPage,
+  hasPrevPage }` computed for the filtered set; an out-of-range page returns `200` with
+  `data: []` and intact `meta` (never an error).
+- **Invalid query parameter behavior:** `400` whose `error` message names the offending
+  field, e.g. `page must be an integer >= 1`, `pageSize must be between 1 and 100`,
+  `status must be one of NEW, OPEN, …`, `assigned must be true or false`. No partial
+  data is ever returned alongside a 400.
+- **Response rows carry exactly the §6 UI-justified fields** (ticket number, created,
+  summary, category, requested priority, IT priority, status, owner, requester, last
+  updated). No description, no attachments, no comments/notes, no counters — Internal
+  Notes are never included in queue rows (BR-04).
+
+### 5.2 `GET /api/staff/owners` — Queue owner-filter source (IT_STAFF, ADMIN)
+
+Returns the users eligible for ticket ownership (BR-12): active `IT_STAFF` and
+`ADMINISTRATOR` users only, ordered by name. Requesters and inactive users are never
+listed. Powers the queue's Owner select (`All Owners` / `Unassigned` + names) and the
+later claim/reassign flows.
+
+**Success `200`:**
+
+```json
+[
+  { "id": 5, "name": "Sara IT", "email": "sara.it@example.test" },
+  { "id": 6, "name": "Tom IT", "email": "tom.it@example.test" }
+]
+```
+
+Requester call → `403` (same gate as §5.1). Unauthenticated → `401`.
 
 ---
 
