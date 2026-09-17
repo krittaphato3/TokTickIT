@@ -93,6 +93,7 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--tok-primary);
+  padding: 0.25rem 0.125rem;
 }
 .au-table thead th.au-th-static {
   font-size: 0.8125rem;
@@ -100,9 +101,10 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--tok-primary);
-  display: inline-flex;
-  align-items: center;
-  min-height: 42px;
+  /* Stay a table cell (vertical-align centers against the taller sort
+     headers): an inline-flex <th> drops out of the table row, which left a
+     white gap after STATUS and rendered Actions as a detached chip. */
+  vertical-align: middle;
 }
 /* Sort buttons inherit the header look; focus ring per Zen Green. */
 .au-table thead .mt-th-sort:focus-visible {
