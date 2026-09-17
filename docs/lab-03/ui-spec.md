@@ -273,6 +273,12 @@ Exactly three tabs (`role=tablist`, arrow-key navigation, `aria-selected`): Publ
 > alongside the table with CSS hiding one side (same pattern as My Tickets) rather than being
 > conditionally rendered; (3) load failure renders inside the list card as the §10 failure state with
 > Try again — no separate top banner, so failure feedback lives in exactly one place.
+> **Addition (stakeholder request, this issue):** single-column sorting on Name/Email/Role/Status
+> via the My Tickets header-button convention (aria-sort + carets; Actions stays a static header).
+> First-click directions: Name/Email A→Z, Role Administrator-first, Status Active-first. This stays
+> within the §8.1 exclusions (they bar pagination and MULTI-column sorting, not single-column),
+> and because the admin list is unpaginated the sort is complete client-side — no API change.
+> The mobile card list follows the table's sort order so both renderings agree.
 
 ### 8.1 User list
 

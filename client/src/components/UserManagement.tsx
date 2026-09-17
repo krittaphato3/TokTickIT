@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ApiError,
   createAdminUser,
@@ -18,6 +18,37 @@ import '../styles/admin-users.css';
 // multi-column sorting, no delete (deactivation replaces deletion, BR-18).
 
 const SEARCH_DEBOUNCE_MS = 300;
+
+// Sortable columns. `id` is the unsorted server order (api-spec §9.1:
+// id ascending); Actions is not sortable.
+type SortKey = 'id' | 'name' | 'email' | 'role' | 'status';
+
+interface SortState {
+  key: SortKey;
+  dir: 'asc' | 'desc';
+}
+
+const ROLE_RANK: Record<string, number> = {
+  ADMIN: 3,
+  ADMINISTRATOR: 3,
+  IT_STAFF: 2,
+  REQUESTER: 1,
+};
+
+function compareUsers(a: AdminUser, b: AdminUser, key: SortKey): number {
+  switch (key) {
+    case 'name':
+      return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    case 'email':
+      return a.email.localeCompare(b.email, undefined, { sensitivity: 'base' });
+    case 'role':
+      return (ROLE_RANK[a.role] ?? 0) - (ROLE_RANK[b.role] ?? 0);
+    case 'status':
+      return Number(b.isActive) - Number(a.isActive); // Active first ascending
+    default:
+      return a.id - b.id; // server order
+  }
+}
 
 const ROLE_OPTIONS: Array<{ value: AdminUserRole | ''; label: string }> = [
   { value: '', label: 'All Roles' },
@@ -97,6 +128,19 @@ function initialsOf(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+// Sort carets (same glyph convention as My Tickets / Staff Queue headers:
+// both neutral until the column is active, then the active direction fills
+// with the primary green). `none` columns keep clickable neutral carets.
+function Carets({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
+  const cls = active ? `au-sic au-sic-active au-sic-${dir}` : 'au-sic';
+  return (
+    <svg className={cls} viewBox="0 0 8 12" aria-hidden="true">
+      <path className="au-up" d="M4 0l4 5H0z" />
+      <path className="au-dn" d="M4 12L0 7h8z" />
+    </svg>
+  );
+}
+
 // §8.3 — self-deactivation is blocked client-side via `isSelfRow`/`isLastAdmin`
 // in the edit modal (server 409 is the authority).
 
@@ -115,6 +159,12 @@ export default function UserManagement() {
   // Action feedback banner (create/edit/set-password success + conflict).
   const [banner, setBanner] = useState<{ tone: 'success' | 'conflict' | 'error'; text: string } | null>(null);
   const [modal, setModal] = useState<ModalMode>({ kind: 'none' });
+  // Client-side single-column sort (api-spec §9 has no server sort contract
+  // and the admin list is unpaginated, so sorting the fetched array is
+  // complete — every row is already on the client). Natural directions:
+  // Name/Email A→Z; Role by permission rank (Administrator > IT Staff >
+  // Requester); Status Active before Inactive.
+  const [sort, setSort] = useState<SortState>({ key: 'id', dir: 'asc' });
 
   const debounceRef = useRef<number | undefined>(undefined);
   const requestIdRef = useRef(0);
@@ -155,6 +205,34 @@ export default function UserManagement() {
     setSearch('');
     setRoleFilter('');
   };
+
+  // Sorted view of the fetched users; the server list itself is untouched
+  // so a refresh preserves the api-spec §9.1 id-ascending contract.
+  const sortedUsers = useMemo(() => {
+    const list = [...users];
+    list.sort((a, b) => {
+      const primary = compareUsers(a, b, sort.key);
+      return primary !== 0 && sort.key !== 'id'
+        ? sort.dir === 'asc'
+          ? primary
+          : -primary
+        : primary; // `id` ignores dir (single natural order)
+    });
+    return list;
+  }, [users, sort]);
+
+  function toggleSort(key: SortKey) {
+    setSort((prev) => {
+      if (prev.key === key) {
+        if (key === 'id') return prev; // natural order has no second direction
+        return { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' };
+      }
+      // Sensible first-click directions per column: Role opens with the
+      // highest rank (Administrator) first; Status opens Active first;
+      // text columns open A→Z.
+      return { key, dir: key === 'role' ? 'desc' : 'asc' };
+    });
+  }
 
   async function handleCreated() {
     setModal({ kind: 'none' });
@@ -281,15 +359,31 @@ export default function UserManagement() {
               </caption>
               <thead>
                 <tr>
-                  <th scope="col">Name</th>
-                  <th scope="col">Email</th>
-                  <th scope="col">Role</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Actions</th>
+                  <th scope="col" aria-sort={sort.key === 'name' ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                    <button type="button" className="mt-th-sort" onClick={() => toggleSort('name')}>
+                      Name <Carets active={sort.key === 'name'} dir={sort.dir} />
+                    </button>
+                  </th>
+                  <th scope="col" aria-sort={sort.key === 'email' ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                    <button type="button" className="mt-th-sort" onClick={() => toggleSort('email')}>
+                      Email <Carets active={sort.key === 'email'} dir={sort.dir} />
+                    </button>
+                  </th>
+                  <th scope="col" aria-sort={sort.key === 'role' ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                    <button type="button" className="mt-th-sort" onClick={() => toggleSort('role')}>
+                      Role <Carets active={sort.key === 'role'} dir={sort.dir} />
+                    </button>
+                  </th>
+                  <th scope="col" aria-sort={sort.key === 'status' ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                    <button type="button" className="mt-th-sort" onClick={() => toggleSort('status')}>
+                      Status <Carets active={sort.key === 'status'} dir={sort.dir} />
+                    </button>
+                  </th>
+                  <th scope="col" className="au-th-static">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {users.map((u) => (
+                {sortedUsers.map((u) => (
                   <tr key={u.id}>
                     <td className="au-name">
                       <span className="au-avatar" aria-hidden="true">{initialsOf(u.name)}</span>
@@ -319,9 +413,10 @@ export default function UserManagement() {
                 ))}
               </tbody>
             </table>
-            {/* Mobile cards (below 768px, §8.1) */}
+            {/* Mobile cards (below 768px, §8.1) — same sort order as the
+                table so both renderings agree. */}
             <div className="mt-cards">
-              {users.map((u) => (
+              {sortedUsers.map((u) => (
                 <div key={u.id} className="m-card">
                   <div className="row1">
                     <span className="au-name-text">{u.name}</span>

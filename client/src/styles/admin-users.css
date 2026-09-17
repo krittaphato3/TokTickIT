@@ -72,9 +72,66 @@
 .au-caption {
   caption-side: top;
   text-align: left;
-  padding: 12px 20px 0;
+  padding: 14px 20px 6px;
   font-size: 0.8125rem;
   color: var(--tok-text-muted);
+}
+
+/* ---- Table header: taller and more substantial than the thin default ----
+   The base .mt-table-card thead th is 0.625rem padding at 0.8125rem type;
+   the admin list is the account-control surface, so the header gets a
+   full-height bar: more vertical padding, uppercase letter-spaced labels,
+   and a stronger green band with a firmer rule. */
+.au-table thead th {
+  padding: 0.875rem 1rem;
+  background: linear-gradient(180deg, var(--tok-primary-soft), #e2f2e9);
+  border-bottom: 2px solid rgba(0, 107, 60, 0.35);
+}
+.au-table thead th .mt-th-sort {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--tok-primary);
+}
+.au-table thead th.au-th-static {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--tok-primary);
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+}
+/* Sort buttons inherit the header look; focus ring per Zen Green. */
+.au-table thead .mt-th-sort:focus-visible {
+  outline: none;
+  box-shadow: var(--tok-ring);
+  border-radius: 4px;
+}
+.au-table thead .mt-th-sort:hover {
+  color: var(--tok-secondary);
+}
+
+/* Sort carets: neutral gray when inactive, green fill for the active
+   direction (same visual language as My Tickets .mt-sic). */
+.au-sic {
+  width: 8px;
+  height: 12px;
+  flex: none;
+}
+.au-sic .au-up,
+.au-sic .au-dn {
+  fill: #9db4a8;
+}
+.au-sic-active.au-sic-asc .au-up,
+.au-sic-active.au-sic-desc .au-dn {
+  fill: var(--tok-primary);
+}
+.au-sic-active.au-sic-asc .au-dn,
+.au-sic-active.au-sic-desc .au-up {
+  fill: #c9d4ce;
 }
 
 /* ---- Modals (§8.2): share the ticket-detail dialog shell ---- */
@@ -258,5 +315,11 @@
   }
   .td-modal-actions .tok-btn {
     width: 100%;
+  }
+}
+
+@media (min-width: 992px) and (max-height: 800px) {
+  .au-table thead th {
+    padding: 0.625rem 0.75rem;
   }
 }

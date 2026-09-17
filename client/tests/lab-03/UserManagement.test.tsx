@@ -213,6 +213,77 @@ describe('T-ADM-01 (client half) — list rendering and search', () => {
     expect(await screen.findByText('No users yet.')).toBeInTheDocument();
   });
 
+  it('sorts by Name/Email/Role/Status with aria-sort and cycle directions; Actions stays static', async () => {
+    const user = userEvent.setup();
+    // Deliberately out of alphabetical order to make sort effects visible.
+    fetchHandler = () =>
+      usersResponse([
+        mkUser(1, 'Zoe Requester', 'zoe@x.test', 'REQUESTER'),
+        mkUser(2, 'Adam Staff', 'adam@x.test', 'IT_STAFF'),
+        mkUser(3, 'Mia Admin', 'mia@x.test', 'ADMIN', false),
+        mkUser(4, 'Bob Requester', 'bob@x.test', 'REQUESTER', false),
+      ]);
+    await openScreen(false); // payload has no 'Dev User Alpha' row to wait for
+    await screen.findAllByText('Zoe Requester');
+
+    const namesInOrder = () =>
+      [...document.querySelectorAll('.au-table tbody tr .au-name-text')].map(
+        (el) => el.textContent,
+      );
+    const headerButton = (label: string) =>
+      within(document.querySelector('thead')!).getByRole('button', { name: new RegExp(label) });
+    const actionsHeader = () =>
+      within(document.querySelector('thead')!).getByText('Actions');
+
+    // Default: server order (id ascending).
+    expect(namesInOrder()).toEqual(['Zoe Requester', 'Adam Staff', 'Mia Admin', 'Bob Requester']);
+
+    // Name ascending on first click.
+    await user.click(headerButton('Name'));
+    expect(namesInOrder()).toEqual(['Adam Staff', 'Bob Requester', 'Mia Admin', 'Zoe Requester']);
+    expect(screen.getByRole('columnheader', { name: /Name/ })).toHaveAttribute('aria-sort', 'ascending');
+
+    // Name descending on second click.
+    await user.click(headerButton('Name'));
+    expect(namesInOrder()).toEqual(['Zoe Requester', 'Mia Admin', 'Bob Requester', 'Adam Staff']);
+    expect(screen.getByRole('columnheader', { name: /Name/ })).toHaveAttribute('aria-sort', 'descending');
+
+    // Email column sorts by email.
+    await user.click(headerButton('Email'));
+    const emails = [...document.querySelectorAll('.au-table tbody td.au-email')].map(
+      (el) => el.textContent,
+    );
+    expect(emails).toEqual(['adam@x.test', 'bob@x.test', 'mia@x.test', 'zoe@x.test']);
+    expect(screen.getByRole('columnheader', { name: /Email/ })).toHaveAttribute('aria-sort', 'ascending');
+    expect(screen.getByRole('columnheader', { name: /Name/ })).toHaveAttribute('aria-sort', 'none');
+
+    // Role: first click ranks Administrator > IT Staff > Requester.
+    await user.click(headerButton('Role'));
+    const roles = [...document.querySelectorAll('.au-table tbody .au-role')].map(
+      (el) => el.textContent,
+    );
+    expect(roles).toEqual(['Administrator', 'IT Staff', 'Requester', 'Requester']);
+
+    // Status: first click puts Active before Inactive.
+    await user.click(headerButton('Status'));
+    const statuses = [...document.querySelectorAll('.au-table tbody td:nth-child(4) .mt-badge')].map(
+      (el) => el.textContent,
+    );
+    expect(statuses.every((s, i, arr) => i === 0 || arr[i - 1] === 'Active' || s === 'Inactive')).toBe(true);
+    expect(statuses.filter((s) => s === 'Active')).toHaveLength(2);
+
+    // Actions header is not a button — no sort control on that column.
+    expect(actionsHeader().tagName).toBe('TH');
+    expect(document.querySelector('thead')!.querySelectorAll('button')).toHaveLength(4);
+
+    // The mobile card list mirrors the table's sort order (both renderings
+    // show the same users in the same sequence).
+    const cardNames = [...document.querySelectorAll('.m-card .au-name-text')].map(
+      (el) => el.textContent,
+    );
+    expect(cardNames).toEqual(namesInOrder());
+  });
+
   it('load failure shows the failure state with Try again, then recovers', async () => {
     fetchHandler = () =>
       jsonResponse({ error: 'An unexpected error occurred. Please try again.' }, 500);
