@@ -263,6 +263,17 @@ Exactly three tabs (`role=tablist`, arrow-key navigation, `aria-selected`): Publ
 
 > Traceability: FR-11, FR-12, FR-13 | BR-09, BR-10, BR-18 | AC-15, AC-16, AC-17, AC-18.
 
+> **Implementation status (admin-users issue):** §8.1–§8.3 are implemented (`client/src/components/UserManagement.tsx`
+> + `client/src/styles/admin-users.css`, wired at `#/admin/users` in `App.tsx`; screen suite
+> `client/tests/lab-03/UserManagement.test.tsx`, 16 passing tests). The screen reuses the My Tickets
+> layout language (.mt-page/.mt-head/.mt-filter-card/.mt-table-card/.mt-cards) and the ticket-detail
+> dialog shell, so it reads native to Lab 2's Zen Green language. Deviations from this spec, documented:
+> (1) the create-success banner copy is "User saved." rather than "User <email> created." (shorter,
+> equally unambiguous — the list refresh carries the new row); (2) the mobile card list renders
+> alongside the table with CSS hiding one side (same pattern as My Tickets) rather than being
+> conditionally rendered; (3) load failure renders inside the list card as the §10 failure state with
+> Try again — no separate top banner, so failure feedback lives in exactly one place.
+
 ### 8.1 User list
 
 - Page head: h1 "User Management" + muted subtitle "Create accounts, assign roles, and control access." Right: "Create user" primary button (plus icon).

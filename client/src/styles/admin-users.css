@@ -1,0 +1,262 @@
+/* Lab 3 §8 — Administrator User Management (ui-spec §8). Reuses the My
+   Tickets layout language (.mt-page/.mt-head/.mt-filter-card/.mt-table-card/
+   .mt-cards) and the staff queue's Edit-style button so the screen feels
+   native. Zen Green tokens only; role badges follow §11.3 (Requester pale
+   green, IT Staff pale blue, Administrator deep-green solid). */
+
+/* Role filter column: search stays widest (§8.1 single-filter row). */
+.mt-filter-card.au-filter {
+  grid-template-columns: minmax(200px, 1.6fr) minmax(160px, 1fr);
+}
+
+/* Name cell: avatar initials + name (§8.1). */
+.au-name {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 140px;
+}
+.au-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--tok-primary-soft);
+  color: var(--tok-primary);
+  font-size: 0.71875rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  user-select: none;
+}
+.au-name-text {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.au-email {
+  color: var(--tok-text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* Role badges (§11.3) — never color-only, each carries its text label. */
+.au-role-REQUESTER {
+  background: var(--tok-primary-soft);
+  color: var(--tok-primary);
+  border-color: #d3ecdd;
+}
+.au-role-IT_STAFF {
+  background: var(--tok-info-soft, #e9f0fb);
+  color: var(--tok-info, #1d5fbf);
+  border-color: #c9daf3;
+}
+.au-role-ADMIN {
+  background: var(--tok-primary);
+  color: #fff;
+  border-color: var(--tok-primary);
+}
+
+/* Status pills: Active green / Inactive gray (§8.1). */
+.au-status-active {
+  background: var(--tok-success-soft);
+  color: var(--tok-success);
+  border-color: #cbe7d4;
+}
+.au-status-inactive {
+  background: #eef1ef;
+  color: #4b5752;
+  border-color: #d4dbd6;
+}
+
+/* Live-region table caption (§8.1 "Showing N users"). */
+.au-caption {
+  caption-side: top;
+  text-align: left;
+  padding: 12px 20px 0;
+  font-size: 0.8125rem;
+  color: var(--tok-text-muted);
+}
+
+/* ---- Modals (§8.2): share the ticket-detail dialog shell ---- */
+.au-modal {
+  background: var(--tok-surface);
+  border-radius: var(--tok-radius-card);
+  box-shadow: 0 12px 32px rgba(30, 42, 37, 0.24);
+  padding: 20px;
+  width: 100%;
+  max-width: 520px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+.au-modal h2 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin: 0 0 14px;
+}
+.au-modal h3 {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  margin: 0 0 10px;
+}
+.au-field {
+  margin-bottom: 12px;
+}
+.au-field label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+}
+.au-field-err {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--tok-error);
+  font-size: 0.8125rem;
+  margin: 6px 0 0;
+}
+.au-modal .std-banner {
+  margin: 0 0 12px;
+}
+.au-password-row {
+  display: flex;
+  gap: 8px;
+}
+.au-password-row .tok-input {
+  flex: 1;
+}
+.au-show-btn {
+  border: 1px solid var(--tok-border);
+  border-radius: var(--tok-radius);
+  background: var(--tok-surface);
+  color: var(--tok-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 0 0.75rem;
+  min-height: 40px;
+  cursor: pointer;
+  flex: none;
+}
+.au-show-btn:hover {
+  background: var(--tok-primary-soft);
+  border-color: var(--tok-secondary);
+  color: var(--tok-primary);
+}
+
+/* Active toggle (switch role, §8.2). */
+.au-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.au-switch-row > label {
+  margin-bottom: 0;
+}
+.au-switch-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.au-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 4px 12px 4px 4px;
+  border: 1px solid var(--tok-border);
+  border-radius: 999px;
+  background: var(--tok-field-readonly);
+  cursor: pointer;
+}
+.au-switch[aria-checked='true'] {
+  background: var(--tok-primary-soft);
+  border-color: rgba(0, 107, 60, 0.35);
+}
+.au-switch:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.au-switch:focus-visible {
+  outline: none;
+  box-shadow: var(--tok-ring);
+}
+.au-switch-thumb {
+  width: 34px;
+  height: 20px;
+  border-radius: 999px;
+  background: #9db4a8;
+  position: relative;
+  transition: background 0.15s;
+  flex: none;
+}
+.au-switch-thumb::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(30, 42, 37, 0.35);
+  transition: left 0.15s;
+}
+.au-switch[aria-checked='true'] .au-switch-thumb {
+  background: var(--tok-primary);
+}
+.au-switch[aria-checked='true'] .au-switch-thumb::after {
+  left: 16px;
+}
+.au-switch-text {
+  font-size: 0.84375rem;
+  font-weight: 600;
+  color: var(--tok-text);
+}
+
+/* Set-initial-password section at the edit modal foot (§8.2). */
+.au-password-section {
+  border-top: 1px solid var(--tok-border-soft);
+  margin-top: 16px;
+  padding-top: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .au-switch-thumb,
+  .au-switch-thumb::after {
+    transition: none;
+  }
+}
+
+/* ---- Responsive (§13 matrix): tablet 2-col filter, mobile cards ---- */
+@media (max-width: 991px) {
+  .mt-filter-card.au-filter {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .mt-filter-card.au-filter {
+    grid-template-columns: 1fr;
+  }
+  .au-table {
+    display: none; /* mobile: stacked cards instead of the table (§8.1) */
+  }
+  .au-caption {
+    padding: 12px 16px 0;
+  }
+  .au-password-row {
+    flex-direction: column;
+  }
+  .au-show-btn {
+    min-height: 44px;
+  }
+  .au-switch {
+    min-height: 44px;
+  }
+  .td-modal-actions {
+    flex-direction: column-reverse;
+  }
+  .td-modal-actions .tok-btn {
+    width: 100%;
+  }
+}

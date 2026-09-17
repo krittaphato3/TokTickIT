@@ -954,6 +954,23 @@ existence cannot be probed.
 
 ## 9. Administrator User Management API (ADMIN only)
 
+> **Implementation status (admin-users issue):** §9.1–§9.4 are implemented and enforce-checked
+> (`server/src/routes/users.ts` + `server/src/services/users.service.ts` +
+> `server/src/controllers/users.controller.ts`; suite `server/tests/lab-03/users-admin.api.test.ts`,
+> 27 passing tests; screen suite `client/tests/lab-03/UserManagement.test.tsx`, 16 passing tests).
+> The router registers `GET|POST /api/users`, `PATCH /api/users/:id`, and
+> `POST /api/users/:id/set-initial-password`, each double-gated server-side: `requireAuth`
+> (401 without a session; 403 for inactive accounts) then `requireAdminRole`
+> (403 `"Administrator access required"` for REQUESTER and IT_STAFF — the surface itself is
+> not a per-user secret, so no masked 404). The mustChangePassword gate (BR-02) applies to the
+> whole surface including a gated admin's own session. The §9.3 self-deactivation guard reads
+> the actor id from the server-side session (BR-03), never from a client field. Guard
+> reachability note: an API actor must be an active Administrator, so a pure-API
+> "deactivate the last active admin" attempt always coincides with the self rule (checked
+> first per §9.3); the distinct last-admin branch is proven at the service layer with a
+> separate actor id and via the role-reassign 409 over the API. There is no
+> `DELETE /api/users/:id` — deactivation replaces deletion (BR-18).
+
 All endpoints require session cookie (+ CSRF for writes). Non-admin roles → `403`.
 List responses never include password hashes. Email comparison is case-insensitive; stored lowercase.
 
