@@ -52,9 +52,12 @@ export function toUserShape(user: User): {
 
 // §9.1 — `search` is a trimmed case-insensitive substring over name or email;
 // empty/absent means no filter. `role` is optional and strictly validated.
+// `page`/`pageSize` paginate server-side (page ≥ 1; pageSize 5–100, default 10).
 export function validateUserListParams(query: Record<string, unknown>): {
   search: string | null;
   role: UserListRole | null;
+  page: number;
+  pageSize: number;
 } {
   const rawSearch = query.search as string | undefined;
   let search: string | null = null;
@@ -82,7 +85,37 @@ export function validateUserListParams(query: Record<string, unknown>): {
     role = rawRole as UserListRole;
   }
 
-  return { search, role };
+  // Pagination (stakeholder request): express delivers query values as
+  // strings; anything non-integral or out of range is a 400, not a clamp,
+  // so clients see their own mistakes.
+  const rawPage = query.page as string | undefined;
+  let page = 1;
+  if (rawPage !== undefined && rawPage !== '') {
+    const n = Number(rawPage);
+    if (!Number.isInteger(n) || n < 1) {
+      throw new HttpError(400, 'Validation failed', [
+        { field: 'page', message: 'page must be a positive integer' },
+      ]);
+    }
+    page = n;
+  }
+
+  const rawPageSize = query.pageSize as string | undefined;
+  let pageSize = 10;
+  if (rawPageSize !== undefined && rawPageSize !== '') {
+    const n = Number(rawPageSize);
+    if (!Number.isInteger(n) || n < 5 || n > 100) {
+      throw new HttpError(400, 'Validation failed', [
+        {
+          field: 'pageSize',
+          message: 'pageSize must be an integer between 5 and 100',
+        },
+      ]);
+    }
+    pageSize = n;
+  }
+
+  return { search, role, page, pageSize };
 }
 
 function buildListWhere(
@@ -106,20 +139,59 @@ function buildListWhere(
   return where;
 }
 
-// §9.1 — list users ordered by id ascending (no pagination in Lab 3 admin).
+// §9.1 — list users ordered by id ascending, paginated server-side.
+// meta carries the paging math plus role/status counts (dataset-wide, not
+// search-filtered) so the admin console can render its stats strip from one
+// request. Responses never include passwordHash.
 export async function listUsers(
   prisma: PrismaClient,
   query: Record<string, unknown>,
-): Promise<{ data: ReturnType<typeof toUserShape>[]; meta: { totalItems: number } }> {
-  const { search, role } = validateUserListParams(query);
+): Promise<{
+  data: ReturnType<typeof toUserShape>[];
+  meta: {
+    totalItems: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    counts: {
+      total: number;
+      admin: number;
+      itStaff: number;
+      requester: number;
+      active: number;
+      inactive: number;
+    };
+  };
+}> {
+  const { search, role, page, pageSize } = validateUserListParams(query);
   const where = buildListWhere(search, role);
-  const users = await prisma.user.findMany({
-    where,
-    orderBy: { id: 'asc' },
-  });
+  const [users, totalItems] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      orderBy: { id: 'asc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.user.count({ where }),
+  ]);
+  // Dataset-wide counts for the console stats strip.
+  const [total, admin, itStaff, requester, active, inactive] = await Promise.all([
+    prisma.user.count(),
+    prisma.user.count({ where: { role: 'ADMINISTRATOR' } }),
+    prisma.user.count({ where: { role: 'IT_STAFF' } }),
+    prisma.user.count({ where: { role: 'REQUESTER' } }),
+    prisma.user.count({ where: { isActive: true } }),
+    prisma.user.count({ where: { isActive: false } }),
+  ]);
   return {
     data: users.map(toUserShape),
-    meta: { totalItems: users.length },
+    meta: {
+      totalItems,
+      page,
+      pageSize,
+      totalPages: Math.max(1, Math.ceil(totalItems / pageSize)),
+      counts: { total, admin, itStaff, requester, active, inactive },
+    },
   };
 }
 

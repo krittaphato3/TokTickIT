@@ -160,7 +160,9 @@ describe('T-ADM-01 — user list with search by name and email (AC-15)', () => {
     const admin = await adminFixture('adm-l1');
     const res = await withCookie(admin, request(app).get('/api/users'));
     expect(res.status).toBe(200);
-    expect(res.body.meta).toEqual({ totalItems: res.body.data.length });
+    expect(res.body.meta.page).toBe(1);
+    expect(res.body.meta.totalPages).toBe(Math.ceil(res.body.meta.totalItems / 10));
+    expect(res.body.data.length).toBe(Math.min(10, res.body.meta.totalItems));
     expect(res.body.data.length).toBeGreaterThanOrEqual(5); // seed quota: 5 requesters + 4 staff + 1 admin
 
     const ids = res.body.data.map((u: { id: number }) => u.id);
@@ -218,6 +220,36 @@ describe('T-ADM-01 — user list with search by name and email (AC-15)', () => {
     const blank = await withCookie(admin, request(app).get('/api/users')).query({ search: '   ' });
     expect(blank.status).toBe(200);
     expect(blank.body.meta.totalItems).toBe(all.body.meta.totalItems);
+  });
+
+  it('paginates server-side: page slicing, totalPages math, and meta counts', async () => {
+    const admin = await adminFixture('adm-l5');
+    const p1 = await withCookie(admin, request(app).get('/api/users')).query({ page: 1, pageSize: 5 });
+    const p2 = await withCookie(admin, request(app).get('/api/users')).query({ page: 2, pageSize: 5 });
+    expect(p1.status).toBe(200);
+    expect(p2.status).toBe(200);
+    expect(p1.body.data).toHaveLength(5);
+    expect(p2.body.data.length).toBeLessThanOrEqual(5);
+    expect(p1.body.meta.totalItems).toBe(p2.body.meta.totalItems);
+    expect(p1.body.meta.totalPages).toBe(Math.ceil(p1.body.meta.totalItems / 5));
+    const ids1 = p1.body.data.map((u: { id: number }) => u.id);
+    const ids2 = p2.body.data.map((u: { id: number }) => u.id);
+    expect(ids1.some((id: number) => ids2.includes(id))).toBe(false);
+    // dataset-wide counts stay stable across pages
+    expect(p1.body.meta.counts.total).toBe(p2.body.meta.counts.total);
+    expect(
+      p1.body.meta.counts.admin + p1.body.meta.counts.itStaff + p1.body.meta.counts.requester,
+    ).toBe(p1.body.meta.counts.total);
+    expect(p1.body.meta.counts.active + p1.body.meta.counts.inactive).toBe(p1.body.meta.counts.total);
+  });
+
+  it('rejects invalid pagination values with 400', async () => {
+    const admin = await adminFixture('adm-l6');
+    for (const q of [{ page: '0' }, { page: '-1' }, { page: 'x' }, { pageSize: '4' }, { pageSize: '101' }, { pageSize: 'abc' }]) {
+      const res = await withCookie(admin, request(app).get('/api/users')).query(q);
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Validation failed');
+    }
   });
 });
 

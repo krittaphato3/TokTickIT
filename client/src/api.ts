@@ -764,18 +764,37 @@ export interface AdminUser {
   updatedAt: string;
 }
 
+export interface AdminUserListMetaCounts {
+  total: number;
+  admin: number;
+  itStaff: number;
+  requester: number;
+  active: number;
+  inactive: number;
+}
+
 export interface AdminUserListResult {
   data: AdminUser[];
-  meta: { totalItems: number };
+  meta: {
+    totalItems: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    counts: AdminUserListMetaCounts;
+  };
 }
 
 export async function getAdminUsers(params: {
   search?: string;
   role?: AdminUserRole | '';
+  page?: number;
+  pageSize?: number;
 }): Promise<AdminUserListResult> {
   const search = new URLSearchParams();
   if (params.search !== undefined && params.search !== '') search.set('search', params.search);
   if (params.role !== undefined && params.role !== '') search.set('role', params.role);
+  if (params.page !== undefined) search.set('page', String(params.page));
+  if (params.pageSize !== undefined) search.set('pageSize', String(params.pageSize));
   const qs = search.toString();
   const response = await fetch(`${API_URL}/api/users${qs ? `?${qs}` : ''}`, {
     credentials: 'include',

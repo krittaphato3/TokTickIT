@@ -61,8 +61,26 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-function usersResponse(list = USERS): Response {
-  return jsonResponse({ data: list, meta: { totalItems: list.length } });
+// Full §9 meta shape (stakeholder-requested pagination + dataset counts).
+function usersResponse(list = USERS, page = 1, pageSize = 10): Response {
+  const totalItems = list.length;
+  return jsonResponse({
+    data: list.slice((page - 1) * pageSize, page * pageSize),
+    meta: {
+      totalItems,
+      page,
+      pageSize,
+      totalPages: Math.max(1, Math.ceil(totalItems / pageSize)),
+      counts: {
+        total: list.length,
+        admin: list.filter((u) => u.role === 'ADMIN').length,
+        itStaff: list.filter((u) => u.role === 'IT_STAFF').length,
+        requester: list.filter((u) => u.role === 'REQUESTER').length,
+        active: list.filter((u) => u.isActive).length,
+        inactive: list.filter((u) => !u.isActive).length,
+      },
+    },
+  });
 }
 
 type FetchHandler = (url: string, init?: RequestInit) => Response | Promise<Response>;
@@ -159,7 +177,52 @@ describe('T-ADM-01 (client half) — list rendering and search', () => {
     ]);
     expect(screen.getAllByText('IT Staff').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Inactive').length).toBeGreaterThan(0);
-    expect(screen.getByText(/Showing 5 users/)).toBeInTheDocument();
+    expect(screen.getByText(/Showing 1–5 of 5 users/)).toBeInTheDocument();
+  });
+
+  it('renders the KPI stats strip from meta.counts with role tiles as filter toggles', async () => {
+    const user = userEvent.setup();
+    await openScreen();
+    const group = screen.getByRole('group', { name: 'User statistics' });
+    expect(group).toBeInTheDocument();
+    expect(screen.getByText('Total users')).toBeInTheDocument();
+    // Role tiles carry the dataset counts and are clickable filters.
+    const adminTile = within(group).getByRole('button', { name: /Administrators/ });
+    expect(adminTile).toHaveTextContent('1');
+    expect(adminTile).toHaveAttribute('aria-pressed', 'false');
+    await user.click(adminTile);
+    await waitUntil(() => userCalls.some((c) => c.includes('role=ADMIN')));
+    await user.click(adminTile);
+    await waitUntil(() => userCalls.some((c) => !c.includes('role=')));
+  });
+
+  it('paginates server-side: page param, footer navigation, and range caption', async () => {
+    const user = userEvent.setup();
+    // 12 users at 10/page → 2 pages; the stub slices like the server.
+    const big = [
+      ...USERS,
+      ...Array.from({ length: 7 }, (_, i) =>
+        mkUser(100 + i, `Extra User ${i + 1}`, `extra${i + 1}@toktickit.test`, 'REQUESTER'),
+      ),
+    ];
+    fetchHandler = (url) => {
+      const params = new URL(url).searchParams;
+      return usersResponse(big, Number(params.get('page') ?? '1'), Number(params.get('pageSize') ?? '10'));
+    };
+    await openScreen();
+    expect(screen.getByText(/Showing 1–10 of 12 users/)).toBeInTheDocument();
+    expect(screen.getByText('Page 1 of 2')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Page 2' }));
+    await waitUntil(() => userCalls.some((c) => c.includes('page=2')));
+    expect(await screen.findByText(/Showing 11–12 of 12 users/)).toBeInTheDocument();
+    expect(screen.getByText('Page 2 of 2')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
+
+    // Changing page size resets to page 1 and requests the new size.
+    await user.selectOptions(screen.getByLabelText('Rows'), '25');
+    await waitUntil(() => userCalls.some((c) => c.includes('pageSize=25') && c.includes('page=1')));
+    expect(await screen.findByText(/Showing 1–12 of 12 users/)).toBeInTheDocument();
   });
 
   it('debounces search and sends the search param to the API', async () => {
@@ -321,7 +384,10 @@ describe('T-ADM-03 (client half) — create user modal', () => {
     await user.type(within(dialog).getByLabelText('Initial Password'), 'TempPass1!');
     await user.click(within(dialog).getByRole('button', { name: 'Create user' }));
 
-    expect(await screen.findByText('User saved.')).toBeInTheDocument();
+    // Success now surfaces as a bottom-right toast (stakeholder request).
+    const toast = await screen.findByText('User saved.');
+    expect(toast.closest('.au-toast')).toHaveClass('au-toast-success');
+    expect(toast.closest('.au-toasts')).not.toBeNull();
     await waitFor(() => expect(dialog).not.toBeInTheDocument());
   });
 
@@ -383,9 +449,8 @@ describe('T-ADM-04/05 (client half) — edit modal, safety, and initial password
     await user.type(within(dialog).getByLabelText('Name'), 'Sara IT-Lead');
     await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
 
-    expect(
-      await screen.findByText(withText('Changes to sara.it@toktickit.test saved.')),
-    ).toBeInTheDocument();
+    const toast = await screen.findByText('Changes to sara.it@toktickit.test saved.');
+    expect(toast.closest('.au-toast')).toHaveClass('au-toast-success');
     await waitFor(() => expect(dialog).not.toBeInTheDocument());
   });
 
@@ -395,7 +460,7 @@ describe('T-ADM-04/05 (client half) — edit modal, safety, and initial password
     // The signed-in admin's own row (Ada Admin, id 9).
     const dialog = await openEdit('Ada Admin');
 
-    const toggle = within(dialog).getByRole('switch', { name: /Active/ });
+    const toggle = within(dialog).getByRole('switch', { name: 'Status' });
     expect(toggle).toHaveAttribute('aria-checked', 'true');
     await user.click(toggle);
     expect(
@@ -422,11 +487,10 @@ describe('T-ADM-04/05 (client half) — edit modal, safety, and initial password
     await user.selectOptions(within(dialog).getByLabelText('Role'), 'REQUESTER');
     await user.click(within(dialog).getByRole('button', { name: 'Save changes' }));
 
-    expect(
-      await screen.findByText(
-        withText('At least one active Administrator must remain. This change was not saved.'),
-      ),
-    ).toBeInTheDocument();
+    const conflictToast = await screen.findByText(
+      withText('At least one active Administrator must remain. This change was not saved.'),
+    );
+    expect(conflictToast.closest('.au-toast')).toHaveClass('au-toast-conflict');
     // Server is the authority: the guarded PATCH actually went out.
     expect(userCalls.some((c) => c.startsWith('PATCH') && c.endsWith('/api/users/2'))).toBe(true);
   });
@@ -485,6 +549,34 @@ describe('T-ADM-04/05 (client half) — edit modal, safety, and initial password
       ),
     ).toBeInTheDocument();
     expect(postedPassword).toBe('ResetPass2@');
+  });
+
+  it('toasts auto-dismiss and can be dismissed manually', async () => {
+    const user = userEvent.setup();
+    fetchHandler = (url, init) => {
+      if (init?.method === 'POST') {
+        return jsonResponse(
+          mkUser(21, 'Toast User', 'toast.user@toktickit.test', 'IT_STAFF'),
+          201,
+        );
+      }
+      return usersResponse();
+    };
+    await openScreen();
+    await user.click(screen.getByRole('button', { name: 'Create user' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Create user' });
+    await user.type(within(dialog).getByLabelText('Name'), 'Toast User');
+    await user.type(within(dialog).getByLabelText('Email'), 'toast.user@toktickit.test');
+    await user.selectOptions(within(dialog).getByLabelText('Role'), 'IT_STAFF');
+    await user.type(within(dialog).getByLabelText('Initial Password'), 'TempPass1!');
+    await user.click(within(dialog).getByRole('button', { name: 'Create user' }));
+
+    expect(await screen.findByText('User saved.')).toBeInTheDocument();
+    // Manual dismiss removes the toast immediately.
+    await user.click(screen.getByRole('button', { name: 'Dismiss notification' }));
+    await waitFor(() =>
+      expect(screen.queryByText('User saved.')).not.toBeInTheDocument(),
+    );
   });
 
   it('rejects a short initial password client-side without a request', async () => {

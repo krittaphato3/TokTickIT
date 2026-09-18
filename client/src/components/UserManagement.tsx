@@ -6,7 +6,7 @@ import {
   setUserInitialPassword,
   updateAdminUser,
 } from '../api';
-import type { AdminUser, AdminUserRole } from '../api';
+import type { AdminUser, AdminUserRole, AdminUserListMetaCounts } from '../api';
 import { useAuth } from '../auth/AuthContext';
 import '../styles/admin-users.css';
 
@@ -14,13 +14,21 @@ import '../styles/admin-users.css';
 // for an authenticated ADMINISTRATOR session; the shell router gate blocks
 // other roles before this mounts, and the server rejects non-admin calls with
 // 403 regardless (BR-20 — this screen only mirrors the enforced contract).
-// Minimalist on purpose: search + ONE role filter, no pagination, no
-// multi-column sorting, no delete (deactivation replaces deletion, BR-18).
+//
+// Stakeholder-requested additions (documented in ui-spec §8): server-side
+// PAGINATION (page/pageSize from api-spec §9 meta; the "not required" list
+// bars nothing — it only said pagination was not mandatory), a KPI stats
+// strip rendered from the meta.counts dataset totals, a denser console-style
+// table, and Facebook-style bottom-right TOAST notifications for save
+// outcomes (success/conflict) instead of the old top banner. Inline feedback
+// (validation, in-modal failures, the load-error state) is unchanged. There
+// is still no delete — deactivation replaces deletion (BR-18).
 
 const SEARCH_DEBOUNCE_MS = 300;
 
 // Sortable columns. `id` is the unsorted server order (api-spec §9.1:
-// id ascending); Actions is not sortable.
+// id ascending); Actions is not sortable. Sorting reorders the CURRENT PAGE
+// client-side (documented in ui-spec §8) — pages arrive id-ascending.
 type SortKey = 'id' | 'name' | 'email' | 'role' | 'status';
 
 interface SortState {
@@ -28,6 +36,9 @@ interface SortState {
   dir: 'asc' | 'desc';
 }
 
+// Sort weight per role (Administrator sorts first). NOTE: Lab 3 has exactly
+// three roles, but if a new role is ever added to the User model, extend this
+// map too — otherwise the role column falls back to rank 0 for it.
 const ROLE_RANK: Record<string, number> = {
   ADMIN: 3,
   ADMINISTRATOR: 3,
@@ -63,6 +74,8 @@ const ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Administrator',
   ADMINISTRATOR: 'Administrator',
 };
+
+const PAGE_SIZES = [10, 25, 50];
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -141,6 +154,87 @@ function Carets({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
   );
 }
 
+// ---- Toasts (stakeholder request): Facebook-style bottom-right stack -------
+// Success/conflict outcomes of create/edit/set-password actions surface as
+// toasts; validation and load failures stay inline where the input is.
+interface ToastItem {
+  id: number;
+  tone: 'success' | 'conflict';
+  text: string;
+}
+
+const TOAST_TTL_MS = 6500;
+
+function Toast({
+  item,
+  onDismiss,
+}: {
+  item: ToastItem;
+  onDismiss: (id: number) => void;
+}) {
+  useEffect(() => {
+    const t = window.setTimeout(() => onDismiss(item.id), TOAST_TTL_MS);
+    return () => window.clearTimeout(t);
+  }, [item.id, onDismiss]);
+  return (
+    <div
+      className={`au-toast ${item.tone === 'success' ? 'au-toast-success' : 'au-toast-conflict'}`}
+      role={item.tone === 'success' ? 'status' : 'alert'}
+    >
+      <span className="au-toast-icon" aria-hidden="true">
+        {item.tone === 'success' ? (
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 10.5l4 4 8-9" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+            <line x1="10" y1="4" x2="10" y2="12" />
+            <circle cx="10" cy="16" r="0.6" fill="currentColor" />
+          </svg>
+        )}
+      </span>
+      <span className="au-toast-text">{item.text}</span>
+      <button
+        type="button"
+        className="au-toast-x"
+        aria-label="Dismiss notification"
+        onClick={() => onDismiss(item.id)}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
+// ---- Password strength meter (client-side hint only; the server keeps the
+// 8–72 length contract for admin-set initial passwords, §1.3 relaxation). ----
+function passwordScore(pw: string): number {
+  if (!pw) return 0;
+  let score = 0;
+  if (pw.length >= 8) score += 1;
+  if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score += 1;
+  if (/\d/.test(pw)) score += 1;
+  if (/[^A-Za-z0-9]/.test(pw)) score += 1;
+  return score;
+}
+
+const METER_LABELS = ['', 'Weak', 'Fair', 'Good', 'Strong'];
+
+function PasswordMeter({ pw }: { pw: string }) {
+  if (!pw) return null;
+  const score = passwordScore(pw);
+  return (
+    <div className="au-meter" aria-hidden="true">
+      <div className="au-meter-segs">
+        {[1, 2, 3, 4].map((seg) => (
+          <span key={seg} className={`au-seg ${seg <= score ? `au-seg-${score}` : ''}`} />
+        ))}
+      </div>
+      <span className="au-meter-label">{METER_LABELS[score]}</span>
+    </div>
+  );
+}
+
 // §8.3 — self-deactivation is blocked client-side via `isSelfRow`/`isLastAdmin`
 // in the edit modal (server 409 is the authority).
 
@@ -152,27 +246,46 @@ export default function UserManagement() {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<AdminUserRole | ''>('');
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [meta, setMeta] = useState({
+    totalItems: 0,
+    page: 1,
+    pageSize: 10,
+    totalPages: 1,
+    counts: { total: 0, admin: 0, itStaff: 0, requester: 0, active: 0, inactive: 0 } as AdminUserListMetaCounts,
+  });
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   // Load-failure copy rendered inside the error state block (never duplicated
   // as a banner — §10 failure feedback lives in one place per surface).
   const [loadError, setLoadError] = useState<string>('We could not load users.');
-  // Action feedback banner (create/edit/set-password success + conflict).
-  const [banner, setBanner] = useState<{ tone: 'success' | 'conflict' | 'error'; text: string } | null>(null);
+  // Save outcomes (create/edit/set-password) surface as bottom-right toasts;
+  // conflicts (self-deactivation, last-admin, 404) use the amber tone.
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [modal, setModal] = useState<ModalMode>({ kind: 'none' });
-  // Client-side single-column sort (api-spec §9 has no server sort contract
-  // and the admin list is unpaginated, so sorting the fetched array is
-  // complete — every row is already on the client). Natural directions:
-  // Name/Email A→Z; Role by permission rank (Administrator > IT Staff >
-  // Requester); Status Active before Inactive.
+  // Client-side single-column sort over the CURRENT page (api-spec §9 returns
+  // id-ascending pages; sorting the fetched slice is instant and complete for
+  // what is rendered — documented in ui-spec §8).
   const [sort, setSort] = useState<SortState>({ key: 'id', dir: 'asc' });
 
   const debounceRef = useRef<number | undefined>(undefined);
   const requestIdRef = useRef(0);
+  const toastSeq = useRef(0);
+
+  const pushToast = useCallback((tone: ToastItem['tone'], text: string) => {
+    const id = ++toastSeq.current;
+    setToasts((prev) => [...prev, { id, tone, text }]);
+  }, []);
+
+  const dismissToast = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   useEffect(() => {
     window.clearTimeout(debounceRef.current);
     debounceRef.current = window.setTimeout(() => {
       setSearch(searchInput.trim());
+      setPage(1); // new search → back to the first page
     }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(debounceRef.current);
   }, [searchInput]);
@@ -181,9 +294,16 @@ export default function UserManagement() {
     const id = ++requestIdRef.current;
     setState('loading');
     try {
-      const result = await getAdminUsers({ search, role: roleFilter });
+      const result = await getAdminUsers({ search, role: roleFilter, page, pageSize });
       if (id !== requestIdRef.current) return;
+      // Page overflow (e.g. filters shrank the dataset): snap to the last
+      // valid page; the effect refetches with the corrected number once.
+      if (result.data.length === 0 && page > 1 && result.meta.totalItems > 0) {
+        setPage(result.meta.totalPages);
+        return;
+      }
       setUsers(result.data);
+      setMeta(result.meta);
       setState('ready');
     } catch (err) {
       if (id !== requestIdRef.current) return;
@@ -194,7 +314,7 @@ export default function UserManagement() {
       }
       setState('error');
     }
-  }, [search, roleFilter]);
+  }, [search, roleFilter, page, pageSize]);
 
   useEffect(() => {
     void load();
@@ -204,9 +324,20 @@ export default function UserManagement() {
     setSearchInput('');
     setSearch('');
     setRoleFilter('');
+    setPage(1);
   };
 
-  // Sorted view of the fetched users; the server list itself is untouched
+  function changeRoleFilter(value: AdminUserRole | '') {
+    setRoleFilter(value);
+    setPage(1);
+  }
+
+  function changePageSize(value: number) {
+    setPageSize(value);
+    setPage(1);
+  }
+
+  // Sorted view of the fetched page; the server list itself is untouched
   // so a refresh preserves the api-spec §9.1 id-ascending contract.
   const sortedUsers = useMemo(() => {
     const list = [...users];
@@ -236,24 +367,78 @@ export default function UserManagement() {
 
   async function handleCreated() {
     setModal({ kind: 'none' });
-    setBanner({ tone: 'success', text: 'User saved.' });
+    pushToast('success', 'User saved.');
     await load();
   }
 
   async function handleSaved(user: AdminUser) {
     setModal({ kind: 'none' });
-    setBanner({ tone: 'success', text: `Changes to ${user.email} saved.` });
+    pushToast('success', `Changes to ${user.email} saved.`);
     await load();
   }
 
   async function handlePasswordSet(user: AdminUser) {
     setModal({ kind: 'none' });
-    setBanner({
-      tone: 'success',
-      text: `Initial password set for ${user.email}. They must change it at next sign-in.`,
-    });
+    pushToast(
+      'success',
+      `Initial password set for ${user.email}. They must change it at next sign-in.`,
+    );
     await load();
   }
+
+  // Footer math (§9 meta): "Showing X–Y of N users".
+  const rangeStart = meta.totalItems === 0 ? 0 : (meta.page - 1) * meta.pageSize + 1;
+  const rangeEnd = (meta.page - 1) * meta.pageSize + users.length;
+
+  // Compact page list: 1 … (p-1) p (p+1) … n
+  const pageButtons = useMemo(() => {
+    const n = meta.totalPages;
+    const p = meta.page;
+    if (n <= 7) return Array.from({ length: n }, (_, i) => i + 1);
+    const set = new Set<number>([1, 2, p - 1, p, p + 1, n - 1, n]);
+    const list = [...set].filter((x) => x >= 1 && x <= n).sort((a, b) => a - b);
+    const out: Array<number | '…'> = [];
+    let prev = 0;
+    for (const x of list) {
+      if (x - prev > 1) out.push('…');
+      out.push(x);
+      prev = x;
+    }
+    return out;
+  }, [meta.totalPages, meta.page]);
+
+  const kpis: Array<{
+    label: string;
+    value: number;
+    onClick?: () => void;
+    active?: boolean;
+    tone?: 'admin' | 'staff' | 'requester' | 'active' | 'inactive';
+  }> = [
+    { label: 'Total users', value: meta.counts.total },
+    {
+      label: 'Administrators',
+      value: meta.counts.admin,
+      tone: 'admin',
+      onClick: () => changeRoleFilter(roleFilter === 'ADMIN' ? '' : 'ADMIN'),
+      active: roleFilter === 'ADMIN',
+    },
+    {
+      label: 'IT Staff',
+      value: meta.counts.itStaff,
+      tone: 'staff',
+      onClick: () => changeRoleFilter(roleFilter === 'IT_STAFF' ? '' : 'IT_STAFF'),
+      active: roleFilter === 'IT_STAFF',
+    },
+    {
+      label: 'Requesters',
+      value: meta.counts.requester,
+      tone: 'requester',
+      onClick: () => changeRoleFilter(roleFilter === 'REQUESTER' ? '' : 'REQUESTER'),
+      active: roleFilter === 'REQUESTER',
+    },
+    { label: 'Active', value: meta.counts.active, tone: 'active' },
+    { label: 'Inactive', value: meta.counts.inactive, tone: 'inactive' },
+  ];
 
   return (
     <main className="mt-page au-page" aria-labelledby="au-heading">
@@ -277,17 +462,29 @@ export default function UserManagement() {
         </div>
       </div>
 
-      {banner ? (
-        <div
-          className={`std-banner ${banner.tone === 'success' ? 'success' : banner.tone === 'conflict' ? 'conflict' : 'error'}`}
-          role={banner.tone === 'success' ? 'status' : 'alert'}
-        >
-          <span aria-live="polite">{banner.text}</span>
-          <button type="button" className="std-banner-x" aria-label="Dismiss notification" onClick={() => setBanner(null)}>
-            ×
-          </button>
-        </div>
-      ) : null}
+      {/* Dataset-wide KPI strip from §9 meta.counts; role tiles are filter
+          shortcuts (click to filter, click again to clear). */}
+      <div className="au-kpis" role="group" aria-label="User statistics">
+        {kpis.map((k) =>
+          k.onClick ? (
+            <button
+              key={k.label}
+              type="button"
+              className={`au-kpi au-kpi-btn ${k.active ? 'au-kpi-active' : ''} ${k.tone ? `au-kpi-${k.tone}` : ''}`}
+              onClick={k.onClick}
+              aria-pressed={k.active}
+            >
+              <span className="au-kpi-num">{k.value}</span>
+              <span className="au-kpi-label">{k.label}</span>
+            </button>
+          ) : (
+            <div key={k.label} className={`au-kpi ${k.tone ? `au-kpi-${k.tone}` : ''}`}>
+              <span className="au-kpi-num">{k.value}</span>
+              <span className="au-kpi-label">{k.label}</span>
+            </div>
+          ),
+        )}
+      </div>
 
       <div className="mt-filter-card au-filter">
         <div className="mt-search-wrap">
@@ -312,10 +509,22 @@ export default function UserManagement() {
           <select
             id="au-role-filter"
             value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value as AdminUserRole | '')}
+            onChange={(e) => changeRoleFilter(e.target.value as AdminUserRole | '')}
           >
             {ROLE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="mt-f-label" htmlFor="au-page-size">Rows</label>
+          <select
+            id="au-page-size"
+            value={pageSize}
+            onChange={(e) => changePageSize(Number(e.target.value))}
+          >
+            {PAGE_SIZES.map((s) => (
+              <option key={s} value={s}>{s} / page</option>
             ))}
           </select>
         </div>
@@ -355,7 +564,8 @@ export default function UserManagement() {
           <>
             <table className="au-table">
               <caption className="au-caption" aria-live="polite">
-                Showing {users.length} {users.length === 1 ? 'user' : 'users'}
+                Showing {rangeStart}–{rangeEnd} of {meta.totalItems}{' '}
+                {meta.totalItems === 1 ? 'user' : 'users'}
               </caption>
               <thead>
                 <tr>
@@ -388,6 +598,9 @@ export default function UserManagement() {
                     <td className="au-name">
                       <span className="au-avatar" aria-hidden="true">{initialsOf(u.name)}</span>
                       <span className="au-name-text">{u.name}</span>
+                      {u.mustChangePassword ? (
+                        <span className="au-flag" title="Must change password at next sign-in">P!</span>
+                      ) : null}
                     </td>
                     <td className="au-email">{u.email}</td>
                     <td>
@@ -442,6 +655,49 @@ export default function UserManagement() {
                 </div>
               ))}
             </div>
+
+            {/* Pagination footer (§9 meta; server-driven pages). */}
+            <div className="au-pager">
+              <span className="au-pager-info">
+                Page {meta.page} of {meta.totalPages}
+              </span>
+              <div className="au-pager-btns">
+                <button
+                  type="button"
+                  className="au-pager-btn"
+                  aria-label="Previous page"
+                  disabled={meta.page <= 1}
+                  onClick={() => setPage(meta.page - 1)}
+                >
+                  ‹ Prev
+                </button>
+                {pageButtons.map((p, i) =>
+                  p === '…' ? (
+                    <span key={`gap-${i}`} className="au-pager-gap" aria-hidden="true">…</span>
+                  ) : (
+                    <button
+                      key={p}
+                      type="button"
+                      className={`au-pager-btn au-pager-num ${p === meta.page ? 'au-pager-cur' : ''}`}
+                      aria-label={`Page ${p}`}
+                      aria-current={p === meta.page ? 'page' : undefined}
+                      onClick={() => setPage(p)}
+                    >
+                      {p}
+                    </button>
+                  ),
+                )}
+                <button
+                  type="button"
+                  className="au-pager-btn"
+                  aria-label="Next page"
+                  disabled={meta.page >= meta.totalPages}
+                  onClick={() => setPage(meta.page + 1)}
+                >
+                  Next ›
+                </button>
+              </div>
+            </div>
           </>
         )}
       </div>
@@ -459,8 +715,17 @@ export default function UserManagement() {
           onClose={() => setModal({ kind: 'none' })}
           onSaved={handleSaved}
           onPasswordSet={handlePasswordSet}
-          onBlocked={(text) => setBanner({ tone: 'conflict', text })}
+          onBlocked={(text) => pushToast('conflict', text)}
         />
+      ) : null}
+
+      {/* Facebook-style bottom-right toast stack. */}
+      {toasts.length > 0 ? (
+        <div className="au-toasts" aria-live="polite">
+          {toasts.map((t) => (
+            <Toast key={t.id} item={t} onDismiss={dismissToast} />
+          ))}
+        </div>
       ) : null}
     </main>
   );
@@ -538,105 +803,116 @@ function CreateUserModal({
         aria-labelledby="au-create-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="au-create-title">Create user</h2>
+        <header className="au-modal-head">
+          <span className="au-avatar au-avatar-lg" aria-hidden="true">＋</span>
+          <div>
+            <h2 id="au-create-title">Create user</h2>
+            <p className="au-modal-sub">The person signs in with the initial password and must change it at first login.</p>
+          </div>
+        </header>
         {failure ? (
           <div className="std-banner error" role="alert">
             <span>{failure}</span>
           </div>
         ) : null}
-        <div className={`tok-field au-field ${issues.name ? 'invalid' : ''}`}>
-          <label htmlFor="au-c-name">Name</label>
-          <input
-            ref={nameRef}
-            id="au-c-name"
-            className="tok-input"
-            value={form.name}
-            aria-invalid={issues.name ? true : undefined}
-            aria-describedby={issues.name ? 'au-c-name-err' : undefined}
-            disabled={saving}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-          {issues.name ? (
-            <p id="au-c-name-err" className="au-field-err" role="alert"><span aria-hidden="true">⚠️</span> <span>{issues.name}</span></p>
-          ) : null}
-        </div>
-        <div className={`tok-field au-field ${issues.email ? 'invalid' : ''}`}>
-          <label htmlFor="au-c-email">Email</label>
-          <input
-            id="au-c-email"
-            type="email"
-            className="tok-input"
-            value={form.email}
-            aria-invalid={issues.email ? true : undefined}
-            aria-describedby={issues.email ? 'au-c-email-err' : undefined}
-            disabled={saving}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-          />
-          {issues.email ? (
-            <p id="au-c-email-err" className="au-field-err" role="alert"><span aria-hidden="true">⚠️</span> <span>{issues.email}</span></p>
-          ) : null}
-        </div>
-        <div className={`tok-field au-field ${issues.role ? 'invalid' : ''}`}>
-          <label htmlFor="au-c-role">Role</label>
-          <select
-            id="au-c-role"
-            className="tok-select"
-            value={form.role}
-            aria-invalid={issues.role ? true : undefined}
-            aria-describedby={issues.role ? 'au-c-role-err' : undefined}
-            disabled={saving}
-            onChange={(e) => setForm({ ...form, role: e.target.value as AdminUserRole | '' })}
-          >
-            <option value="">Select a role…</option>
-            {ROLE_OPTIONS.slice(1).map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-          {issues.role ? (
-            <p id="au-c-role-err" className="au-field-err" role="alert"><span aria-hidden="true">⚠️</span> <span>{issues.role}</span></p>
-          ) : null}
-        </div>
-        <div className="au-field au-switch-row">
-          <label htmlFor="au-c-active">Active</label>
-          <button
-            id="au-c-active"
-            type="button"
-            role="switch"
-            aria-checked={form.isActive}
-            className="au-switch"
-            disabled={saving}
-            onClick={() => setForm({ ...form, isActive: !form.isActive })}
-          >
-            <span className="au-switch-thumb" />
-            <span className="au-switch-text">{form.isActive ? 'Active' : 'Inactive'}</span>
-          </button>
-        </div>
-        <div className={`tok-field au-field ${issues.initialPassword ? 'invalid' : ''}`}>
-          <label htmlFor="au-c-password">Initial Password</label>
-          <div className="au-password-row">
+        <div className="au-form-grid">
+          <div className={`tok-field au-field ${issues.name ? 'invalid' : ''}`}>
+            <label htmlFor="au-c-name">Name</label>
             <input
-              id="au-c-password"
-              type={form.showPassword ? 'text' : 'password'}
+              ref={nameRef}
+              id="au-c-name"
               className="tok-input"
-              value={form.initialPassword}
-              aria-invalid={issues.initialPassword ? true : undefined}
-              aria-describedby={issues.initialPassword ? 'au-c-password-err' : 'au-c-password-hint'}
+              value={form.name}
+              aria-invalid={issues.name ? true : undefined}
+              aria-describedby={issues.name ? 'au-c-name-err' : undefined}
               disabled={saving}
-              onChange={(e) => setForm({ ...form, initialPassword: e.target.value })}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
-            <button
-              type="button"
-              className="au-show-btn"
-              onClick={() => setForm({ ...form, showPassword: !form.showPassword })}
+            {issues.name ? (
+              <p id="au-c-name-err" className="au-field-err" role="alert"><span aria-hidden="true">⚠️</span> <span>{issues.name}</span></p>
+            ) : null}
+          </div>
+          <div className={`tok-field au-field ${issues.email ? 'invalid' : ''}`}>
+            <label htmlFor="au-c-email">Email</label>
+            <input
+              id="au-c-email"
+              type="email"
+              className="tok-input"
+              value={form.email}
+              aria-invalid={issues.email ? true : undefined}
+              aria-describedby={issues.email ? 'au-c-email-err' : undefined}
+              disabled={saving}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+            {issues.email ? (
+              <p id="au-c-email-err" className="au-field-err" role="alert"><span aria-hidden="true">⚠️</span> <span>{issues.email}</span></p>
+            ) : null}
+          </div>
+          <div className={`tok-field au-field ${issues.role ? 'invalid' : ''}`}>
+            <label htmlFor="au-c-role">Role</label>
+            <select
+              id="au-c-role"
+              className="tok-select"
+              value={form.role}
+              aria-invalid={issues.role ? true : undefined}
+              aria-describedby={issues.role ? 'au-c-role-err' : undefined}
+              disabled={saving}
+              onChange={(e) => setForm({ ...form, role: e.target.value as AdminUserRole | '' })}
             >
-              {form.showPassword ? 'Hide' : 'Show'}
+              <option value="">Select a role…</option>
+              {ROLE_OPTIONS.slice(1).map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            {issues.role ? (
+              <p id="au-c-role-err" className="au-field-err" role="alert"><span aria-hidden="true">⚠️</span> <span>{issues.role}</span></p>
+            ) : (
+              <p className="tok-hint">One role per account in Lab 3.</p>
+            )}
+          </div>
+          <div className="au-field au-switch-row au-switch-block">
+            <label htmlFor="au-c-active">Status</label>
+            <button
+              id="au-c-active"
+              type="button"
+              role="switch"
+              aria-checked={form.isActive}
+              className="au-switch"
+              disabled={saving}
+              onClick={() => setForm({ ...form, isActive: !form.isActive })}
+            >
+              <span className="au-switch-thumb" />
+              <span className="au-switch-text">{form.isActive ? 'Active' : 'Inactive'}</span>
             </button>
           </div>
-          {issues.initialPassword ? (
-            <p id="au-c-password-err" className="au-field-err" role="alert"><span aria-hidden="true">⚠️</span> <span>{issues.initialPassword}</span></p>
-          ) : (
-            <p id="au-c-password-hint" className="tok-hint">The user must change this at next sign-in.</p>
-          )}
+          <div className={`tok-field au-field au-field-full ${issues.initialPassword ? 'invalid' : ''}`}>
+            <label htmlFor="au-c-password">Initial Password</label>
+            <div className="au-password-row">
+              <input
+                id="au-c-password"
+                type={form.showPassword ? 'text' : 'password'}
+                className="tok-input"
+                value={form.initialPassword}
+                aria-invalid={issues.initialPassword ? true : undefined}
+                aria-describedby={issues.initialPassword ? 'au-c-password-err' : 'au-c-password-hint'}
+                disabled={saving}
+                onChange={(e) => setForm({ ...form, initialPassword: e.target.value })}
+              />
+              <button
+                type="button"
+                className="au-show-btn"
+                onClick={() => setForm({ ...form, showPassword: !form.showPassword })}
+              >
+                {form.showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            <PasswordMeter pw={form.initialPassword} />
+            {issues.initialPassword ? (
+              <p id="au-c-password-err" className="au-field-err" role="alert"><span aria-hidden="true">⚠️</span> <span>{issues.initialPassword}</span></p>
+            ) : (
+              <p id="au-c-password-hint" className="tok-hint">The user must change this at next sign-in.</p>
+            )}
+          </div>
         </div>
         <div className="td-modal-actions">
           <button type="button" className="tok-btn secondary" disabled={saving} onClick={onClose}>
@@ -787,65 +1063,75 @@ function EditUserModal({
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="au-edit-title">Edit user — {user.name}</h2>
+        <div className="au-id-row">
+          <span className="au-avatar au-avatar-lg" aria-hidden="true">{initialsOf(user.name)}</span>
+          <span className="au-id-email">{user.email}</span>
+          <span className={`mt-badge au-role au-role-${user.role === 'ADMINISTRATOR' ? 'ADMIN' : user.role}`}>
+            {ROLE_LABELS[user.role] ?? user.role}
+          </span>
+          <span className={`mt-badge ${user.isActive ? 'au-status-active' : 'au-status-inactive'}`}>
+            {user.isActive ? 'Active' : 'Inactive'}
+          </span>
+        </div>
         {failure ? (
           <div className="std-banner error" role="alert">
             <span>{failure}</span>
           </div>
         ) : null}
-        <div className={`tok-field au-field ${issues.name ? 'invalid' : ''}`}>
-          <label htmlFor="au-e-name">Name</label>
-          <input
-            ref={nameRef}
-            id="au-e-name"
-            className="tok-input"
-            value={form.name}
-            aria-invalid={issues.name ? true : undefined}
-            aria-describedby={issues.name ? 'au-e-name-err' : undefined}
-            disabled={saving || settingPassword}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-          {issues.name ? (
-            <p id="au-e-name-err" className="au-field-err" role="alert"><span aria-hidden="true">⚠️</span> <span>{issues.name}</span></p>
-          ) : null}
-        </div>
-        <div className={`tok-field au-field ${issues.email ? 'invalid' : ''}`}>
-          <label htmlFor="au-e-email">Email</label>
-          <input
-            id="au-e-email"
-            type="email"
-            className="tok-input"
-            value={form.email}
-            aria-invalid={issues.email ? true : undefined}
-            aria-describedby={issues.email ? 'au-e-email-err' : undefined}
-            disabled={saving || settingPassword}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-          />
-          {issues.email ? (
-            <p id="au-e-email-err" className="au-field-err" role="alert"><span aria-hidden="true">⚠️</span> <span>{issues.email}</span></p>
-          ) : null}
-        </div>
-        <div className={`tok-field au-field ${issues.role ? 'invalid' : ''}`}>
-          <label htmlFor="au-e-role">Role</label>
-          <select
-            id="au-e-role"
-            className="tok-select"
-            value={form.role}
-            aria-invalid={issues.role ? true : undefined}
-            aria-describedby={issues.role ? 'au-e-role-err' : undefined}
-            disabled={saving || settingPassword || (isLastAdmin && !user.role.startsWith('ADMIN'))}
-            onChange={(e) => setForm({ ...form, role: e.target.value as AdminUserRole | '' })}
-          >
-            {ROLE_OPTIONS.slice(1).map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-          {issues.role ? (
-            <p id="au-e-role-err" className="au-field-err" role="alert"><span aria-hidden="true">⚠️</span> <span>{issues.role}</span></p>
-          ) : null}
-        </div>
-        <div className="au-field au-switch-row">
-          <label htmlFor="au-e-active">Active</label>
-          <div className="au-switch-block">
+        <div className="au-form-grid">
+          <div className={`tok-field au-field ${issues.name ? 'invalid' : ''}`}>
+            <label htmlFor="au-e-name">Name</label>
+            <input
+              ref={nameRef}
+              id="au-e-name"
+              className="tok-input"
+              value={form.name}
+              aria-invalid={issues.name ? true : undefined}
+              aria-describedby={issues.name ? 'au-e-name-err' : undefined}
+              disabled={saving || settingPassword}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+            {issues.name ? (
+              <p id="au-e-name-err" className="au-field-err" role="alert"><span aria-hidden="true">⚠️</span> <span>{issues.name}</span></p>
+            ) : null}
+          </div>
+          <div className={`tok-field au-field ${issues.email ? 'invalid' : ''}`}>
+            <label htmlFor="au-e-email">Email</label>
+            <input
+              id="au-e-email"
+              type="email"
+              className="tok-input"
+              value={form.email}
+              aria-invalid={issues.email ? true : undefined}
+              aria-describedby={issues.email ? 'au-e-email-err' : undefined}
+              disabled={saving || settingPassword}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+            {issues.email ? (
+              <p id="au-e-email-err" className="au-field-err" role="alert"><span aria-hidden="true">⚠️</span> <span>{issues.email}</span></p>
+            ) : null}
+          </div>
+          <div className={`tok-field au-field ${issues.role ? 'invalid' : ''}`}>
+            <label htmlFor="au-e-role">Role</label>
+            <select
+              id="au-e-role"
+              className="tok-select"
+              value={form.role}
+              aria-invalid={issues.role ? true : undefined}
+              aria-describedby={issues.role ? 'au-e-role-err' : undefined}
+              disabled={saving || settingPassword || (isLastAdmin && !user.role.startsWith('ADMIN'))}
+              onChange={(e) => setForm({ ...form, role: e.target.value as AdminUserRole | '' })}
+            >
+              {ROLE_OPTIONS.slice(1).map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            {issues.role ? (
+              <p id="au-e-role-err" className="au-field-err" role="alert"><span aria-hidden="true">⚠️</span> <span>{issues.role}</span></p>
+            ) : null}
+          </div>
+          <div className="au-field au-switch-row au-switch-block">
+            <label htmlFor="au-e-active">Status</label>
             <button
               id="au-e-active"
               type="button"
@@ -907,6 +1193,7 @@ function EditUserModal({
                 {form.showPassword ? 'Hide' : 'Show'}
               </button>
             </div>
+            <PasswordMeter pw={form.newPassword} />
             {issues.initialPassword ? (
               <p id="au-e-password-err" className="au-field-err" role="alert"><span aria-hidden="true">⚠️</span> <span>{issues.initialPassword}</span></p>
             ) : (

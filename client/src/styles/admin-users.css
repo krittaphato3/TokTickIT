@@ -325,3 +325,346 @@
     padding: 0.625rem 0.75rem;
   }
 }
+
+/* ==========================================================================
+   Overhaul additions (stakeholder request): KPI stats strip, dense console
+   table, pagination footer, bottom-right toasts, modal identity header +
+   form grid. Zen Green tokens only; the additions keep the §11.3 badge and
+   My Tickets layout language so the screen stays native to the app.
+   ========================================================================== */
+
+/* ---- KPI stats strip (meta.counts; role tiles double as filter toggles) -- */
+.au-kpis {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.au-kpi {
+  background: var(--tok-surface);
+  border: 1px solid var(--tok-border-soft);
+  border-radius: var(--tok-radius-card);
+  padding: 10px 12px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.au-kpi-num {
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--tok-text);
+  font-variant-numeric: tabular-nums;
+}
+.au-kpi-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tok-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.au-kpi-admin .au-kpi-num { color: var(--tok-primary); }
+.au-kpi-staff .au-kpi-num { color: var(--tok-info, #1d5fbf); }
+.au-kpi-requester .au-kpi-num { color: var(--tok-secondary); }
+.au-kpi-active .au-kpi-num { color: var(--tok-success, #1b7a3f); }
+.au-kpi-inactive .au-kpi-num { color: #6a7671; }
+.au-kpi-btn {
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: border-color 0.12s, box-shadow 0.12s, transform 0.12s;
+}
+.au-kpi-btn:hover {
+  border-color: var(--tok-secondary);
+  transform: translateY(-1px);
+}
+.au-kpi-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--tok-ring);
+}
+.au-kpi-active {
+  border-color: var(--tok-secondary);
+  box-shadow: inset 0 0 0 1px var(--tok-secondary), 0 2px 8px rgba(0, 107, 60, 0.08);
+  background: linear-gradient(180deg, var(--tok-primary-soft), var(--tok-surface));
+}
+
+/* ---- Dense console table: tighter rows, hover, tabular numerals ---------- */
+.au-table tbody td {
+  padding: 9px 14px;
+}
+.au-table tbody tr {
+  transition: background 0.1s;
+}
+.au-table tbody tr:hover {
+  background: rgba(0, 107, 60, 0.04);
+}
+
+/* "P!" must-change-password flag chip next to the name. */
+.au-flag {
+  flex: none;
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #8a5a00;
+  background: #fdf2d7;
+  border: 1px solid #f0dc9f;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+/* ---- Pagination footer (§9 meta) ------------------------------------------ */
+.au-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--tok-border-soft);
+  flex-wrap: wrap;
+}
+.au-pager-info {
+  font-size: 0.8125rem;
+  color: var(--tok-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.au-pager-btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.au-pager-btn {
+  border: 1px solid var(--tok-border);
+  background: var(--tok-surface);
+  color: var(--tok-text);
+  border-radius: 8px;
+  min-height: 32px;
+  min-width: 32px;
+  padding: 0 10px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.au-pager-btn:hover:not(:disabled) {
+  border-color: var(--tok-secondary);
+  background: var(--tok-primary-soft);
+}
+.au-pager-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--tok-ring);
+}
+.au-pager-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.au-pager-num { font-variant-numeric: tabular-nums; }
+.au-pager-cur,
+.au-pager-cur:hover:not(:disabled) {
+  background: var(--tok-primary);
+  border-color: var(--tok-primary);
+  color: #fff;
+}
+.au-pager-gap {
+  color: var(--tok-text-muted);
+  padding: 0 2px;
+  user-select: none;
+}
+
+/* ---- Toasts: Facebook-style bottom-right stack ---------------------------- */
+.au-toasts {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: min(420px, calc(100vw - 32px));
+}
+.au-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--tok-surface);
+  border: 1px solid var(--tok-border);
+  border-left: 4px solid var(--tok-primary);
+  border-radius: 12px;
+  box-shadow: 0 10px 28px rgba(30, 42, 37, 0.22);
+  padding: 12px 12px 12px 14px;
+  animation: au-toast-in 0.22s ease-out;
+}
+@keyframes au-toast-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .au-toast { animation: none; }
+}
+.au-toast-icon {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+.au-toast-icon svg { width: 14px; height: 14px; }
+.au-toast-success {
+  border-left-color: var(--tok-primary);
+}
+.au-toast-success .au-toast-icon {
+  background: var(--tok-primary-soft);
+  color: var(--tok-primary);
+}
+.au-toast-conflict {
+  border-left-color: #d99a1b;
+}
+.au-toast-conflict .au-toast-icon {
+  background: #fdf2d7;
+  color: #8a5a00;
+}
+.au-toast-text {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--tok-text);
+  line-height: 1.45;
+}
+.au-toast-x {
+  flex: none;
+  border: none;
+  background: none;
+  color: var(--tok-text-muted);
+  font-size: 1.125rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+.au-toast-x:hover {
+  color: var(--tok-text);
+  background: var(--tok-primary-soft);
+}
+.au-toast-x:focus-visible {
+  outline: none;
+  box-shadow: var(--tok-ring);
+}
+
+/* ---- Modals: identity header, sectioned form grid -------------------------- */
+.au-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 14px;
+}
+.au-modal-head h2 {
+  margin: 0;
+}
+.au-modal-sub {
+  margin: 2px 0 0;
+  font-size: 0.8125rem;
+  color: var(--tok-text-muted);
+}
+.au-avatar-lg {
+  width: 40px;
+  height: 40px;
+  font-size: 0.9375rem;
+}
+.au-id-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -6px 0 14px;
+  flex-wrap: wrap;
+}
+.au-id-row h2 + .au-id-row {
+  margin-top: -2px;
+}
+.au-id-email {
+  font-size: 0.875rem;
+  color: var(--tok-text-muted);
+  overflow-wrap: anywhere;
+}
+.au-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 14px;
+}
+.au-field-full {
+  grid-column: 1 / -1;
+}
+.au-switch-block {
+  /* align the switch with the inputs in the grid */
+  padding-top: 26px;
+}
+
+/* ---- Password strength meter (client-side hint only) ----------------------- */
+.au-meter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.au-meter-segs {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+.au-seg {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--tok-border-soft);
+  flex: 1;
+  transition: background 0.15s;
+}
+.au-seg-1 { background: #d64545; }
+.au-seg-2 { background: #d99a1b; }
+.au-seg-3 { background: #4f9d55; }
+.au-seg-4 { background: var(--tok-primary); }
+.au-meter-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--tok-text-muted);
+  min-width: 44px;
+  text-align: right;
+}
+
+/* ---- Responsive adjustments for the new pieces ------------------------------ */
+@media (max-width: 1199px) {
+  .au-kpis {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 767px) {
+  .au-kpis {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .au-pager {
+    justify-content: center;
+  }
+  .au-pager-info {
+    width: 100%;
+    text-align: center;
+  }
+  .au-toasts {
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    max-width: none;
+  }
+  .au-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .au-switch-block {
+    padding-top: 0;
+  }
+}

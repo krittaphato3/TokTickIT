@@ -997,8 +997,14 @@ Query params:
 |---|---|
 | `search` | optional; trimmed case-insensitive substring over name or email; empty = no filter |
 | `role` | optional; `REQUESTER`, `IT_STAFF`, `ADMIN`; invalid → `400` |
+| `page` | optional; default `1`; must be an integer ≥ 1, else `400` |
+| `pageSize` | optional; default `10`; integer 5–100, else `400` |
 
-No pagination required (Lab 3 minimalist admin). Ordered by `id` ascending.
+> **Addition (stakeholder request):** server-side pagination extends the original "no
+> pagination required" minimalist contract — the original params are unchanged and the
+> default (page 1, 10 rows) preserves the old behavior for clients that ignore paging.
+> Ordered by `id` ascending within and across pages. `meta.counts` are dataset-wide
+> (search/role-filter-INDEPENDENT) so an admin console can render totals from one request.
 
 **Success `200`:**
 
@@ -1007,7 +1013,13 @@ No pagination required (Lab 3 minimalist admin). Ordered by `id` ascending.
   "data": [
     { "id": 1, "name": "Dev User Alpha", "email": "alpha@example.test", "role": "REQUESTER", "isActive": true, "mustChangePassword": false, "createdAt": "2026-08-01T09:00:00.000Z", "updatedAt": "2026-08-01T09:00:00.000Z" }
   ],
-  "meta": { "totalItems": 1 }
+  "meta": {
+    "totalItems": 11,
+    "page": 1,
+    "pageSize": 10,
+    "totalPages": 2,
+    "counts": { "total": 11, "admin": 1, "itStaff": 5, "requester": 5, "active": 9, "inactive": 2 }
+  }
 }
 ```
 
