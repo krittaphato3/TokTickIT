@@ -191,6 +191,26 @@ export function requireCsrf(req: Request, _res: Response, next: NextFunction): v
   next();
 }
 
+// Lab 3 §9 — Administrator gate for the user-management surface. Applied after
+// requireAuth so req.auth is guaranteed present; wrong role is a 403 with the
+// documented "Administrator access required" message (never a masked 404 — the
+// admin surface itself is not a per-user secret, and hiding it from non-admins
+// is a navigation concern, not an existence leak).
+export const ADMIN_ACCESS_REQUIRED = 'Administrator access required';
+
+export function requireAdminRole(req: Request, _res: Response, next: NextFunction): void {
+  const user = req.auth?.user;
+  if (!user) {
+    next(new HttpError(401, NOT_AUTHENTICATED));
+    return;
+  }
+  if (user.role !== 'ADMINISTRATOR') {
+    next(new HttpError(403, ADMIN_ACCESS_REQUIRED));
+    return;
+  }
+  next();
+}
+
 const AUTH_ALLOWLIST: Array<{ method: string; path: string }> = [
   { method: 'POST', path: '/api/auth/login' },
   { method: 'GET', path: '/api/auth/me' },

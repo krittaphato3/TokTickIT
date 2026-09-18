@@ -227,6 +227,16 @@ Scope is FR-05, FR-08, FR-09 (requester-masked half), FR-10; BR-03, BR-04, BR-05
 - **Selector removal:** `GET /api/requesters` deleted (falls through to default 404); the Lab 2 selector-data test re-pinned to the removal contract (api-spec §10). Client never sent requester ids since the auth increment; the requester detail screen now renders the live thread and signal per ui-spec §5 (Lab 2 mock tabs and Resolution Summary removed).
 - **Test traceability (this increment):** T-AUTHZ-02/03/05, T-REQ-01, T-STAT-04, T-MIG-02 → `server/tests/lab-03/authorization.api.test.ts`; T-COMM-01..04, T-STAT-03 → `server/tests/lab-03/comments-notes.api.test.ts`; T-REQ-02, T-COMM-05 (requester half), T-STAT-03 (client half) → `client/tests/lab-03/RequesterTicketDetail.test.tsx` (see `tests.md` §2 Final column).
 
+### 7.9 Admin user-management increment (`feature/lab3-admin-users`, issue #42)
+
+Scope is FR-11, FR-12 (FR-13 already shipped with the shell); BR-09, BR-10, BR-16 (admin relaxation), BR-18, BR-20; AC-15, AC-16, AC-17. The §9 admin API and `#/admin/users` screen replace the placeholder; no schema change is required (`User` already carries `role`, `isActive`, `mustChangePassword`, `passwordHash`).
+
+- **Wire role value:** the canonical api-spec §9 value for the Administrator role is `ADMIN` on the wire (DB enum `ADMINISTRATOR`); the service maps in both directions. One role per user remains the enum itself (BR-18).
+- **Safety guards (BR-18):** self-deactivation 409 with the actor id taken from the server-side session (never a client field, BR-03); last-active-Administrator deactivation 409; last-active-Administrator role reassignment 409; no `DELETE /api/users/:id` exists. Guard reachability: an API actor is always an active Administrator, so a pure-API last-admin deactivation coincides with the self rule (checked first per api-spec §9.3) — the distinct branch is proven at the service layer with a separate actor id, and the role-reassign 409 is proven over the API (documented in api-spec §9).
+- **Initial-password behavior (local-lab, AD-04/BR-18):** admin-set initial password requires length 8–72 only (§1.3 relaxation); sets `mustChangePassword=true` so the target is gated behind the change-password flow at next login; no email delivery of any kind. The user's own change enforces the full BR-07 policy and clears the flag.
+- **Admin gate:** `requireAdminRole` (403 `Administrator access required`) applied per route after `requireAuth`; the mustChangePassword gate also applies to a gated admin's own session. Hiding the nav link remains only the first layer (BR-20).
+- **Test traceability (this increment):** T-ADM-01..06, T-AUTHZ-04, T-PWD-02 → `server/tests/lab-03/users-admin.api.test.ts` (27 tests) and `client/tests/lab-03/UserManagement.test.tsx` (16 tests) (see `tests.md` §2 Final column).
+
 ## 8. API Contract
 
 Full paths, shapes, validation tables, and examples live in [`api-spec.md`](./api-spec.md). Summary of the normative surface:

@@ -10,6 +10,7 @@ import MyTicketsPage from './components/MyTicketsPage';
 import TicketDetailPage from './components/TicketDetailPage';
 import StaffTicketQueue from './components/StaffTicketQueue';
 import StaffTicketDetail from './components/StaffTicketDetail';
+import UserManagement from './components/UserManagement';
 import HomeScreen from './components/HomeScreen';
 
 // UI states: idle, loading, success, error.
@@ -414,17 +415,9 @@ function NotFound({ home }: { home: string }) {
   );
 }
 
-function AdminPlaceholder() {
-  return (
-    <main className="tok-main">
-      <div className="tok-card" style={{ maxWidth: 640, margin: '2rem auto' }}>
-        <h1 className="h4">User Management</h1>
-        <p className="tok-hint">User management ships in the next issue. Your session is authenticated as Administrator.</p>
-        <a href="#/change-password" onClick={(e) => { e.preventDefault(); window.location.hash = '/change-password'; }}>Change password</a>
-      </div>
-    </main>
-  );
-}
+// Lab 3 §8 — Administrator User Management replaced the placeholder; the
+// router gate mirrors the server contract (REQUESTER/IT_STAFF → Forbidden)
+// while the server remains the authority for every /api/users call (BR-20).
 
 function SignOutToast({ onClose }: { onClose: () => void }) {
   return (
@@ -630,7 +623,7 @@ function Shell() {
     );
   } else if (route.name === 'admin-users') {
     activeNav = 'admin-users';
-    body = isAdmin ? <AdminPlaceholder /> : <Forbidden home={home} message="User management is restricted to administrators." />;
+    body = isAdmin ? <UserManagement /> : <Forbidden home={home} message="User management is restricted to administrators." />;
   } else if (route.name === 'not-found') {
     body = <NotFound home={home} />;
   } else {

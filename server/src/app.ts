@@ -4,6 +4,7 @@ import { getPrisma } from './prisma.js';
 import { ticketsRouter } from './routes/tickets.js';
 import { staffRouter } from './routes/staff.js';
 import { authRouter } from './routes/auth.js';
+import { usersRouter } from './routes/users.js';
 import { cookiesMiddleware } from './middleware/cookies.js';
 import {
   mustChangePasswordGate,
@@ -71,6 +72,10 @@ app.use('/api/tickets', ticketsRouter);
 // Lab 3 §5 — staff surface (auth + role gated inside the router; registered
 // before the error middleware like every other router).
 app.use('/api/staff', staffRouter);
+// Lab 3 §9 — Administrator User Management surface (auth + ADMIN role gated
+// inside the router; registered before the error middleware like every other
+// router). REQUESTER and IT_STAFF receive 403 server-side (BR-20).
+app.use('/api/users', usersRouter);
 
 // Error-handling middleware — registered last as a 4-arg handler. Translates
 // HttpError (status + optional details) and JSON body-parse failures into the

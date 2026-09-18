@@ -740,6 +740,115 @@ export async function getQueueOwners(): Promise<QueueOwner[]> {
   return body as QueueOwner[];
 }
 
+// ---------------------------------------------------------------------------
+// Lab 3 §9 — Administrator User Management (api-spec §9). ADMIN-only surface;
+// the server rejects REQUESTER/IT_STAFF with 403 and enforces every safety
+// rule (duplicate email 409, self-deactivation 409, last-admin 409). These
+// wrappers only shape the calls; responses never carry password material.
+// ---------------------------------------------------------------------------
+
+// Wire value for the Administrator role per api-spec §9 (DB enum:
+// ADMINISTRATOR).
+export type AdminUserRole = 'REQUESTER' | 'IT_STAFF' | 'ADMIN';
+
+export const ADMIN_USER_ROLES: AdminUserRole[] = ['REQUESTER', 'IT_STAFF', 'ADMIN'];
+
+export interface AdminUser {
+  id: number;
+  name: string;
+  email: string;
+  role: AdminUserRole | string;
+  isActive: boolean;
+  mustChangePassword: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminUserListResult {
+  data: AdminUser[];
+  meta: {
+    totalItems: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
+}
+
+export async function getAdminUsers(params: {
+  search?: string;
+  role?: AdminUserRole | '';
+  page?: number;
+  pageSize?: number;
+}): Promise<AdminUserListResult> {
+  const search = new URLSearchParams();
+  if (params.search !== undefined && params.search !== '') search.set('search', params.search);
+  if (params.role !== undefined && params.role !== '') search.set('role', params.role);
+  if (params.page !== undefined) search.set('page', String(params.page));
+  if (params.pageSize !== undefined) search.set('pageSize', String(params.pageSize));
+  const qs = search.toString();
+  const response = await fetch(`${API_URL}/api/users${qs ? `?${qs}` : ''}`, {
+    credentials: 'include',
+    headers: { ...authHeaders({}, true) },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as AdminUserListResult;
+}
+
+export interface CreateAdminUserInput {
+  name: string;
+  email: string;
+  role: AdminUserRole;
+  isActive: boolean;
+  initialPassword: string;
+}
+
+export async function createAdminUser(input: CreateAdminUserInput): Promise<AdminUser> {
+  const response = await fetch(`${API_URL}/api/users`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...authHeaders({}, true) },
+    body: JSON.stringify(input),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as AdminUser;
+}
+
+export interface UpdateAdminUserInput {
+  name?: string;
+  email?: string;
+  role?: AdminUserRole;
+  isActive?: boolean;
+}
+
+export async function updateAdminUser(id: number, input: UpdateAdminUserInput): Promise<AdminUser> {
+  const response = await fetch(`${API_URL}/api/users/${id}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...authHeaders({}, true) },
+    body: JSON.stringify(input),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as AdminUser;
+}
+
+export async function setUserInitialPassword(
+  id: number,
+  initialPassword: string,
+): Promise<{ id: number; email: string; mustChangePassword: boolean; updatedAt: string }> {
+  const response = await fetch(`${API_URL}/api/users/${id}/set-initial-password`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...authHeaders({}, true) },
+    body: JSON.stringify({ initialPassword }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as { id: number; email: string; mustChangePassword: boolean; updatedAt: string };
+}
+
 export async function getTicketDetail(ticketNumber: string): Promise<TicketDetail> {
   const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}`, {
     credentials: 'include',

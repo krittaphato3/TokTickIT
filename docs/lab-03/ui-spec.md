@@ -263,6 +263,46 @@ Exactly three tabs (`role=tablist`, arrow-key navigation, `aria-selected`): Publ
 
 > Traceability: FR-11, FR-12, FR-13 | BR-09, BR-10, BR-18 | AC-15, AC-16, AC-17, AC-18.
 
+> **Implementation status (admin-users issue):** §8.1–§8.3 are implemented (`client/src/components/UserManagement.tsx`
+> + `client/src/styles/admin-users.css`, wired at `#/admin/users` in `App.tsx`; screen suite
+> `client/tests/lab-03/UserManagement.test.tsx`, 16 passing tests). The screen reuses the My Tickets
+> layout language (.mt-page/.mt-head/.mt-filter-card/.mt-table-card/.mt-cards) and the ticket-detail
+> dialog shell, so it reads native to Lab 2's Zen Green language. Deviations from this spec, documented:
+> (1) the create-success banner copy is "User saved." rather than "User <email> created." (shorter,
+> equally unambiguous — the list refresh carries the new row); (2) the mobile card list renders
+> alongside the table with CSS hiding one side (same pattern as My Tickets) rather than being
+> conditionally rendered; (3) load failure renders inside the list card as the §10 failure state with
+> Try again — no separate top banner, so failure feedback lives in exactly one place.
+> **Addition (stakeholder request, this issue):** single-column sorting on Name/Email/Role/Status
+> via the My Tickets header-button convention (aria-sort + carets; Actions stays a static header).
+> First-click directions: Name/Email A→Z, Role Administrator-first, Status Active-first. This stays
+> within the §8.1 exclusions (they bar pagination and MULTI-column sorting, not single-column),
+> and because the admin list is unpaginated the sort is complete client-side — no API change.
+> The mobile card list follows the table's sort order so both renderings agree.
+>
+> **Overhaul (stakeholder request, later in this issue):** the screen gains (a) SERVER-side
+> pagination — §8.1 listed pagination as not required, and the stakeholder then requested it;
+> the api-spec §9.1 contract gained page/pageSize accordingly. Page size is FIXED at 10
+> (stakeholder decision — no rows-per-page selector). Sorting applies to the CURRENT page
+> client-side (pages arrive id-ascending). (b) The table, header band, sort carets, and
+> pagination footer now reuse the My Tickets classes verbatim (`.mt-table-card thead`,
+> `.mt-sic`, `.mt-foot`/`.mt-pager`/`.mt-page-btn`, "Showing X to Y of Z users") so the
+> admin screen is visually the SAME program as the Requester/Staff screens — plus a row
+> hover tint and a `P!` chip flagging rows whose mustChangePassword is set. (c) Save
+> outcomes (create / edit / set-initial-password success and self-deactivation or last-admin
+> conflicts) surface as Facebook-style TOASTS fixed at the bottom-right — success green,
+> conflict amber, auto-dismiss ~6.5s, manual × dismiss, stacked — replacing the old top
+> banner for action feedback; validation, in-modal failure banners, and the list load-error
+> state remain inline (§10 single-surface rule preserved per surface). (d) Modals gain an
+> identity header (avatar, email, role/status badges), a 2-column form grid collapsing to
+> 1 column on mobile, and a client-side password strength meter (hint only — the §1.3
+> length-only server contract is unchanged; a follow-up layout pass replaced the floating
+> Active switch with a segmented Active|Inactive control aligned with the Role select and
+> added Account/Security section labels to the modals). A brief KPI stats strip from meta.counts was
+> also built for this iteration and then REMOVED at the stakeholder's request — meta.counts
+> was dropped from the API with it; search/role changes reset to page 1, and paging past
+> the end snaps back to the last valid page.
+
 ### 8.1 User list
 
 - Page head: h1 "User Management" + muted subtitle "Create accounts, assign roles, and control access." Right: "Create user" primary button (plus icon).
