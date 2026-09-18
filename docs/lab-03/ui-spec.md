@@ -284,8 +284,11 @@ Exactly three tabs (`role=tablist`, arrow-key navigation, `aria-selected`): Publ
 > pagination — §8.1 listed pagination as not required, and the stakeholder then requested it;
 > the api-spec §9.1 contract gained page/pageSize accordingly. Page size is FIXED at 10
 > (stakeholder decision — no rows-per-page selector). Sorting applies to the CURRENT page
-> client-side (pages arrive id-ascending). (b) A denser console-style table (hover rows,
-> tabular numerals, a `P!` chip flagging rows whose mustChangePassword is set). (c) Save
+> client-side (pages arrive id-ascending). (b) The table, header band, sort carets, and
+> pagination footer now reuse the My Tickets classes verbatim (`.mt-table-card thead`,
+> `.mt-sic`, `.mt-foot`/`.mt-pager`/`.mt-page-btn`, "Showing X to Y of Z users") so the
+> admin screen is visually the SAME program as the Requester/Staff screens — plus a row
+> hover tint and a `P!` chip flagging rows whose mustChangePassword is set. (c) Save
 > outcomes (create / edit / set-initial-password success and self-deactivation or last-admin
 > conflicts) surface as Facebook-style TOASTS fixed at the bottom-right — success green,
 > conflict amber, auto-dismiss ~6.5s, manual × dismiss, stacked — replacing the old top

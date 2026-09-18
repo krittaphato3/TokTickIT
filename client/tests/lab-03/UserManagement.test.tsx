@@ -169,7 +169,7 @@ describe('T-ADM-01 (client half) — list rendering and search', () => {
     ]);
     expect(screen.getAllByText('IT Staff').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Inactive').length).toBeGreaterThan(0);
-    expect(screen.getByText(/Showing 1–5 of 5 users/)).toBeInTheDocument();
+    expect(screen.getByText('Showing 1 to 5 of 5 users')).toBeInTheDocument();
   });
 
   it('paginates server-side: page param, footer navigation, and range caption', async () => {
@@ -186,14 +186,14 @@ describe('T-ADM-01 (client half) — list rendering and search', () => {
       return usersResponse(big, Number(params.get('page') ?? '1'), Number(params.get('pageSize') ?? '10'));
     };
     await openScreen();
-    expect(screen.getByText(/Showing 1–10 of 12 users/)).toBeInTheDocument();
-    expect(screen.getByText('Page 1 of 2')).toBeInTheDocument();
+    expect(screen.getByText('Showing 1 to 10 of 12 users')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Page 2' }));
+    // My Tickets pager language: bare numbered buttons (name "2"), ‹ Previous / Next ›.
+    await user.click(screen.getByRole('button', { name: '2' }));
     await waitUntil(() => userCalls.some((c) => c.includes('page=2')));
-    expect(await screen.findByText(/Showing 11–12 of 12 users/)).toBeInTheDocument();
-    expect(screen.getByText('Page 2 of 2')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
+    expect(await screen.findByText('Showing 11 to 12 of 12 users')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next ›' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '‹ Previous' })).toBeEnabled();
 
     // Page size is fixed at 10 (stakeholder decision): every request carries it.
     expect(userCalls.every((c) => !c.includes('/api/users') || c.includes('pageSize=10'))).toBe(true);

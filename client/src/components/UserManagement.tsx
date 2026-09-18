@@ -142,15 +142,13 @@ function initialsOf(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-// Sort carets (same glyph convention as My Tickets / Staff Queue headers:
-// both neutral until the column is active, then the active direction fills
-// with the primary green). `none` columns keep clickable neutral carets.
-function Carets({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
-  const cls = active ? `au-sic au-sic-active au-sic-${dir}` : 'au-sic';
+// Sort carets — the exact My Tickets glyph (mt-sic/mt-up/mt-dn) so the admin
+// table reads identical to the rest of the program (stakeholder request).
+function Carets() {
   return (
-    <svg className={cls} viewBox="0 0 8 12" aria-hidden="true">
-      <path className="au-up" d="M4 0l4 5H0z" />
-      <path className="au-dn" d="M4 12L0 7h8z" />
+    <svg className="mt-sic" viewBox="0 0 8 12" aria-hidden="true">
+      <path className="mt-up" d="M4 0l4 5H0z" />
+      <path className="mt-dn" d="M4 12L0 7h8z" />
     </svg>
   );
 }
@@ -460,22 +458,26 @@ export default function UserManagement() {
       </div>
 
       <div className="mt-filter-card au-filter">
-        <div className="mt-search-wrap">
-          <svg className="mt-mag" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z" />
-          </svg>
-          <input
-            type="search"
-            aria-label="Search users by name or email"
-            placeholder="Search by name or email…"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-          />
-          {searchInput ? (
-            <button type="button" className="mt-search-clear" aria-label="Clear search" onClick={() => setSearchInput('')}>
-              ×
-            </button>
-          ) : null}
+        <div>
+          <label className="mt-f-label" htmlFor="au-search">Search by name or email</label>
+          <div className="mt-search-wrap">
+            <svg className="mt-mag" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z" />
+            </svg>
+            <input
+              id="au-search"
+              type="search"
+              aria-label="Search users by name or email"
+              placeholder="Search by name or email…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+            />
+            {searchInput ? (
+              <button type="button" className="mt-search-clear" aria-label="Clear search" onClick={() => setSearchInput('')}>
+                ×
+              </button>
+            ) : null}
+          </div>
         </div>
         <div>
           <label className="mt-f-label" htmlFor="au-role-filter">Role</label>
@@ -524,30 +526,26 @@ export default function UserManagement() {
         ) : (
           <>
             <table className="au-table">
-              <caption className="au-caption" aria-live="polite">
-                Showing {rangeStart}–{rangeEnd} of {meta.totalItems}{' '}
-                {meta.totalItems === 1 ? 'user' : 'users'}
-              </caption>
               <thead>
                 <tr>
                   <th scope="col" aria-sort={sort.key === 'name' ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
                     <button type="button" className="mt-th-sort" onClick={() => toggleSort('name')}>
-                      Name <Carets active={sort.key === 'name'} dir={sort.dir} />
+                      Name <Carets />
                     </button>
                   </th>
                   <th scope="col" aria-sort={sort.key === 'email' ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
                     <button type="button" className="mt-th-sort" onClick={() => toggleSort('email')}>
-                      Email <Carets active={sort.key === 'email'} dir={sort.dir} />
+                      Email <Carets />
                     </button>
                   </th>
                   <th scope="col" aria-sort={sort.key === 'role' ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
                     <button type="button" className="mt-th-sort" onClick={() => toggleSort('role')}>
-                      Role <Carets active={sort.key === 'role'} dir={sort.dir} />
+                      Role <Carets />
                     </button>
                   </th>
                   <th scope="col" aria-sort={sort.key === 'status' ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
                     <button type="button" className="mt-th-sort" onClick={() => toggleSort('status')}>
-                      Status <Carets active={sort.key === 'status'} dir={sort.dir} />
+                      Status <Carets />
                     </button>
                   </th>
                   <th scope="col" className="au-th-static">Actions</th>
@@ -617,30 +615,31 @@ export default function UserManagement() {
               ))}
             </div>
 
-            {/* Pagination footer (§9 meta; server-driven pages, fixed 10/page). */}
-            <div className="au-pager">
-              <span className="au-pager-info">
-                Page {meta.page} of {meta.totalPages}
+            {/* Footer + pagination — the My Tickets language verbatim:
+                .mt-foot / .mt-showing / .mt-pager / .mt-page-btn. */}
+            <div className="mt-foot">
+              <span className="mt-showing" aria-live="polite">
+                {meta.totalItems === 0
+                  ? 'Showing 0 to 0 of 0 users'
+                  : `Showing ${rangeStart} to ${rangeEnd} of ${meta.totalItems} users`}
               </span>
-              <div className="au-pager-btns">
+              <nav className="mt-pager" aria-label="Pagination">
                 <button
                   type="button"
-                  className="au-pager-btn"
-                  aria-label="Previous page"
+                  className="mt-page-btn"
                   disabled={meta.page <= 1}
                   onClick={() => setPage(meta.page - 1)}
                 >
-                  ‹ Prev
+                  ‹ Previous
                 </button>
                 {pageButtons.map((p, i) =>
                   p === '…' ? (
-                    <span key={`gap-${i}`} className="au-pager-gap" aria-hidden="true">…</span>
+                    <span key={`gap-${i}`} className="mt-page-ellipsis" aria-hidden="true">…</span>
                   ) : (
                     <button
                       key={p}
                       type="button"
-                      className={`au-pager-btn au-pager-num ${p === meta.page ? 'au-pager-cur' : ''}`}
-                      aria-label={`Page ${p}`}
+                      className={`mt-page-btn${p === meta.page ? ' active' : ''}`}
                       aria-current={p === meta.page ? 'page' : undefined}
                       onClick={() => setPage(p)}
                     >
@@ -650,14 +649,13 @@ export default function UserManagement() {
                 )}
                 <button
                   type="button"
-                  className="au-pager-btn"
-                  aria-label="Next page"
+                  className="mt-page-btn"
                   disabled={meta.page >= meta.totalPages}
                   onClick={() => setPage(meta.page + 1)}
                 >
                   Next ›
                 </button>
-              </div>
+              </nav>
             </div>
           </>
         )}

@@ -68,74 +68,17 @@
   border-color: #d4dbd6;
 }
 
-/* Live-region table caption (§8.1 "Showing N users"). */
-.au-caption {
-  caption-side: top;
-  text-align: left;
-  padding: 14px 20px 6px;
-  font-size: 0.8125rem;
-  color: var(--tok-text-muted);
-}
 
-/* ---- Table header: taller and more substantial than the thin default ----
-   The base .mt-table-card thead th is 0.625rem padding at 0.8125rem type;
-   the admin list is the account-control surface, so the header gets a
-   full-height bar: more vertical padding, uppercase letter-spaced labels,
-   and a stronger green band with a firmer rule. */
-.au-table thead th {
-  padding: 0.875rem 1rem;
-  background: linear-gradient(180deg, var(--tok-primary-soft), #e2f2e9);
-  border-bottom: 2px solid rgba(0, 107, 60, 0.35);
-}
-.au-table thead th .mt-th-sort {
-  font-size: 0.8125rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--tok-primary);
-  padding: 0.25rem 0.125rem;
-}
+/* Header cells: stock My Tickets header (my-tickets.css) applies; the static
+   Actions cell stays a table cell so the row renders as one band. */
 .au-table thead th.au-th-static {
-  font-size: 0.8125rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--tok-primary);
-  /* Stay a table cell (vertical-align centers against the taller sort
-     headers): an inline-flex <th> drops out of the table row, which left a
-     white gap after STATUS and rendered Actions as a detached chip. */
   vertical-align: middle;
 }
-/* Sort buttons inherit the header look; focus ring per Zen Green. */
 .au-table thead .mt-th-sort:focus-visible {
   outline: none;
   box-shadow: var(--tok-ring);
   border-radius: 4px;
 }
-.au-table thead .mt-th-sort:hover {
-  color: var(--tok-secondary);
-}
-
-/* Sort carets: neutral gray when inactive, green fill for the active
-   direction (same visual language as My Tickets .mt-sic). */
-.au-sic {
-  width: 8px;
-  height: 12px;
-  flex: none;
-}
-.au-sic .au-up,
-.au-sic .au-dn {
-  fill: #9db4a8;
-}
-.au-sic-active.au-sic-asc .au-up,
-.au-sic-active.au-sic-desc .au-dn {
-  fill: var(--tok-primary);
-}
-.au-sic-active.au-sic-asc .au-dn,
-.au-sic-active.au-sic-desc .au-up {
-  fill: #c9d4ce;
-}
-
 /* ---- Modals (§8.2): share the ticket-detail dialog shell ---- */
 .au-modal {
   background: var(--tok-surface);
@@ -223,9 +166,6 @@
   .au-table {
     display: none; /* mobile: stacked cards instead of the table (§8.1) */
   }
-  .au-caption {
-    padding: 12px 16px 0;
-  }
   .au-password-row {
     flex-direction: column;
   }
@@ -260,9 +200,6 @@
    ========================================================================== */
 
 /* ---- Dense console table: tighter rows, hover, tabular numerals ---------- */
-.au-table tbody td {
-  padding: 9px 14px;
-}
 .au-table tbody tr {
   transition: background 0.1s;
 }
@@ -281,65 +218,6 @@
   border: 1px solid #f0dc9f;
   border-radius: 4px;
   padding: 1px 5px;
-}
-
-/* ---- Pagination footer (§9 meta) ------------------------------------------ */
-.au-pager {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 16px;
-  border-top: 1px solid var(--tok-border-soft);
-  flex-wrap: wrap;
-}
-.au-pager-info {
-  font-size: 0.8125rem;
-  color: var(--tok-text-muted);
-  font-variant-numeric: tabular-nums;
-}
-.au-pager-btns {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-.au-pager-btn {
-  border: 1px solid var(--tok-border);
-  background: var(--tok-surface);
-  color: var(--tok-text);
-  border-radius: 8px;
-  min-height: 32px;
-  min-width: 32px;
-  padding: 0 10px;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: border-color 0.12s, background 0.12s;
-}
-.au-pager-btn:hover:not(:disabled) {
-  border-color: var(--tok-secondary);
-  background: var(--tok-primary-soft);
-}
-.au-pager-btn:focus-visible {
-  outline: none;
-  box-shadow: var(--tok-ring);
-}
-.au-pager-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-.au-pager-num { font-variant-numeric: tabular-nums; }
-.au-pager-cur,
-.au-pager-cur:hover:not(:disabled) {
-  background: var(--tok-primary);
-  border-color: var(--tok-primary);
-  color: #fff;
-}
-.au-pager-gap {
-  color: var(--tok-text-muted);
-  padding: 0 2px;
-  user-select: none;
 }
 
 /* ---- Toasts: Facebook-style bottom-right stack ---------------------------- */
@@ -580,13 +458,6 @@
 
 /* ---- Responsive adjustments for the new pieces ------------------------------ */
 @media (max-width: 767px) {
-  .au-pager {
-    justify-content: center;
-  }
-  .au-pager-info {
-    width: 100%;
-    text-align: center;
-  }
   .au-toasts {
     right: 12px;
     bottom: 12px;
