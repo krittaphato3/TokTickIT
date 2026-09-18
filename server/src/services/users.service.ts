@@ -53,6 +53,8 @@ export function toUserShape(user: User): {
 // §9.1 — `search` is a trimmed case-insensitive substring over name or email;
 // empty/absent means no filter. `role` is optional and strictly validated.
 // `page`/`pageSize` paginate server-side (page ≥ 1; pageSize 5–100, default 10).
+// The client always sends pageSize=10 (stakeholder-fixed), but the API keeps
+// the validated range so the contract stays explicit.
 export function validateUserListParams(query: Record<string, unknown>): {
   search: string | null;
   role: UserListRole | null;
@@ -140,9 +142,7 @@ function buildListWhere(
 }
 
 // §9.1 — list users ordered by id ascending, paginated server-side.
-// meta carries the paging math plus role/status counts (dataset-wide, not
-// search-filtered) so the admin console can render its stats strip from one
-// request. Responses never include passwordHash.
+// meta carries the paging math. Responses never include passwordHash.
 export async function listUsers(
   prisma: PrismaClient,
   query: Record<string, unknown>,
@@ -153,14 +153,6 @@ export async function listUsers(
     page: number;
     pageSize: number;
     totalPages: number;
-    counts: {
-      total: number;
-      admin: number;
-      itStaff: number;
-      requester: number;
-      active: number;
-      inactive: number;
-    };
   };
 }> {
   const { search, role, page, pageSize } = validateUserListParams(query);
@@ -174,15 +166,6 @@ export async function listUsers(
     }),
     prisma.user.count({ where }),
   ]);
-  // Dataset-wide counts for the console stats strip.
-  const [total, admin, itStaff, requester, active, inactive] = await Promise.all([
-    prisma.user.count(),
-    prisma.user.count({ where: { role: 'ADMINISTRATOR' } }),
-    prisma.user.count({ where: { role: 'IT_STAFF' } }),
-    prisma.user.count({ where: { role: 'REQUESTER' } }),
-    prisma.user.count({ where: { isActive: true } }),
-    prisma.user.count({ where: { isActive: false } }),
-  ]);
   return {
     data: users.map(toUserShape),
     meta: {
@@ -190,7 +173,6 @@ export async function listUsers(
       page,
       pageSize,
       totalPages: Math.max(1, Math.ceil(totalItems / pageSize)),
-      counts: { total, admin, itStaff, requester, active, inactive },
     },
   };
 }

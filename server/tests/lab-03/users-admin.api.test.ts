@@ -222,7 +222,7 @@ describe('T-ADM-01 — user list with search by name and email (AC-15)', () => {
     expect(blank.body.meta.totalItems).toBe(all.body.meta.totalItems);
   });
 
-  it('paginates server-side: page slicing, totalPages math, and meta counts', async () => {
+  it('paginates server-side: page slicing and totalPages math', async () => {
     const admin = await adminFixture('adm-l5');
     const p1 = await withCookie(admin, request(app).get('/api/users')).query({ page: 1, pageSize: 5 });
     const p2 = await withCookie(admin, request(app).get('/api/users')).query({ page: 2, pageSize: 5 });
@@ -235,12 +235,6 @@ describe('T-ADM-01 — user list with search by name and email (AC-15)', () => {
     const ids1 = p1.body.data.map((u: { id: number }) => u.id);
     const ids2 = p2.body.data.map((u: { id: number }) => u.id);
     expect(ids1.some((id: number) => ids2.includes(id))).toBe(false);
-    // dataset-wide counts stay stable across pages
-    expect(p1.body.meta.counts.total).toBe(p2.body.meta.counts.total);
-    expect(
-      p1.body.meta.counts.admin + p1.body.meta.counts.itStaff + p1.body.meta.counts.requester,
-    ).toBe(p1.body.meta.counts.total);
-    expect(p1.body.meta.counts.active + p1.body.meta.counts.inactive).toBe(p1.body.meta.counts.total);
   });
 
   it('rejects invalid pagination values with 400', async () => {

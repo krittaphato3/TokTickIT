@@ -764,15 +764,6 @@ export interface AdminUser {
   updatedAt: string;
 }
 
-export interface AdminUserListMetaCounts {
-  total: number;
-  admin: number;
-  itStaff: number;
-  requester: number;
-  active: number;
-  inactive: number;
-}
-
 export interface AdminUserListResult {
   data: AdminUser[];
   meta: {
@@ -780,7 +771,6 @@ export interface AdminUserListResult {
     page: number;
     pageSize: number;
     totalPages: number;
-    counts: AdminUserListMetaCounts;
   };
 }
 

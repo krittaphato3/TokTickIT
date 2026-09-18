@@ -6,7 +6,7 @@ import {
   setUserInitialPassword,
   updateAdminUser,
 } from '../api';
-import type { AdminUser, AdminUserRole, AdminUserListMetaCounts } from '../api';
+import type { AdminUser, AdminUserRole } from '../api';
 import { useAuth } from '../auth/AuthContext';
 import '../styles/admin-users.css';
 
@@ -25,6 +25,9 @@ import '../styles/admin-users.css';
 // is still no delete — deactivation replaces deletion (BR-18).
 
 const SEARCH_DEBOUNCE_MS = 300;
+
+// Fixed page size (stakeholder decision): 10 rows per page, no selector.
+const PAGE_SIZE = 10;
 
 // Sortable columns. `id` is the unsorted server order (api-spec §9.1:
 // id ascending); Actions is not sortable. Sorting reorders the CURRENT PAGE
@@ -74,8 +77,6 @@ const ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Administrator',
   ADMINISTRATOR: 'Administrator',
 };
-
-const PAGE_SIZES = [10, 25, 50];
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -249,12 +250,10 @@ export default function UserManagement() {
   const [meta, setMeta] = useState({
     totalItems: 0,
     page: 1,
-    pageSize: 10,
+    pageSize: PAGE_SIZE,
     totalPages: 1,
-    counts: { total: 0, admin: 0, itStaff: 0, requester: 0, active: 0, inactive: 0 } as AdminUserListMetaCounts,
   });
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   // Load-failure copy rendered inside the error state block (never duplicated
   // as a banner — §10 failure feedback lives in one place per surface).
@@ -294,7 +293,7 @@ export default function UserManagement() {
     const id = ++requestIdRef.current;
     setState('loading');
     try {
-      const result = await getAdminUsers({ search, role: roleFilter, page, pageSize });
+      const result = await getAdminUsers({ search, role: roleFilter, page, pageSize: PAGE_SIZE });
       if (id !== requestIdRef.current) return;
       // Page overflow (e.g. filters shrank the dataset): snap to the last
       // valid page; the effect refetches with the corrected number once.
@@ -314,7 +313,7 @@ export default function UserManagement() {
       }
       setState('error');
     }
-  }, [search, roleFilter, page, pageSize]);
+  }, [search, roleFilter, page]);
 
   useEffect(() => {
     void load();
@@ -329,11 +328,6 @@ export default function UserManagement() {
 
   function changeRoleFilter(value: AdminUserRole | '') {
     setRoleFilter(value);
-    setPage(1);
-  }
-
-  function changePageSize(value: number) {
-    setPageSize(value);
     setPage(1);
   }
 
@@ -407,39 +401,6 @@ export default function UserManagement() {
     return out;
   }, [meta.totalPages, meta.page]);
 
-  const kpis: Array<{
-    label: string;
-    value: number;
-    onClick?: () => void;
-    active?: boolean;
-    tone?: 'admin' | 'staff' | 'requester' | 'active' | 'inactive';
-  }> = [
-    { label: 'Total users', value: meta.counts.total },
-    {
-      label: 'Administrators',
-      value: meta.counts.admin,
-      tone: 'admin',
-      onClick: () => changeRoleFilter(roleFilter === 'ADMIN' ? '' : 'ADMIN'),
-      active: roleFilter === 'ADMIN',
-    },
-    {
-      label: 'IT Staff',
-      value: meta.counts.itStaff,
-      tone: 'staff',
-      onClick: () => changeRoleFilter(roleFilter === 'IT_STAFF' ? '' : 'IT_STAFF'),
-      active: roleFilter === 'IT_STAFF',
-    },
-    {
-      label: 'Requesters',
-      value: meta.counts.requester,
-      tone: 'requester',
-      onClick: () => changeRoleFilter(roleFilter === 'REQUESTER' ? '' : 'REQUESTER'),
-      active: roleFilter === 'REQUESTER',
-    },
-    { label: 'Active', value: meta.counts.active, tone: 'active' },
-    { label: 'Inactive', value: meta.counts.inactive, tone: 'inactive' },
-  ];
-
   return (
     <main className="mt-page au-page" aria-labelledby="au-heading">
       <div className="mt-head">
@@ -460,30 +421,6 @@ export default function UserManagement() {
             Create user
           </button>
         </div>
-      </div>
-
-      {/* Dataset-wide KPI strip from §9 meta.counts; role tiles are filter
-          shortcuts (click to filter, click again to clear). */}
-      <div className="au-kpis" role="group" aria-label="User statistics">
-        {kpis.map((k) =>
-          k.onClick ? (
-            <button
-              key={k.label}
-              type="button"
-              className={`au-kpi au-kpi-btn ${k.active ? 'au-kpi-active' : ''} ${k.tone ? `au-kpi-${k.tone}` : ''}`}
-              onClick={k.onClick}
-              aria-pressed={k.active}
-            >
-              <span className="au-kpi-num">{k.value}</span>
-              <span className="au-kpi-label">{k.label}</span>
-            </button>
-          ) : (
-            <div key={k.label} className={`au-kpi ${k.tone ? `au-kpi-${k.tone}` : ''}`}>
-              <span className="au-kpi-num">{k.value}</span>
-              <span className="au-kpi-label">{k.label}</span>
-            </div>
-          ),
-        )}
       </div>
 
       <div className="mt-filter-card au-filter">
@@ -513,18 +450,6 @@ export default function UserManagement() {
           >
             {ROLE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="mt-f-label" htmlFor="au-page-size">Rows</label>
-          <select
-            id="au-page-size"
-            value={pageSize}
-            onChange={(e) => changePageSize(Number(e.target.value))}
-          >
-            {PAGE_SIZES.map((s) => (
-              <option key={s} value={s}>{s} / page</option>
             ))}
           </select>
         </div>
@@ -656,7 +581,7 @@ export default function UserManagement() {
               ))}
             </div>
 
-            {/* Pagination footer (§9 meta; server-driven pages). */}
+            {/* Pagination footer (§9 meta; server-driven pages, fixed 10/page). */}
             <div className="au-pager">
               <span className="au-pager-info">
                 Page {meta.page} of {meta.totalPages}

@@ -82,11 +82,13 @@ Pending peer review, to be completed before merge to lab3-staging/main. This sca
 - **Docs changed:** `api-spec.md` §9 implementation-status note, `tests.md` plan-policy + Final column (T-ADM-01..06, T-AUTHZ-04, T-PWD-02, T-UX-02 admin half), `specification.md` §7.9, `ui-spec.md` §8 implementation note, this file, `ai-use.md`.
 - **Documented decisions for review:** (1) wire role value for Administrator is `ADMIN` per api-spec §9 (DB enum `ADMINISTRATOR`, mapped in the service); (2) the self-deactivation guard reads the actor id from the server-side session only — a client-supplied actor field cannot bypass it (BR-03); (3) guard reachability: an API actor must be an active Administrator, so a pure-API "deactivate the last active admin" always coincides with the self rule (checked first per §9.3); the distinct last-admin-deactivation branch is proven at the service layer with a separate actor id and the role-reassign 409 is proven over the API (documented in api-spec §9 and tests.md T-ADM-05); (4) create-success banner copy is "User saved." (ui-spec §8 deviation, recorded there); (5) load failure renders inside the list card (single §10 failure surface), not as a duplicate banner; (6) invalid `:id` path segments and unknown ids are both 404 `User not found` (never leak whether an id was ever valid); (7) empty update body is 400 `details[0].field === "body"`.
   (9) The stakeholder-requested overhaul adds server-side pagination (page/pageSize; invalid
-  values 400), a meta.counts-driven KPI strip whose role tiles toggle the role filter,
-  bottom-right toast notifications for save outcomes, and a client-side password strength
-  meter (hint only — the §1.3 length-only server contract for admin-set initial passwords is
-  unchanged). Sorting now applies to the current page client-side (pages arrive id-ascending).
-  Safety rules are untouched: guards, CSRF, and role gating are identical to decisions (1)–(8).
+  values 400; page size FIXED at 10 with no rows-per-page selector), bottom-right toast
+  notifications for save outcomes, and a client-side password strength meter (hint only — the
+  §1.3 length-only server contract for admin-set initial passwords is unchanged). Sorting now
+  applies to the current page client-side (pages arrive id-ascending). A meta.counts-driven
+  KPI stats strip was built for this iteration and then removed at the stakeholder's request;
+  meta.counts was dropped from the API response with it. Safety rules are untouched: guards,
+  CSRF, and role gating are identical to decisions (1)–(8).
   (8) The list header adds single-column sorting (Name/Email/Role/Status, stakeholder request) on
   the unpaginated list — sorted client-side for both the table and the mobile card list; this
   respects the §8.1 exclusions, which bar pagination and multi-column sorting only.

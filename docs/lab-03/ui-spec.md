@@ -282,21 +282,21 @@ Exactly three tabs (`role=tablist`, arrow-key navigation, `aria-selected`): Publ
 >
 > **Overhaul (stakeholder request, later in this issue):** the screen gains (a) SERVER-side
 > pagination — §8.1 listed pagination as not required, and the stakeholder then requested it;
-> the api-spec §9.1 contract gained page/pageSize and meta.counts accordingly. Sorting applies
-> to the CURRENT page client-side (pages arrive id-ascending). (b) A KPI stats strip rendered
-> from meta.counts (Total / Administrators / IT Staff / Requesters / Active / Inactive); the
-> three role tiles are clickable filter toggles mirroring the role select. (c) A denser
-> console-style table (hover rows, tabular numerals, a `P!` chip flagging rows whose
-> mustChangePassword is set). (d) Save outcomes (create / edit / set-initial-password success
-> and self-deactivation or last-admin conflicts) surface as Facebook-style TOASTS fixed at the
-> bottom-right — success green, conflict amber, auto-dismiss ~6.5s, manual × dismiss, stacked —
-> replacing the old top banner for action feedback; validation, in-modal failure banners, and
-> the list load-error state remain inline (§10 single-surface rule preserved per surface).
-> (e) Modals gain an identity header (avatar, email, role/status badges), a 2-column form grid
-> collapsing to 1 column on mobile, and a client-side password strength meter (hint only — the
-> §1.3 length-only server contract is unchanged). (f) A rows-per-page select (10/25/50) lives in
-> the filter card; changing it resets to page 1, as do search and role-filter changes; paging
-> past the end snaps back to the last valid page.
+> the api-spec §9.1 contract gained page/pageSize accordingly. Page size is FIXED at 10
+> (stakeholder decision — no rows-per-page selector). Sorting applies to the CURRENT page
+> client-side (pages arrive id-ascending). (b) A denser console-style table (hover rows,
+> tabular numerals, a `P!` chip flagging rows whose mustChangePassword is set). (c) Save
+> outcomes (create / edit / set-initial-password success and self-deactivation or last-admin
+> conflicts) surface as Facebook-style TOASTS fixed at the bottom-right — success green,
+> conflict amber, auto-dismiss ~6.5s, manual × dismiss, stacked — replacing the old top
+> banner for action feedback; validation, in-modal failure banners, and the list load-error
+> state remain inline (§10 single-surface rule preserved per surface). (d) Modals gain an
+> identity header (avatar, email, role/status badges), a 2-column form grid collapsing to
+> 1 column on mobile, and a client-side password strength meter (hint only — the §1.3
+> length-only server contract is unchanged). A brief KPI stats strip from meta.counts was
+> also built for this iteration and then REMOVED at the stakeholder's request — meta.counts
+> was dropped from the API with it; search/role changes reset to page 1, and paging past
+> the end snaps back to the last valid page.
 
 ### 8.1 User list
 

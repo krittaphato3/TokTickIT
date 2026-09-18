@@ -61,7 +61,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-// Full §9 meta shape (stakeholder-requested pagination + dataset counts).
+// Full §9 meta shape (stakeholder-requested pagination; fixed 10/page).
 function usersResponse(list = USERS, page = 1, pageSize = 10): Response {
   const totalItems = list.length;
   return jsonResponse({
@@ -71,14 +71,6 @@ function usersResponse(list = USERS, page = 1, pageSize = 10): Response {
       page,
       pageSize,
       totalPages: Math.max(1, Math.ceil(totalItems / pageSize)),
-      counts: {
-        total: list.length,
-        admin: list.filter((u) => u.role === 'ADMIN').length,
-        itStaff: list.filter((u) => u.role === 'IT_STAFF').length,
-        requester: list.filter((u) => u.role === 'REQUESTER').length,
-        active: list.filter((u) => u.isActive).length,
-        inactive: list.filter((u) => !u.isActive).length,
-      },
     },
   });
 }
@@ -180,22 +172,6 @@ describe('T-ADM-01 (client half) — list rendering and search', () => {
     expect(screen.getByText(/Showing 1–5 of 5 users/)).toBeInTheDocument();
   });
 
-  it('renders the KPI stats strip from meta.counts with role tiles as filter toggles', async () => {
-    const user = userEvent.setup();
-    await openScreen();
-    const group = screen.getByRole('group', { name: 'User statistics' });
-    expect(group).toBeInTheDocument();
-    expect(screen.getByText('Total users')).toBeInTheDocument();
-    // Role tiles carry the dataset counts and are clickable filters.
-    const adminTile = within(group).getByRole('button', { name: /Administrators/ });
-    expect(adminTile).toHaveTextContent('1');
-    expect(adminTile).toHaveAttribute('aria-pressed', 'false');
-    await user.click(adminTile);
-    await waitUntil(() => userCalls.some((c) => c.includes('role=ADMIN')));
-    await user.click(adminTile);
-    await waitUntil(() => userCalls.some((c) => !c.includes('role=')));
-  });
-
   it('paginates server-side: page param, footer navigation, and range caption', async () => {
     const user = userEvent.setup();
     // 12 users at 10/page → 2 pages; the stub slices like the server.
@@ -219,10 +195,8 @@ describe('T-ADM-01 (client half) — list rendering and search', () => {
     expect(screen.getByText('Page 2 of 2')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
 
-    // Changing page size resets to page 1 and requests the new size.
-    await user.selectOptions(screen.getByLabelText('Rows'), '25');
-    await waitUntil(() => userCalls.some((c) => c.includes('pageSize=25') && c.includes('page=1')));
-    expect(await screen.findByText(/Showing 1–12 of 12 users/)).toBeInTheDocument();
+    // Page size is fixed at 10 (stakeholder decision): every request carries it.
+    expect(userCalls.every((c) => !c.includes('/api/users') || c.includes('pageSize=10'))).toBe(true);
   });
 
   it('debounces search and sends the search param to the API', async () => {

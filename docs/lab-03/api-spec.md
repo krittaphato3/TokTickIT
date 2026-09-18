@@ -1003,8 +1003,9 @@ Query params:
 > **Addition (stakeholder request):** server-side pagination extends the original "no
 > pagination required" minimalist contract — the original params are unchanged and the
 > default (page 1, 10 rows) preserves the old behavior for clients that ignore paging.
-> Ordered by `id` ascending within and across pages. `meta.counts` are dataset-wide
-> (search/role-filter-INDEPENDENT) so an admin console can render totals from one request.
+> The client always sends `pageSize=10` (stakeholder-fixed; no rows-per-page selector),
+> but the API keeps the validated 5–100 range so the contract stays explicit. Ordered
+> by `id` ascending within and across pages.
 
 **Success `200`:**
 
@@ -1017,8 +1018,7 @@ Query params:
     "totalItems": 11,
     "page": 1,
     "pageSize": 10,
-    "totalPages": 2,
-    "counts": { "total": 11, "admin": 1, "itStaff": 5, "requester": 5, "active": 9, "inactive": 2 }
+    "totalPages": 2
   }
 }
 ```
