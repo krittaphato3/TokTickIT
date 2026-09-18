@@ -293,7 +293,9 @@ Exactly three tabs (`role=tablist`, arrow-key navigation, `aria-selected`): Publ
 > state remain inline (§10 single-surface rule preserved per surface). (d) Modals gain an
 > identity header (avatar, email, role/status badges), a 2-column form grid collapsing to
 > 1 column on mobile, and a client-side password strength meter (hint only — the §1.3
-> length-only server contract is unchanged). A brief KPI stats strip from meta.counts was
+> length-only server contract is unchanged; a follow-up layout pass replaced the floating
+> Active switch with a segmented Active|Inactive control aligned with the Role select and
+> added Account/Security section labels to the modals). A brief KPI stats strip from meta.counts was
 > also built for this iteration and then REMOVED at the stakeholder's request — meta.counts
 > was dropped from the API with it; search/role changes reset to page 1, and paging past
 > the end snaps back to the last valid page.
