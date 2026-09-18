@@ -202,88 +202,11 @@
   color: var(--tok-primary);
 }
 
-/* Active toggle (switch role, §8.2). */
-.au-switch-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.au-switch-row > label {
-  margin-bottom: 0;
-}
-.au-switch-block {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.au-switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  padding: 4px 12px 4px 4px;
-  border: 1px solid var(--tok-border);
-  border-radius: 999px;
-  background: var(--tok-field-readonly);
-  cursor: pointer;
-}
-.au-switch[aria-checked='true'] {
-  background: var(--tok-primary-soft);
-  border-color: rgba(0, 107, 60, 0.35);
-}
-.au-switch:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-.au-switch:focus-visible {
-  outline: none;
-  box-shadow: var(--tok-ring);
-}
-.au-switch-thumb {
-  width: 34px;
-  height: 20px;
-  border-radius: 999px;
-  background: #9db4a8;
-  position: relative;
-  transition: background 0.15s;
-  flex: none;
-}
-.au-switch-thumb::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(30, 42, 37, 0.35);
-  transition: left 0.15s;
-}
-.au-switch[aria-checked='true'] .au-switch-thumb {
-  background: var(--tok-primary);
-}
-.au-switch[aria-checked='true'] .au-switch-thumb::after {
-  left: 16px;
-}
-.au-switch-text {
-  font-size: 0.84375rem;
-  font-weight: 600;
-  color: var(--tok-text);
-}
-
-/* Set-initial-password section at the edit modal foot (§8.2). */
+/* Security section at the edit modal foot (§8.2): initial password. */
 .au-password-section {
   border-top: 1px solid var(--tok-border-soft);
   margin-top: 16px;
   padding-top: 14px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .au-switch-thumb,
-  .au-switch-thumb::after {
-    transition: none;
-  }
 }
 
 /* ---- Responsive (§13 matrix): tablet 2-col filter, mobile cards ---- */
@@ -309,8 +232,11 @@
   .au-show-btn {
     min-height: 44px;
   }
-  .au-switch {
-    min-height: 44px;
+  .au-segctl {
+    width: 100%;
+  }
+  .au-segopt {
+    flex: 1;
   }
   .td-modal-actions {
     flex-direction: column-reverse;
@@ -540,9 +466,83 @@
 .au-field-full {
   grid-column: 1 / -1;
 }
-.au-switch-block {
-  /* align the switch with the inputs in the grid */
-  padding-top: 26px;
+/* ---- Status segmented control (Active | Inactive) --------------------------
+   Sits in the form grid at the same height as the Role select (stakeholder
+   layout pass) — the floating switch was unbalanced next to a select. ---- */
+.au-segctl {
+  display: inline-flex;
+  border: 1px solid var(--tok-border);
+  border-radius: 10px;
+  background: var(--tok-field-readonly, #f3f6f4);
+  padding: 3px;
+  gap: 3px;
+  min-height: 42px;
+  align-items: stretch;
+}
+.au-segopt {
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  padding: 0 18px;
+  min-height: 36px;
+  font-size: 0.84375rem;
+  font-weight: 600;
+  color: var(--tok-text-muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, box-shadow 0.12s;
+  white-space: nowrap;
+}
+.au-segopt:hover:not(:disabled):not([aria-checked='true']) {
+  color: var(--tok-text);
+}
+.au-segopt:focus-visible {
+  outline: none;
+  box-shadow: var(--tok-ring);
+}
+.au-segopt:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.au-segopt[aria-checked='true'] {
+  background: var(--tok-primary);
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 107, 60, 0.35);
+}
+.au-segopt-inactive[aria-checked='true'] {
+  background: #6a7671;
+  box-shadow: 0 1px 3px rgba(30, 42, 37, 0.3);
+}
+
+/* ---- Modal section labels + footnote ---------------------------------------- */
+.au-section-label {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tok-primary);
+  margin: 4px 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.au-section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--tok-border-soft);
+}
+.au-password-section .au-section-label {
+  margin-top: 0;
+}
+.au-modal-note {
+  margin-top: 12px;
+  font-size: 0.75rem;
+  color: var(--tok-text-muted);
+  background: var(--tok-field-readonly, #f3f6f4);
+  border: 1px solid var(--tok-border-soft);
+  border-radius: 8px;
+  padding: 8px 10px;
+  line-height: 1.45;
 }
 
 /* ---- Password strength meter (client-side hint only) ----------------------- */
@@ -595,8 +595,5 @@
   }
   .au-form-grid {
     grid-template-columns: 1fr;
-  }
-  .au-switch-block {
-    padding-top: 0;
   }
 }

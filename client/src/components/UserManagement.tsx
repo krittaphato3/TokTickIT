@@ -237,7 +237,43 @@ function PasswordMeter({ pw }: { pw: string }) {
 }
 
 // §8.3 — self-deactivation is blocked client-side via `isSelfRow`/`isLastAdmin`
-// in the edit modal (server 409 is the authority).
+// in the edit modal (server 409 is the authority). Status is a segmented
+// Active/Inactive control (stakeholder layout pass) aligned with the Role
+// select; the block still explains itself instead of silently disabling.
+function StatusSegmentedControl({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: boolean;
+  disabled?: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <div className="au-segctl" role="radiogroup" aria-label="Status">
+      <button
+        type="button"
+        role="radio"
+        aria-checked={value}
+        className="au-segopt au-segopt-active"
+        disabled={disabled}
+        onClick={() => onChange(true)}
+      >
+        Active
+      </button>
+      <button
+        type="button"
+        role="radio"
+        aria-checked={!value}
+        className="au-segopt au-segopt-inactive"
+        disabled={disabled}
+        onClick={() => onChange(false)}
+      >
+        Inactive
+      </button>
+    </div>
+  );
+}
 
 export default function UserManagement() {
   const { user: self } = useAuth();
@@ -728,18 +764,14 @@ function CreateUserModal({
         aria-labelledby="au-create-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="au-modal-head">
-          <span className="au-avatar au-avatar-lg" aria-hidden="true">＋</span>
-          <div>
-            <h2 id="au-create-title">Create user</h2>
-            <p className="au-modal-sub">The person signs in with the initial password and must change it at first login.</p>
-          </div>
-        </header>
+        <h2 id="au-create-title">Create user</h2>
+        <p className="au-modal-sub">The person signs in with the initial password and must change it at first login.</p>
         {failure ? (
           <div className="std-banner error" role="alert">
             <span>{failure}</span>
           </div>
         ) : null}
+        <div className="au-section-label">Account</div>
         <div className="au-form-grid">
           <div className={`tok-field au-field ${issues.name ? 'invalid' : ''}`}>
             <label htmlFor="au-c-name">Name</label>
@@ -795,20 +827,15 @@ function CreateUserModal({
               <p className="tok-hint">One role per account in Lab 3.</p>
             )}
           </div>
-          <div className="au-field au-switch-row au-switch-block">
-            <label htmlFor="au-c-active">Status</label>
-            <button
-              id="au-c-active"
-              type="button"
-              role="switch"
-              aria-checked={form.isActive}
-              className="au-switch"
-              disabled={saving}
-              onClick={() => setForm({ ...form, isActive: !form.isActive })}
-            >
-              <span className="au-switch-thumb" />
-              <span className="au-switch-text">{form.isActive ? 'Active' : 'Inactive'}</span>
-            </button>
+          <div className="au-field">
+            <label htmlFor="au-c-status">Status</label>
+            <div id="au-c-status">
+              <StatusSegmentedControl
+                value={form.isActive}
+                disabled={saving}
+                onChange={(next) => setForm({ ...form, isActive: next })}
+              />
+            </div>
           </div>
           <div className={`tok-field au-field au-field-full ${issues.initialPassword ? 'invalid' : ''}`}>
             <label htmlFor="au-c-password">Initial Password</label>
@@ -1003,6 +1030,7 @@ function EditUserModal({
             <span>{failure}</span>
           </div>
         ) : null}
+        <div className="au-section-label">Account</div>
         <div className="au-form-grid">
           <div className={`tok-field au-field ${issues.name ? 'invalid' : ''}`}>
             <label htmlFor="au-e-name">Name</label>
@@ -1055,43 +1083,37 @@ function EditUserModal({
               <p id="au-e-role-err" className="au-field-err" role="alert"><span aria-hidden="true">⚠️</span> <span>{issues.role}</span></p>
             ) : null}
           </div>
-          <div className="au-field au-switch-row au-switch-block">
-            <label htmlFor="au-e-active">Status</label>
-            <button
-              id="au-e-active"
-              type="button"
-              role="switch"
-              aria-checked={form.isActive}
-              className="au-switch"
-              disabled={saving || settingPassword}
-              onClick={() => {
-                // Block only the DEACTIVATING transition (Active → Inactive).
-                // The guard is evaluated on the CURRENT rendered state: an
-                // active self row or the last active Administrator row cannot
-                // be switched off. Turning a blocked toggle back ON is always
-                // allowed.
-                if (form.isActive && activeToggleDisabled) {
-                  setIssues({
-                    isActive: isSelfRow
-                      ? 'You cannot deactivate your own account.'
-                      : 'At least one active Administrator must remain.',
-                  });
-                  return;
-                }
-                setIssues({});
-                setForm({ ...form, isActive: !form.isActive });
-              }}
-            >
-              <span className="au-switch-thumb" />
-              <span className="au-switch-text">{form.isActive ? 'Active' : 'Inactive'}</span>
-            </button>
+          <div className={`au-field ${issues.isActive ? 'invalid' : ''}`}>
+            <label htmlFor="au-e-status">Status</label>
+            <div id="au-e-status">
+              <StatusSegmentedControl
+                value={form.isActive}
+                disabled={saving || settingPassword}
+                onChange={(next) => {
+                  // Block only the DEACTIVATING transition (Active → Inactive)
+                  // for the self row / last active Administrator (§8.3, BR-18);
+                  // the server 409 remains the authority.
+                  if (!next && form.isActive && activeToggleDisabled) {
+                    setIssues({
+                      isActive: isSelfRow
+                        ? 'You cannot deactivate your own account.'
+                        : 'At least one active Administrator must remain.',
+                    });
+                    setForm({ ...form, isActive: true }); // stay Active
+                    return;
+                  }
+                  setIssues({});
+                  setForm({ ...form, isActive: next });
+                }}
+              />
+            </div>
             {issues.isActive ? (
               <p className="au-field-err" role="alert"><span aria-hidden="true">⚠️</span> <span>{issues.isActive}</span></p>
             ) : null}
           </div>
         </div>
         <div className="au-password-section">
-          <h3>Set initial password</h3>
+          <h3>Security — set initial password</h3>
           {passwordFailure ? (
             <div className="std-banner error" role="alert">
               <span>{passwordFailure}</span>
@@ -1136,6 +1158,10 @@ function EditUserModal({
           >
             {settingPassword ? 'Saving…' : 'Set initial password'}
           </button>
+        </div>
+        <div className="au-modal-note">
+          Setting a new initial password does not change the account's name, email, role, or
+          status — save those with Save changes.
         </div>
         <div className="td-modal-actions">
           <button type="button" className="tok-btn secondary" disabled={saving || settingPassword} onClick={onClose}>

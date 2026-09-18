@@ -434,14 +434,16 @@ describe('T-ADM-04/05 (client half) — edit modal, safety, and initial password
     // The signed-in admin's own row (Ada Admin, id 9).
     const dialog = await openEdit('Ada Admin');
 
-    const toggle = within(dialog).getByRole('switch', { name: 'Status' });
-    expect(toggle).toHaveAttribute('aria-checked', 'true');
-    await user.click(toggle);
+    // Status is a segmented Active/Inactive control (stakeholder layout pass).
+    const inactiveOpt = within(dialog).getByRole('radio', { name: 'Inactive' });
+    expect(within(dialog).getByRole('radio', { name: 'Active' })).toHaveAttribute('aria-checked', 'true');
+    await user.click(inactiveOpt);
     expect(
       within(dialog).getByText(withText('You cannot deactivate your own account.')),
     ).toBeInTheDocument();
-    // Toggle state unchanged after the blocked click.
-    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    // Selection unchanged after the blocked click — still Active.
+    expect(within(dialog).getByRole('radio', { name: 'Active' })).toHaveAttribute('aria-checked', 'true');
+    expect(inactiveOpt).toHaveAttribute('aria-checked', 'false');
   });
 
   it('allows a non-admin row toggle and surfaces server 409 as the amber conflict banner', async () => {
