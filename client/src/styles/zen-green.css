@@ -413,9 +413,13 @@ body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:va
 @media (prefers-reduced-motion:reduce){.tok-toast{animation:none}}
 
 /* ============ LAB 3 AUTH (login / change-password, ui-spec §3-§4) ============ */
-.tok-auth-page{width:100%;min-height:calc(100vh - 106px);align-items:flex-start !important;padding:32px 16px;
+/* Centering comes from auth.css (.tok-auth-page is a centered flex row);
+   the card must NOT be pinned to the horizontal start on desktop — the
+   first-login gate renders inside .tt-app where the column's default
+   align-items:stretch would otherwise left-hug the card. */
+.tok-auth-page{width:100%;min-height:calc(100vh - 106px);align-items:center;padding:32px 16px;
   background:radial-gradient(1200px 400px at 50% 0%, #EAF6EF 0%, var(--tok-page-bg) 60%)}
-.tok-auth-card{margin-top:24px}
+.tok-auth-card{margin-top:0}
 .tok-auth-page .tok-input{min-height:44px}
 .tok-auth-page .tok-btn{min-height:44px}
 .tok-auth-page .tok-alert{display:flex;gap:.5rem;align-items:flex-start}

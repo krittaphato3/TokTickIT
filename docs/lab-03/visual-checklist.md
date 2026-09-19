@@ -66,7 +66,8 @@ the UI style tests.
 
 | Item | Status | Evidence |
 |---|---|---|
-| No horizontal overflow at 1440 / 834 / 375 on any of the 8 measured screens | ✅ | visual-probe.json — `hOverflow: false` on all 25 measurements |
+| No horizontal overflow at 1440 / 834 / 375 on any of the 9 measured screens (incl. the change-password gate) | ✅ | visual-probe.json — `hOverflow: false` on all 29 measurements |
+| Auth card is horizontally centered on desktop in both render contexts (first-login gate and voluntary change) — regression-tested after a legacy CSS override left-hugged the card at ≥1440px | ✅ | visual-probe.json `cardOffCenterPx: 0` on login + change-password-gate; `e2e/lab-03/auth-responsive.spec.ts` "card centered" tests at 1024/1440 |
 | Staff queue table fits desktop viewport; internal wrapper scroll only, no page scroll | ✅ | staff-queue-desktop |
 | User management fits desktop viewport without page scroll | ✅ | user-management-desktop |
 | Mobile renders card lists instead of tables below 768px (no clipped columns) | ✅ | staff-queue-mobile, user-management-mobile |

@@ -118,4 +118,31 @@ test.describe('auth screens responsive matrix (T-UX-01 evidence)', () => {
     expect(await noHorizontalOverflow(page)).toBe(true);
     await assertFooterClear(page);
   });
+
+  // Regression: the first-login gate card once left-hugged on desktop because
+  // a legacy zen-green override forced align-items:flex-start on .tok-auth-page
+  // (flex-start is the horizontal axis in the column flex). Centering is now
+  // asserted in both render contexts (gate branch and voluntary route).
+  for (const vp of [VIEWPORTS[3], VIEWPORTS[4]]) {
+    test(`change-password (gate) at ${vp.name}: card centered`, async ({ page }) => {
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto('/#/login');
+      await page.locator('#login-email').fill('alpha@toktickit.test');
+      await page.locator('#login-password').fill('Requester123!');
+      await page.locator('.tok-auth-submit').click();
+      await page.waitForURL('**/#/change-password?first=1', { timeout: 15_000 });
+      await expect(page.locator('.tok-auth-card')).toBeVisible();
+      const offCenter = await page.evaluate(() => {
+        const card = document.querySelector('.tok-auth-card')?.getBoundingClientRect();
+        return card ? Math.round(card.x + card.width / 2 - window.innerWidth / 2) : null;
+      });
+      expect(Math.abs(offCenter ?? 999)).toBeLessThanOrEqual(2);
+      expect(await noHorizontalOverflow(page)).toBe(true);
+      await assertFooterClear(page);
+      // Strength meter is live: typing raises data-score above 0.
+      await page.locator('#cp-new').fill('Password1!');
+      const score = await page.locator('.tok-auth-strength').getAttribute('data-score');
+      expect(Number(score)).toBeGreaterThanOrEqual(4);
+    });
+  }
 });

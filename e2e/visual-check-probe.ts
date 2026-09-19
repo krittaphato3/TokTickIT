@@ -19,7 +19,13 @@ const INITIAL: Record<string, string> = {
   'admin@toktickit.test': 'Admin123!',
 };
 
-type Result = { screen: string; width: number; hOverflow: boolean; focusVisible: boolean | null };
+type Result = {
+  screen: string;
+  width: number;
+  hOverflow: boolean;
+  focusVisible: boolean | null;
+  cardOffCenterPx?: number | null;
+};
 
 async function login(page: Page, email: string, password: string) {
   await page.goto(`${BASE}/#/login`);
@@ -51,7 +57,11 @@ async function probe(page: Page, screen: string, url: string, width: number, res
       const cs = getComputedStyle(focusable);
       focusVisible = cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth || '0') > 0;
     }
-    return { hOverflow: de.scrollWidth > de.clientWidth, focusVisible };
+    const card = document.querySelector('.tok-auth-card')?.getBoundingClientRect();
+    const cardOffCenterPx = card
+      ? Math.round(card.x + card.width / 2 - window.innerWidth / 2)
+      : null;
+    return { hOverflow: de.scrollWidth > de.clientWidth, focusVisible, cardOffCenterPx };
   });
   results.push({ screen, width, ...m });
 }
@@ -66,6 +76,19 @@ async function probe(page: Page, screen: string, url: string, width: number, res
   const pub = await browser.newPage();
   for (const w of widths) await probe(pub, 'login', '/login', w, results);
   await pub.close();
+
+  // First-login gate (change-password): centering must hold at every width.
+  const gated = await browser.newPage();
+  await gated.setViewportSize({ width: 1440, height: 900 });
+  await gated.goto(`${BASE}/#/login`);
+  await gated.waitForSelector('#login-email', { timeout: 15_000 });
+  await gated.fill('#login-email', 'gamma@toktickit.test');
+  await gated.fill('#login-password', 'Requester123!');
+  await gated.click('.tok-auth-submit');
+  await gated.waitForURL('**/#/change-password?first=1', { timeout: 15_000 });
+  await gated.waitForSelector('.tok-auth-card', { timeout: 10_000 });
+  for (const w of widths) await probe(gated, 'change-password-gate', '/change-password?first=1', w, results);
+  await gated.close();
 
   // Requester screens.
   const req = await browser.newPage();
