@@ -40,7 +40,9 @@ const NATURAL_DIR: Record<StaffSortField, SortDir> = {
 };
 
 const DEFAULT_SORT: SortState = { key: 'createdAt', dir: 'desc' };
-const PAGE_SIZE = 20;
+// Page size 10 — matches the requester My Tickets convention (stakeholder
+// ruling: one page size across the program's list tables).
+const PAGE_SIZE = 10;
 const SEARCH_DEBOUNCE_MS = 300;
 
 const STATUS_OPTIONS: Array<{ value: StaffTicketStatus | ''; label: string }> = [
@@ -275,6 +277,15 @@ export default function StaffTicketQueue({ onNavigate }: { onNavigate?: (hash: s
   const [searchDraft, setSearchDraft] = useState('');
   const [owners, setOwners] = useState<QueueOwner[]>([]);
   const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([]);
+  // Stakeholder request: Owner / Priority / Status live in one "Filters"
+  // popover opened from a button beside the page heading (the filter bar
+  // keeps only Search + Category). Owner offers a searchable list sorted
+  // alphabetically; Priority/Status are plain selects styled like every
+  // other info block.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [ownerQuery, setOwnerQuery] = useState('');
+  const filterWrapRef = useRef<HTMLDivElement | null>(null);
+  const filterBtnRef = useRef<HTMLButtonElement | null>(null);
 
   const requestSeq = useRef(0);
 
@@ -306,6 +317,31 @@ export default function StaffTicketQueue({ onNavigate }: { onNavigate?: (hash: s
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [searchDraft, filters.q]);
+
+  // Popover dismiss: outside pointerdown or Escape. Pointerdown (not click)
+  // so a drag that STARTS inside and ends outside never closes it, and a
+  // drag starting outside never steals an open interaction.
+  useEffect(() => {
+    if (!filtersOpen) return;
+    function onPointerDown(e: PointerEvent) {
+      if (filterWrapRef.current && !filterWrapRef.current.contains(e.target as Node)) {
+        setFiltersOpen(false);
+      }
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setFiltersOpen(false);
+        filterBtnRef.current?.focus();
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [filtersOpen]);
 
   const load = useCallback(async () => {
     const query = buildQuery(filters, page);
@@ -366,6 +402,25 @@ export default function StaffTicketQueue({ onNavigate }: { onNavigate?: (hash: s
   const anyFilterActive = !isDefaultFilters(filters);
   const showEmpty = status === 'ready' && meta?.totalItems === 0 && !anyFilterActive;
   const showNoResults = status === 'ready' && meta?.totalItems === 0 && anyFilterActive;
+
+  // Owner options for the popover: alphabetical by name (stakeholder
+  // request), narrowed by the popover's own search box.
+  const sortedOwners = useMemo(
+    () =>
+      [...owners].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
+    [owners],
+  );
+  const visibleOwners = useMemo(() => {
+    const q = ownerQuery.trim().toLowerCase();
+    if (q === '') return sortedOwners;
+    return sortedOwners.filter((o) => o.name.toLowerCase().includes(q));
+  }, [sortedOwners, ownerQuery]);
+
+  const activeFilterCount =
+    (filters.priority !== '' ? 1 : 0) +
+    (filters.itPriority !== '' ? 1 : 0) +
+    (filters.status !== '' ? 1 : 0) +
+    (filters.ownerId !== '' ? 1 : 0);
 
   const openDetail = (ticketNumber: string) => {
     onNavigate?.(`#/staff/tickets/${ticketNumber}`);
@@ -495,6 +550,128 @@ export default function StaffTicketQueue({ onNavigate }: { onNavigate?: (hash: s
           <span className="sq-count" aria-live="polite">
             {resultCount}
           </span>
+          {/* One Filters button (stakeholder request): opens a popover that
+              configures Owner (searchable), Priority and Status in one menu. */}
+          <div className="sq-filter-wrap" ref={filterWrapRef}>
+            <button
+              ref={filterBtnRef}
+              type="button"
+              className={`mt-btn mt-btn-secondary${filtersOpen || activeFilterCount > 0 ? ' active' : ''}`}
+              aria-haspopup="dialog"
+              aria-expanded={filtersOpen}
+              onClick={() => setFiltersOpen((v) => !v)}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+              </svg>
+              Filters
+              {activeFilterCount > 0 ? <span className="sq-filter-badge">{activeFilterCount}</span> : null}
+            </button>
+            {filtersOpen ? (
+              <div className="sq-filter-pop" role="dialog" aria-label="Queue filters">
+                <div className="sq-pop-row">
+                  <label className="mt-f-label" htmlFor="sq-pop-owner-search">Owner</label>
+                  <input
+                    id="sq-pop-owner-search"
+                    type="search"
+                    className="sq-owner-search"
+                    placeholder="Search owners…"
+                    aria-label="Search owners"
+                    value={ownerQuery}
+                    onChange={(e) => setOwnerQuery(e.target.value)}
+                  />
+                  <div className="sq-owner-list" role="listbox" aria-label="Owner">
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={filters.ownerId === ''}
+                      className={`sq-owner-opt${filters.ownerId === '' ? ' selected' : ''}`}
+                      onClick={() => updateFilter({ ownerId: '' })}
+                    >
+                      All Owners
+                    </button>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={filters.ownerId === 'unassigned'}
+                      className={`sq-owner-opt${filters.ownerId === 'unassigned' ? ' selected' : ''}`}
+                      onClick={() => updateFilter({ ownerId: 'unassigned' })}
+                    >
+                      Unassigned
+                    </button>
+                    {visibleOwners.map((o) => (
+                      <button
+                        key={o.id}
+                        type="button"
+                        role="option"
+                        aria-selected={filters.ownerId === String(o.id)}
+                        className={`sq-owner-opt${filters.ownerId === String(o.id) ? ' selected' : ''}`}
+                        onClick={() => updateFilter({ ownerId: String(o.id) })}
+                      >
+                        {o.name}
+                      </button>
+                    ))}
+                    {visibleOwners.length === 0 ? (
+                      <p className="sq-owner-empty">No owners match this search.</p>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="sq-pop-row">
+                  <label className="mt-f-label" htmlFor="sq-pop-reqpri">Requested Priority</label>
+                  <select
+                    id="sq-pop-reqpri"
+                    value={filters.priority}
+                    onChange={(e) => updateFilter({ priority: e.target.value })}
+                  >
+                    {PRIORITY_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="sq-pop-row">
+                  <label className="mt-f-label" htmlFor="sq-pop-itpri">IT Priority</label>
+                  <select
+                    id="sq-pop-itpri"
+                    value={filters.itPriority}
+                    onChange={(e) => updateFilter({ itPriority: e.target.value })}
+                  >
+                    {PRIORITY_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="sq-pop-row">
+                  <label className="mt-f-label" htmlFor="sq-pop-status">Current Status</label>
+                  <select
+                    id="sq-pop-status"
+                    value={filters.status}
+                    onChange={(e) => updateFilter({ status: e.target.value })}
+                  >
+                    {STATUS_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="sq-pop-foot">
+                  <button
+                    type="button"
+                    className="mt-btn mt-btn-secondary"
+                    disabled={!anyFilterActive}
+                    onClick={clearAllFilters}
+                  >
+                    Clear all
+                  </button>
+                  <button
+                    type="button"
+                    className="mt-btn mt-btn-primary"
+                    onClick={() => setFiltersOpen(false)}
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
           {anyFilterActive && (
             <button type="button" className="mt-btn mt-btn-secondary" onClick={clearAllFilters}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
@@ -555,72 +732,10 @@ export default function StaffTicketQueue({ onNavigate }: { onNavigate?: (hash: s
               ))}
             </select>
           </div>
-          <div>
-            <label className="mt-f-label" htmlFor="sq-f-reqpri">
-              Requested Priority
-            </label>
-            <select
-              id="sq-f-reqpri"
-              value={filters.priority}
-              onChange={(e) => updateFilter({ priority: e.target.value })}
-            >
-              {PRIORITY_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mt-f-label" htmlFor="sq-f-itpri">
-              IT Priority
-            </label>
-            <select
-              id="sq-f-itpri"
-              value={filters.itPriority}
-              onChange={(e) => updateFilter({ itPriority: e.target.value })}
-            >
-              {PRIORITY_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mt-f-label" htmlFor="sq-f-status">
-              Current Status
-            </label>
-            <select
-              id="sq-f-status"
-              value={filters.status}
-              onChange={(e) => updateFilter({ status: e.target.value })}
-            >
-              {STATUS_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mt-f-label" htmlFor="sq-f-owner">
-              Owner
-            </label>
-            <select
-              id="sq-f-owner"
-              value={filters.ownerId}
-              onChange={(e) => updateFilter({ ownerId: e.target.value })}
-            >
-              <option value="">All Owners</option>
-              <option value="unassigned">Unassigned</option>
-              {owners.map((o) => (
-                <option key={o.id} value={String(o.id)}>
-                  {o.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Owner / Requested Priority / IT Priority / Current Status moved
+              into the Filters popover in the page head (stakeholder request,
+              ui-spec §6.1 note) — this bar keeps only the always-visible
+              Search + Category. */}
         </section>
 
         <section className="mt-table-card mt-table-section" aria-label="Ticket queue">

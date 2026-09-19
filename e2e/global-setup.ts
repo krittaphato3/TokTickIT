@@ -69,8 +69,38 @@ function loadDatabaseUrl(): string {
   throw new Error('DATABASE_URL not found for e2e setup (server/.env)');
 }
 
+// The dev database may be the embedded server (port 5434, `npm run db:up`)
+// OR the dockerized Compose one (port 5433, `docker compose up`). Both use
+// identical credentials; probe both ports and use whichever accepts first.
+async function resolveDatabaseUrl(): Promise<string> {
+  const raw = loadDatabaseUrl();
+  const url = new URL(raw);
+  const configuredPort = url.port || '5432';
+  const portOrder = [...new Set([configuredPort, '5434', '5433'])];
+  const { connect } = await import('node:net');
+  for (const port of portOrder) {
+    const ok = await new Promise<boolean>((resolve) => {
+      const socket = connect({ host: '127.0.0.1', port: Number(port), timeout: 800 });
+      socket.on('connect', () => {
+        socket.destroy();
+        resolve(true);
+      });
+      socket.on('error', () => resolve(false));
+      socket.on('timeout', () => {
+        socket.destroy();
+        resolve(false);
+      });
+    });
+    if (ok) {
+      url.port = port;
+      return url.toString();
+    }
+  }
+  throw new Error(`No dev database reachable on ports ${portOrder.join(', ')} — start one with "npm run db:up" (server) or "docker compose up -d postgres".`);
+}
+
 export async function resetSeededUsers(): Promise<void> {
-  const client = new Client({ connectionString: loadDatabaseUrl() });
+  const client = new Client({ connectionString: await resolveDatabaseUrl() });
   await client.connect();
   try {
     for (const [email, seed] of Object.entries(SEED_USERS)) {
