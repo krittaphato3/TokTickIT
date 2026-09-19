@@ -492,7 +492,7 @@ export default function StaffTicketDetail({
           </div>
           <div className="std-field std-span4">
             <label>Description</label>
-            <div className="td-ro warm">
+            <div className="td-ro warm tok-desc-warm" data-warm>
               {ticket.description ? ticket.description : <span className="td-muted">No description provided.</span>}
             </div>
           </div>
@@ -699,7 +699,7 @@ export default function StaffTicketDetail({
         aria-label="Internal Notes"
       >
         <div className="std-internal-warning" role="note">
-          🔒 Staff only — never visible to the requester. Do not paste requester-facing text here.
+          🔒 Staff only — never visible to the requester.
         </div>
         {notesState === 'loading' && <div className="tt-skeleton" role="status" aria-label="Loading internal notes" />}
         {notesState === 'error' && (

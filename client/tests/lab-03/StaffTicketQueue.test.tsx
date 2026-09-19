@@ -58,7 +58,7 @@ function makeTicket(seed: Seed) {
   };
 }
 
-function makeMeta(totalItems: number, page = 1, pageSize = 20) {
+function makeMeta(totalItems: number, page = 1, pageSize = 10) {
   const totalPages = Math.ceil(totalItems / pageSize);
   return {
     page,
@@ -70,8 +70,8 @@ function makeMeta(totalItems: number, page = 1, pageSize = 20) {
   };
 }
 
-// 25 tickets → 2 pages at pageSize 20; all 8 statuses and both owner states
-// appear at least once.
+// 25 tickets → 3 pages at pageSize 10 (My Tickets convention); all 8 statuses
+// and both owner states appear at least once.
 const TITLES = [
   'Laptop will not boot after update',
   'Campus Wi-Fi drops every hour',
@@ -117,7 +117,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-function paged(items: Seed[], pageSize = 20) {
+function paged(items: Seed[], pageSize = 10) {
   return (url: string) => {
     const params = new URL(url).searchParams;
     const page = Number(params.get('page') ?? '1');
@@ -194,7 +194,7 @@ describe('T-QUEUE-05a — shell gate and page frame', () => {
     await openQueue();
     expect(screen.getByRole('heading', { name: 'Ticket Queue', level: 1 })).toBeInTheDocument();
     expect(screen.getByText('25 tickets')).toBeInTheDocument();
-    expect(screen.getByText(/Showing 1 to 20 of 25 tickets/)).toBeInTheDocument();
+    expect(screen.getByText(/Showing 1 to 10 of 25 tickets/)).toBeInTheDocument();
   });
 
   it('forbidden state replaces the queue when the session role is REQUESTER', async () => {
@@ -283,43 +283,56 @@ describe('T-QUEUE-05c — search and filters issue documented params', () => {
     expect(new URL(queueCalls[queueCalls.length - 1]).searchParams.get('page')).toBe('1');
   });
 
-  it('status, IT priority, requested priority, category and owner filters AND-combine', async () => {
+  it('popover filters: Owner (searchable), Priorities and Status AND-combine', async () => {
     const user = userEvent.setup();
     await openQueue();
 
-    await user.selectOptions(screen.getByLabelText('Current Status'), 'In Progress');
+    // Open the head Filters popover; Owner/Status/Priorities live there.
+    await user.click(screen.getByRole('button', { name: /Filters/ }));
+    const pop = screen.getByRole('dialog', { name: 'Queue filters' });
+
+    await user.selectOptions(within(pop).getByLabelText('Current Status'), 'In Progress');
     await vi.waitFor(() => {
       const params = new URL(queueCalls[queueCalls.length - 1]).searchParams;
       expect(params.get('status')).toBe('IN_PROGRESS');
     });
 
-    await user.selectOptions(screen.getByLabelText('IT Priority'), 'Critical');
+    await user.selectOptions(within(pop).getByLabelText('IT Priority'), 'Critical');
     await vi.waitFor(() => {
       const params = new URL(queueCalls[queueCalls.length - 1]).searchParams;
       expect(params.get('itPriority')).toBe('CRITICAL');
       expect(params.get('status')).toBe('IN_PROGRESS');
     });
 
-    await user.selectOptions(screen.getByLabelText('Requested Priority'), 'High');
+    await user.selectOptions(within(pop).getByLabelText('Requested Priority'), 'High');
     await vi.waitFor(() => {
       const params = new URL(queueCalls[queueCalls.length - 1]).searchParams;
       expect(params.get('reqPriority')).toBe('HIGH');
     });
 
-    await user.selectOptions(screen.getByLabelText('Category'), '2');
-    await vi.waitFor(() => {
-      const params = new URL(queueCalls[queueCalls.length - 1]).searchParams;
-      expect(params.get('categoryId')).toBe('2');
-    });
+    // Owner list: pinned All Owners/Unassigned options, then the people
+    // sorted alphabetically (stakeholder request).
+    const ownerList = within(pop).getByRole('listbox', { name: 'Owner' });
+    const ownerNames = within(ownerList)
+      .getAllByRole('option')
+      .map((o) => o.textContent?.trim());
+    expect(ownerNames.slice(0, 2)).toEqual(['All Owners', 'Unassigned']);
+    const people = ownerNames.slice(2);
+    const sorted = [...people].sort((a, b) => (a ?? '').localeCompare(b ?? '', undefined, { sensitivity: 'base' }));
+    expect(people).toEqual(sorted);
 
-    await user.selectOptions(screen.getByLabelText('Owner'), 'Tom IT');
+    await user.type(within(pop).getByLabelText('Search owners'), 'Tom');
+    expect(within(pop).getByRole('option', { name: 'Tom IT' })).toBeInTheDocument();
+    expect(within(pop).queryByRole('option', { name: 'Sara IT' })).not.toBeInTheDocument();
+
+    await user.click(within(pop).getByRole('option', { name: 'Tom IT' }));
     await vi.waitFor(() => {
       const params = new URL(queueCalls[queueCalls.length - 1]).searchParams;
       expect(params.get('ownerId')).toBe('12');
     });
 
     // Owner=Unassigned maps to the assigned=false contract.
-    await user.selectOptions(screen.getByLabelText('Owner'), 'Unassigned');
+    await user.click(within(pop).getByRole('option', { name: 'Unassigned' }));
     await vi.waitFor(() => {
       const params = new URL(queueCalls[queueCalls.length - 1]).searchParams;
       expect(params.get('assigned')).toBe('false');
@@ -327,13 +340,23 @@ describe('T-QUEUE-05c — search and filters issue documented params', () => {
     });
   });
 
-  it('Clear Filters resets every control and returns to the unfiltered query', async () => {
+  it('popover closes on Done, outside click, and Escape; Clear Filters resets everything', async () => {
     const user = userEvent.setup();
     await openQueue();
-    await user.selectOptions(screen.getByLabelText('Owner'), 'Unassigned');
+
+    await user.click(screen.getByRole('button', { name: /Filters/ }));
+    const pop = screen.getByRole('dialog', { name: 'Queue filters' });
+    await user.click(within(pop).getByRole('option', { name: 'Unassigned' }));
     await vi.waitFor(() => {
       expect(queueCalls[queueCalls.length - 1]).toContain('assigned=false');
     });
+
+    // Escape closes without losing the applied filter.
+    await user.keyboard('{Escape}');
+    await vi.waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Queue filters' })).not.toBeInTheDocument();
+    });
+    expect(queueCalls[queueCalls.length - 1]).toContain('assigned=false');
 
     await user.click(screen.getByRole('button', { name: 'Clear Filters' }));
     await vi.waitFor(() => {
@@ -341,12 +364,28 @@ describe('T-QUEUE-05c — search and filters issue documented params', () => {
       expect(url).not.toContain('assigned=');
       expect(url).not.toContain('ownerId=');
     });
-    expect(screen.getByLabelText('Owner')).toHaveValue('');
+  });
+
+  it('filters matching nothing show the no-results state with Clear filters', async () => {
+    const user = userEvent.setup();
+    fetchHandler = (url) => {
+      if (new URL(url).searchParams.get('status')) {
+        return jsonResponse({ data: [], meta: makeMeta(0) });
+      }
+      return paged(TICKETS)(url);
+    };
+    await openQueue();
+    await user.click(screen.getByRole('button', { name: /Filters/ }));
+    const pop = screen.getByRole('dialog', { name: 'Queue filters' });
+    await user.selectOptions(within(pop).getByLabelText('Current Status'), 'In Progress');
+    await user.click(within(pop).getByRole('button', { name: 'Done' }));
+    expect(await screen.findByText('No tickets match these filters.')).toBeInTheDocument();
+    expect(screen.queryByText('No tickets in the queue yet.')).not.toBeInTheDocument();
   });
 });
 
 describe('T-QUEUE-05d — pagination', () => {
-  it('25 tickets span 2 pages; page 2 shows the remainder and disables Next', async () => {
+  it('25 tickets span 3 pages at 10/page (My Tickets convention); page 3 disables Next', async () => {
     const user = userEvent.setup();
     await openQueue();
 
@@ -354,6 +393,9 @@ describe('T-QUEUE-05d — pagination', () => {
     expect(within(nav).getByRole('button', { name: '‹ Previous' })).toBeDisabled();
 
     await user.click(within(nav).getByRole('button', { name: '2' }));
+    expect(await screen.findByText(/Showing 11 to 20 of 25 tickets/)).toBeInTheDocument();
+
+    await user.click(within(nav).getByRole('button', { name: '3' }));
     expect(await screen.findByText(/Showing 21 to 25 of 25 tickets/)).toBeInTheDocument();
     expect(
       within(screen.getByRole('navigation', { name: /pagination/i })).getByRole('button', {
@@ -361,7 +403,7 @@ describe('T-QUEUE-05d — pagination', () => {
       }),
     ).toBeDisabled();
     await vi.waitFor(() => {
-      expect(queueCalls[queueCalls.length - 1]).toContain('page=2');
+      expect(queueCalls[queueCalls.length - 1]).toContain('page=3');
     });
   });
 });
@@ -402,20 +444,6 @@ describe('T-QUEUE-05f — feedback states', () => {
     await openQueue(false);
     expect(await screen.findByText('No tickets in the queue yet.')).toBeInTheDocument();
     expect(screen.queryByText('No tickets match these filters.')).not.toBeInTheDocument();
-  });
-
-  it('filters matching nothing show the no-results state with Clear filters', async () => {
-    const user = userEvent.setup();
-    fetchHandler = (url) => {
-      if (new URL(url).searchParams.get('status')) {
-        return jsonResponse({ data: [], meta: makeMeta(0) });
-      }
-      return paged(TICKETS)(url);
-    };
-    await openQueue();
-    await user.selectOptions(screen.getByLabelText('Current Status'), 'In Progress');
-    expect(await screen.findByText('No tickets match these filters.')).toBeInTheDocument();
-    expect(screen.queryByText('No tickets in the queue yet.')).not.toBeInTheDocument();
   });
 
   it('failure shows the alert banner and preserves filters on Try again', async () => {

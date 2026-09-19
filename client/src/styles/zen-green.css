@@ -413,9 +413,13 @@ body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:va
 @media (prefers-reduced-motion:reduce){.tok-toast{animation:none}}
 
 /* ============ LAB 3 AUTH (login / change-password, ui-spec §3-§4) ============ */
-.tok-auth-page{width:100%;min-height:calc(100vh - 106px);align-items:flex-start !important;padding:32px 16px;
+/* Centering comes from auth.css (.tok-auth-page is a centered flex row);
+   the card must NOT be pinned to the horizontal start on desktop — the
+   first-login gate renders inside .tt-app where the column's default
+   align-items:stretch would otherwise left-hug the card. */
+.tok-auth-page{width:100%;min-height:calc(100vh - 106px);align-items:center;padding:32px 16px;
   background:radial-gradient(1200px 400px at 50% 0%, #EAF6EF 0%, var(--tok-page-bg) 60%)}
-.tok-auth-card{margin-top:24px}
+.tok-auth-card{margin-top:0}
 .tok-auth-page .tok-input{min-height:44px}
 .tok-auth-page .tok-btn{min-height:44px}
 .tok-auth-page .tok-alert{display:flex;gap:.5rem;align-items:flex-start}
@@ -531,3 +535,59 @@ body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:va
 @keyframes cp-success-spin{to{transform:rotate(360deg)}}
 .cp-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 @media (prefers-reduced-motion:reduce){.cp-success-spinner{animation:none}}
+
+/* ============ VIEWPORT-FIT PAGES (no full-page scroll on desktop) ============
+   Stakeholder ruling for the Lab 3 visual pass: on PC-sized viewports the
+   four main authenticated screens (My Tickets, requester + staff ticket
+   detail, staff queue, user management) fit the viewport height — the page
+   never scrolls; only a screen's own long content (description, comment
+   thread, table) scrolls inside its card. Below 992px the rule relaxes so
+   phones/tablets keep natural document scrolling (e2e/lab-03 asserts the
+   ≥992px behavior). */
+@media (min-width: 992px) {
+  html, body { overflow: hidden; }
+  .tt-app { height: 100vh; height: 100dvh; overflow: hidden; }
+  .tok-app-footer, .tt-app > footer { flex: none; }
+  #main-content {
+    flex: 1;
+    min-height: 0; /* allow children to shrink inside the flex column */
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  /* Pages become height-constrained flex columns that fit the viewport.
+     They keep a fallback internal scroll so nothing is ever clipped on
+     unusually short desktop windows; the per-screen styles pin the
+     header/filter/footer chrome and scroll only the long content region. */
+  #main-content > .mt-page,
+  #main-content > .tok-main,
+  #main-content > .std-page,
+  #main-content > main {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    min-height: 0;
+  }
+  .tok-main.tok-create-page {
+    min-height: 0;
+  }
+}
+/* >=992px tall viewports: a little more breathing room. */
+@media (min-width: 992px) and (min-height: 860px) {
+  #main-content > .mt-page,
+  #main-content > .tok-main,
+  #main-content > .std-page { padding-top: 20px; }
+}
+
+/* Shared warm description block (requester + staff ticket detail): multi-line
+   text with preserved line breaks and generous min-height so both screens
+   render the description identically. */
+.tok-desc-warm {
+  min-height: 64px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}

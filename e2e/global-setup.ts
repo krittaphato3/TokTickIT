@@ -69,25 +69,66 @@ function loadDatabaseUrl(): string {
   throw new Error('DATABASE_URL not found for e2e setup (server/.env)');
 }
 
-export async function resetSeededUsers(): Promise<void> {
-  const client = new Client({ connectionString: loadDatabaseUrl() });
-  await client.connect();
-  try {
-    for (const [email, seed] of Object.entries(SEED_USERS)) {
-      await client.query(
-        `UPDATE "User"
-            SET "passwordHash" = $1,
-                "mustChangePassword" = true,
-                "isActive" = $2
-          WHERE "email" = $3`,
-        [cachedHash(seed.password), seed.isActive, email],
-      );
+// The dev database may be the embedded server (port 5434, `npm run db:up`)
+// OR the dockerized Compose one (port 5433, `docker compose up`). Both use
+// identical credentials; probe all candidate ports and reset EVERY reachable
+// one — when both are up, UI-driven tests exercise the Compose DB while the
+// API/unit tests may target the embedded one, so resetting only the first
+// reachable port would leave the other in a mutated state.
+async function resolveDatabaseUrls(): Promise<string[]> {
+  const raw = loadDatabaseUrl();
+  const url = new URL(raw);
+  const configuredPort = url.port || '5432';
+  const portOrder = [...new Set([configuredPort, '5434', '5433'])];
+  const { connect } = await import('node:net');
+  const urls: string[] = [];
+  for (const port of portOrder) {
+    const ok = await new Promise<boolean>((resolve) => {
+      const socket = connect({ host: '127.0.0.1', port: Number(port), timeout: 800 });
+      socket.on('connect', () => {
+        socket.destroy();
+        resolve(true);
+      });
+      socket.on('error', () => resolve(false));
+      socket.on('timeout', () => {
+        socket.destroy();
+        resolve(false);
+      });
+    });
+    if (ok) {
+      const withPort = new URL(raw);
+      withPort.port = port;
+      urls.push(withPort.toString());
     }
-    // Stale sessions from a previous run would break logout-invalidation
-    // assertions if a replayed cookie ever hit a still-valid session row.
-    await client.query('DELETE FROM "Session"');
-  } finally {
-    await client.end();
+  }
+  if (urls.length === 0) {
+    throw new Error(`No dev database reachable on ports ${portOrder.join(', ')} — start one with "npm run db:up" (server) or "docker compose up -d postgres".`);
+  }
+  return urls;
+}
+
+export async function resetSeededUsers(): Promise<void> {
+  const urls = await resolveDatabaseUrls();
+  for (const connectionString of urls) {
+    const client = new Client({ connectionString });
+    await client.connect();
+    try {
+      for (const [email, seed] of Object.entries(SEED_USERS)) {
+        await client.query(
+          `UPDATE "User"
+              SET "passwordHash" = $1,
+                  "mustChangePassword" = true,
+                  "isActive" = $2
+            WHERE "email" = $3`,
+          [cachedHash(seed.password), seed.isActive, email],
+        );
+      }
+      // Stale sessions from a previous run would break logout-invalidation
+      // assertions if a replayed cookie ever hit a still-valid session row.
+      await client.query('DELETE FROM "Session"');
+    } finally {
+      await client.end();
+    }
   }
 }
 

@@ -97,6 +97,43 @@ type ModalMode =
   | { kind: 'create' }
   | { kind: 'edit'; user: AdminUser };
 
+// Modal dismissal: close ONLY on a true outside click — a pointerdown that
+// starts AND releases on the backdrop — so dragging a text selection (or the
+// mouse) out of the dialog never closes it (stakeholder bug report). Escape
+// and the header ✕ button are the other close paths.
+function useBackdropDismiss(
+  backdropRef: React.RefObject<HTMLDivElement | null>,
+  onClose: () => void,
+  busy: boolean,
+) {
+  useEffect(() => {
+    const el = backdropRef.current;
+    if (!el) return;
+    let pressOnBackdrop = false;
+    const down = (e: PointerEvent) => {
+      pressOnBackdrop = e.target === el;
+    };
+    const click = (e: MouseEvent) => {
+      if (!busy && pressOnBackdrop && e.target === el) onClose();
+      pressOnBackdrop = false;
+    };
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !busy) {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    el.addEventListener('pointerdown', down);
+    el.addEventListener('click', click);
+    document.addEventListener('keydown', key);
+    return () => {
+      el.removeEventListener('pointerdown', down);
+      el.removeEventListener('click', click);
+      document.removeEventListener('keydown', key);
+    };
+  }, [backdropRef, onClose, busy]);
+}
+
 interface CreateForm {
   name: string;
   email: string;
@@ -238,6 +275,9 @@ function PasswordMeter({ pw }: { pw: string }) {
 // in the edit modal (server 409 is the authority). Status is a segmented
 // Active/Inactive control (stakeholder layout pass) aligned with the Role
 // select; the block still explains itself instead of silently disabling.
+// Both modals also render a ✕ close button in the top-right corner (stakeholder
+// request) and close only via true outside click / Escape — see
+// useBackdropDismiss.
 function StatusSegmentedControl({
   value,
   disabled,
@@ -702,6 +742,8 @@ function CreateUserModal({
   const [saving, setSaving] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement | null>(null);
+  const backdropRef = useRef<HTMLDivElement | null>(null);
+  useBackdropDismiss(backdropRef, onClose, saving);
 
   useEffect(() => {
     nameRef.current?.focus();
@@ -754,14 +796,22 @@ function CreateUserModal({
   }
 
   return (
-    <div className="td-modal-backdrop" role="presentation" onClick={() => { if (!saving) onClose(); }}>
+    <div className="td-modal-backdrop" role="presentation" ref={backdropRef}>
       <div
         className="au-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="au-create-title"
-        onClick={(e) => e.stopPropagation()}
       >
+        <button
+          type="button"
+          className="au-modal-x"
+          aria-label="Close"
+          disabled={saving}
+          onClick={onClose}
+        >
+          ×
+        </button>
         <h2 id="au-create-title">Create user</h2>
         <p className="au-modal-sub">The person signs in with the initial password and must change it at first login.</p>
         {failure ? (
@@ -905,6 +955,8 @@ function EditUserModal({
   const [failure, setFailure] = useState<string | null>(null);
   const [passwordFailure, setPasswordFailure] = useState<string | null>(null);
   const nameRef = useRef<HTMLInputElement | null>(null);
+  const backdropRef = useRef<HTMLDivElement | null>(null);
+  useBackdropDismiss(backdropRef, onClose, saving || settingPassword);
 
   // Guards evaluated against THIS row: the signed-in admin's own row can
   // never be deactivated (§8.3), and the last active Administrator row cannot
@@ -1004,14 +1056,22 @@ function EditUserModal({
   }
 
   return (
-    <div className="td-modal-backdrop" role="presentation" onClick={() => { if (!saving && !settingPassword) onClose(); }}>
+    <div className="td-modal-backdrop" role="presentation" ref={backdropRef}>
       <div
         className="au-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="au-edit-title"
-        onClick={(e) => e.stopPropagation()}
       >
+        <button
+          type="button"
+          className="au-modal-x"
+          aria-label="Close"
+          disabled={saving || settingPassword}
+          onClick={onClose}
+        >
+          ×
+        </button>
         <h2 id="au-edit-title">Edit user — {user.name}</h2>
         <div className="au-id-row">
           <span className="au-avatar au-avatar-lg" aria-hidden="true">{initialsOf(user.name)}</span>

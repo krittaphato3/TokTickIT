@@ -65,14 +65,20 @@ async function login(page: Page, email: string, password: string) {
 }
 
 async function logout(page: Page) {
-  // Profile-only header: sign-out lives on the Profile page (#/profile).
-  // Fall back to a navbar Logout button if an older build renders one.
-  const navbarLogout = page.getByRole('button', { name: /^logout$/i });
-  if ((await navbarLogout.count()) > 0) {
-    await navbarLogout.first().click();
+  // Current header: avatar pill opens the account dropdown; Sign out is a
+  // menuitem inside it. Legacy fallbacks keep older builds working.
+  const menuToggle = page.getByRole('button', { name: /^Profile menu —/ });
+  if ((await menuToggle.count()) > 0) {
+    await menuToggle.first().click();
+    await page.getByRole('menuitem', { name: /sign out/i }).click();
   } else {
-    await page.getByRole('link', { name: /^profile$/i }).first().click();
-    await page.getByRole('button', { name: /^sign out$/i }).click();
+    const navbarLogout = page.getByRole('button', { name: /^logout$/i });
+    if ((await navbarLogout.count()) > 0) {
+      await navbarLogout.first().click();
+    } else {
+      await page.getByRole('link', { name: /^profile$/i }).first().click();
+      await page.getByRole('button', { name: /^sign out$/i }).click();
+    }
   }
   await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible({ timeout: 10000 });
 }
@@ -270,7 +276,8 @@ test.describe('E2E-03: attachment upload, byte-identical download, soft-remove',
     const removeBtn = page.getByRole('button', { name: /^Remove$/i });
     if ((await removeBtn.count()) > 0) {
       await removeBtn.first().click();
-      const confirm = page.getByRole('button', { name: /^Confirm$/i });
+      // Current remove dialog: reason code + ledger note, confirm = "Purge file".
+      const confirm = page.getByRole('button', { name: /^(Purge file|Confirm)$/i });
       await expect(confirm).toBeVisible({ timeout: 3000 });
       await confirm.click();
       await expect(page.getByText('Removed').first()).toBeVisible({ timeout: 5000 });
