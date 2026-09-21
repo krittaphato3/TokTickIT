@@ -1,95 +1,590 @@
 # Lab 3 Peer Review Record
 
-- **Status:** Pending peer review, to be completed before merge to lab3-staging/main
-- **Scope:** Sprint 3 engineering contract (`specification.md`, `api-spec.md`, `ui-spec.md`, `tests.md`) — Lab_3_sheet.pdf §14 Part 1
-- **Branch:** `feature/lab3-engineering-contract` (Issue #45)
+Issue 44 — GitHub #44 contract skeleton:
+
+Reviewer name / student ID / GitHub username:
+- Name: NAPATR KASEMWEERASAN
+- Student ID: 67070501014
+- GitHub username: napatsun
+
+Reviewer name / student ID / GitHub username:
+- Name: ALONGKORN KAEWPROM
+- Student ID: 67070501050
+- GitHub username: Alongkron1234
+
+PRs reviewed (links):
+- https://github.com/krittaphato3/TokTickIT/pull/44 (docs(lab3): LAB3-00 contract skeleton - spec, api, ui, tests, reviewer, ai-use)
+
+Comment received from partner on my PR → my response:
+- napatsun (Approved): ครบถ้วนตาม skeleton ผม merge เลยนะครับ
+- Alongkron1234 (Approved): ตรวจแล้วโอเคครับ
+- krittaphato3 (me): ขอบคุณสำหรับ Review ครับ
+
+Status: MERGED — both reviewers approved.
 
 ---
 
-## 1. Reviewer Identity
+Issue 45 — GitHub #45 Sprint 3 engineering contract:
 
-| Field | Value |
-|-------|-------|
-| Name | Pending — TBD pending peer assignment |
-| Student ID | Pending — TBD pending peer assignment |
-| GitHub | Pending — TBD pending peer assignment |
+Reviewer name / student ID / GitHub username:
+- Name: NAPATR KASEMWEERASAN
+- Student ID: 67070501014
+- GitHub username: napatsun
 
-> Pending peer review, to be completed before merge to lab3-staging/main. Reviewer fields stay marked Pending until a peer is assigned; no review comments or approvals have been recorded yet.
+Reviewer name / student ID / GitHub username:
+- Name: ALONGKORN KAEWPROM
+- Student ID: 67070501050
+- GitHub username: Alongkron1234
 
-## 2. PR Links
+PRs reviewed (links):
+- https://github.com/krittaphato3/TokTickIT/pull/46 (docs(lab3): Sprint 3 engineering contract - specs, api, ui, tests) — Closes #45
 
-| PR | Link | Scope |
-|----|------|-------|
-| Contract PR | Pending — contract PR URL to be added when opened from `feature/lab3-engineering-contract` | specification.md, api-spec.md, ui-spec.md, tests.md, ai-use.md, reviewer.md |
-| Staging PR | Pending — lab3-staging integration PR URL to be added | Sprint 3 contract + implementation |
-| Main PR | Pending — main release PR URL to be added | Final Lab 3 increment |
+Comment received from partner on my PR → my response:
+- napatsun (Approved): frozen FR/BR/AC/AD ครบ ผม approve  merge เลยนะ
+- Alongkron1234 (Approved): ตรวจสอบเรียบร้อยแล้วครบถ้วนดีครับ
+- krittaphato3 (me): ปรับ appears-resolved เป็น comment-only กับ AD-06 copy-on-claim timing แล้ว รบกวนเช็คอีกรอบครับ @Alongkron1234, @napatsun
 
-## 3. Review Comments → Responses
+Status: MERGED — both reviewers approved after appears-resolved fix.
 
-| # | Comment | Response | Status |
-|---|---------|----------|--------|
-| — | (No comments recorded yet — rows will be appended as review proceeds) | — | Pending |
+---
 
-## 4. Approvals
+Issue Auth — Lab3 Auth: authentication foundation + dev requester migration:
 
-| Reviewer | Decision | Date |
-|----------|----------|------|
-| Pending | Pending | Pending |
+Reviewer name / student ID / GitHub username:
+- Name: NAPATR KASEMWEERASAN
+- Student ID: 67070501014
+- GitHub username: napatsun
 
-### Approval checklist
+Reviewer name / student ID / GitHub username:
+- Name: ALONGKORN KAEWPROM
+- Student ID: 67070501050
+- GitHub username: Alongkron1234
 
-- [ ] Contract covers Lab_3_sheet.pdf §4 (auth, roles, migration, queue/detail, admin, data, API, UI, tests, Definition of Done)
-- [ ] FR/BR/AC/AD numbering is frozen and consistent across spec, API, UI, and test docs
-- [ ] Authorization matrix (BR-20 / api-spec §12) enforced server-side, safe errors verified
-- [ ] Acceptance criteria each map to at least one planned test
-- [ ] No scope-creep items from the excluded list are present
-- [ ] Reviewer identity filled in and approval recorded before merge to lab3-staging/main
+PRs reviewed (links):
+- https://github.com/krittaphato3/TokTickIT/pull/47 (Lab3 Auth: authentication foundation + dev requester migration)
 
-## 5. Final Review Status
+Comment received from partner on my PR → my response:
+- napatsun (Approved): รันผ่าน ครบถ้วน ถูกต้อง approve เดี๋ยว merge เลยนะ
+- Alongkron1234 (Approved): cookie/CSRF/bcrypt ครบ ผ่านครับ
+- krittaphato3 (me): ขอบคุณสำหรับ Review ครับ
 
-Pending peer review, to be completed before merge to lab3-staging/main. This scaffold is intentionally empty-ready: PR links, comment threads, and approvals will be filled in once a peer reviewer is assigned.
+Status: MERGED — both reviewers approved. Auth routes, session cookie toktickit.sid, CSRF double-submit, incremental User mirror verified.
 
-## 6. Auth-foundation increment (`feature/lab3-auth`)
+---
 
-- **Scope:** auth foundation only — FR-01..FR-04, BR-01, BR-02, BR-06..BR-09, AC-01, AC-02, AC-05, AC-06, AC-18. Staff queue/detail and admin screens stay placeholder references owned by other issues.
-- **Docs changed:** `specification.md` §7.7, `api-spec.md` §1.1 gate `code` + §11, `tests.md` Final column for T-AUTH-01..05, T-PWD-01, T-SESS-01, T-GATE-01, T-MIG-01 → `Implemented` (`server/tests/lab-03/auth.api.test.ts`).
-- **Review ask:** confirm auth decisions (cookie, 24 h sliding+absolute, CSRF double-submit, bcrypt-12), incremental migration (Requester kept, User mirrored, repoint deferred), and safe-error shapes before merge.
+Issue Requester — feat(lab3): add public comments and fix requester regression:
 
-## 7. Requester-regression increment (`feature/lab3-requester-regression`, issue #41)
+Reviewer name / student ID / GitHub username:
+- Name: NAPATR KASEMWEERASAN
+- Student ID: 67070501014
+- GitHub username: napatsun
 
-- **Scope:** requester identity regression + Public Comments + appears-resolved signal — FR-05, FR-08, FR-09 (masked half), FR-10; BR-03, BR-04, BR-05, BR-11, BR-14, BR-17; AC-03, AC-04 (masked half), AC-07, AC-12, AC-13 (masked half), AC-14.
-- **Code changed:** `PublicComment` model + migration `20260914143757_lab3_public_comments`; `server/src/services/comment.service.ts` + `server/src/controllers/comments.controller.ts`; comment/status routes in `server/src/routes/tickets.ts`; `GET /api/requesters` removed in `server/src/app.ts`; `appearsResolvedAt` added to the requester ticket-detail projection; client `api.ts` comment functions; requester `TicketDetailPage` rewritten (live thread, signal modal, Lab 2 mock tabs/Resolution Summary removed per ui-spec §5); `ticket-detail.css` additions.
-- **Tests:** `server/tests/lab-03/authorization.api.test.ts` (T-AUTHZ-02/03/05, T-REQ-01, T-STAT-04, T-MIG-02), `server/tests/lab-03/comments-notes.api.test.ts` (T-COMM-01..04, T-STAT-03, requester-masked notes probe), `client/tests/lab-03/RequesterTicketDetail.test.tsx` (T-REQ-02, T-COMM-05 requester half, T-STAT-03 client half); Lab 2 suites kept green (`npm test` 143/143 server, 67/67 client); `server/tests/lab-02/api/requesters.test.ts` re-pinned to the documented §10 removal.
-- **Docs changed:** `api-spec.md` §7 implemented mechanics + §7.3 status note, `tests.md` Final column + policy note, this file, `ai-use.md` §6.
-- **Review ask:** confirm the masked-404 comment surface for requesters, the one-active-signal 409 rule, requester REOPEN-only status route (no UI caller this issue), and that no requester-facing Internal Notes surface exists.
+Reviewer name / student ID / GitHub username:
+- Name: ALONGKORN KAEWPROM
+- Student ID: 67070501050
+- GitHub username: Alongkron1234
 
-## 8. Staff-detail increment (`feature/lab3-staff-ticket-detail`)
+PRs reviewed (links):
+- https://github.com/krittaphato3/TokTickIT/pull/48 (feat(lab3): add public comments and fix requester regression)
 
-- **Scope:** IT Staff Ticket Detail operations — FR-07, FR-08 (staff aliases), FR-09 (full), FR-10 (staff visibility + episode clear); BR-12, BR-13, BR-14, BR-15, BR-04, BR-20; AC-04, AC-09, AC-10, AC-11, AC-12 (staff half), AC-13, AC-14 (staff half).
-- **Code changed:** `InternalNote` model + migration `20260916120000_lab3_staff_detail_ops` (additive; no Ticket/Attachment data touched); `server/src/services/staff-ticket.service.ts` (detail projection, BR-12 owner validation, BR-13 copy-on-claim, BR-15 matrix + confirmations + reason comments + owner-presence guard + FR-10 episode clear); `server/src/services/internal-note.service.ts` + controller (masked requester 404, trimmed 1–2000 validation); `server/src/controllers/staff-attachments.controller.ts` (staff read-only download with audit ledger events); `server/src/controllers/staff-ticket.controller.ts`; routes in `server/src/routes/staff.ts` (per-route gates; notes deliberately not router-gated so requesters get the masked 404, never a 403 existence leak); client `api.ts` staff-detail/owner/it-priority/status/comments/notes/attachment functions; `client/src/components/StaffTicketDetail.tsx` + `staff-ticket-detail.css` + route wiring in `App.tsx`.
-- **Tests:** `server/tests/lab-03/staff-ticket-detail.api.test.ts` (54 tests: §12 matrix rows, T-OWN-01/02, T-PRIO-01/02, all 17 legal BR-15 transitions + illegal/skip/no-op/missing-confirm/missing-reason, attachment continuity incl. staff download + removed-404, staff comment aliases, notes visibility/validation/append-only, masked-404 byte-equality vs absent ticket); `server/tests/lab-03/comments-notes.api.test.ts` T-COMM-02 notes half completed (staff 200/201 + requester masked 404); `client/tests/lab-03/StaffTicketDetail.test.tsx` (18 tests, T-DETAIL-01); `client/tests/lab-03/StaffTicketQueue.test.tsx` stub extended with a valid detail payload behind the Open-navigation assertion.
-- **Suite evidence:** server `npx vitest run` 237/237 (19 files, incl. all Lab 2 regression suites), client `npx vitest run` 99/99 (14 files); `tsc --noEmit` clean on server and client; `vite build` + `tsc` production builds clean.
-- **Docs changed:** `api-spec.md` §5/§6/§7/§8 implementation-status notes, `tests.md` Final column (T-OWN-01/02, T-PRIO-01/02, T-STAT-01/02, T-DETAIL-01, T-COMM-02..05), `specification.md` §7.7 InternalNote model + comment-surface update, this file, `ai-use.md`.
-- **Documented decisions for review:** (1) invalid owner candidates are 409 conflicts per the §6.2 error table (supersedes the BR-12 "422/400" phrasing); unknown ids are 404 `User not found`; (2) staff status change out of RESOLVED/CLOSED clears a stale `appearsResolvedAt` (FR-10 one-active-signal-per-episode, applied to the §6.4 wording "not cleared by a staff status change"); (3) BR-15 audit comment lands on the public thread with actor/from→to/timestamp, and reopen transitions embed the required reason in that comment; (4) internal-notes routes are intentionally not `requireStaffRole`-gated at the router — the handler throws the masked 404 so requesters never learn the surface exists (§1.5); (5) ADMIN is read-only on the staff surface server-side (service re-check fails writes closed with 403) and the UI renders composers only for IT_STAFF per ui-spec §8.1; (6) staff attachment download is added on the staff surface (read-only viewer per ui-spec §7.3) and writes DOWNLOAD rows to the shared audit ledger.
-- **Review ask:** confirm decisions (1)–(6), the masked-404 routing choice (4), and that no excluded feature (Actions Taken, SLA, notifications, comment/note edit-delete) crept in.
+Comment received from partner on my PR → my response:
+- napatsun (Approved): ผ่าน ครบถ้วนตาม issue นี้
+- Alongkron1234 (Approved): masked 404 กับ one-signal 409 โอเคครับ
+- krittaphato3 (me): ขอบคุณครับ เดี๋ยวเช็ค Lab 2 regression 143/143, 67/67 ให้อีกทีครับ
 
-## 9. Admin user-management increment (`feature/lab3-admin-users`, issue #42)
+Status: MERGED — both reviewers approved.
 
-- **Scope:** Administrator User Management API + screen — FR-11, FR-12; BR-09, BR-10, BR-16 (admin relaxation), BR-18, BR-20; AC-15, AC-16, AC-17. No schema change (the auth-foundation `User` model already carries `role`/`isActive`/`mustChangePassword`/`passwordHash`).
-- **Code changed:** `server/src/middleware/auth.ts` (`requireAdminRole`); `server/src/services/users.service.ts` (list/search/filter, create, guarded update, set-initial-password); `server/src/controllers/users.controller.ts`; `server/src/routes/users.ts` (per-route `requireAuth` + `requireAdminRole`, no DELETE route); router mount in `server/src/app.ts`; client `api.ts` user-management functions; `client/src/components/UserManagement.tsx` + `client/src/styles/admin-users.css`; `App.tsx` route wiring (placeholder removed).
-- **Tests:** `server/tests/lab-03/users-admin.api.test.ts` (27 tests — T-AUTHZ-04, T-ADM-01..05, T-PWD-02 incl. gated-until-change end-to-end), `client/tests/lab-03/UserManagement.test.tsx` (16 tests — T-ADM-06 + T-UX-02 admin half).
-- **Suite evidence:** server `npx vitest run` 275/275 (20 files, all Lab 2 regression suites included), client `npx vitest run` 115/115 (15 files); `tsc --noEmit` clean server + client; `oxlint` clean on touched files.
-- **Docs changed:** `api-spec.md` §9 implementation-status note, `tests.md` plan-policy + Final column (T-ADM-01..06, T-AUTHZ-04, T-PWD-02, T-UX-02 admin half), `specification.md` §7.9, `ui-spec.md` §8 implementation note, this file, `ai-use.md`.
-- **Documented decisions for review:** (1) wire role value for Administrator is `ADMIN` per api-spec §9 (DB enum `ADMINISTRATOR`, mapped in the service); (2) the self-deactivation guard reads the actor id from the server-side session only — a client-supplied actor field cannot bypass it (BR-03); (3) guard reachability: an API actor must be an active Administrator, so a pure-API "deactivate the last active admin" always coincides with the self rule (checked first per §9.3); the distinct last-admin-deactivation branch is proven at the service layer with a separate actor id and the role-reassign 409 is proven over the API (documented in api-spec §9 and tests.md T-ADM-05); (4) create-success banner copy is "User saved." (ui-spec §8 deviation, recorded there); (5) load failure renders inside the list card (single §10 failure surface), not as a duplicate banner; (6) invalid `:id` path segments and unknown ids are both 404 `User not found` (never leak whether an id was ever valid); (7) empty update body is 400 `details[0].field === "body"`.
-  (9) The stakeholder-requested overhaul adds server-side pagination (page/pageSize; invalid
-  values 400; page size FIXED at 10 with no rows-per-page selector), bottom-right toast
-  notifications for save outcomes, and a client-side password strength meter (hint only — the
-  §1.3 length-only server contract for admin-set initial passwords is unchanged). Sorting now
-  applies to the current page client-side (pages arrive id-ascending). A meta.counts-driven
-  KPI stats strip was built for this iteration and then removed at the stakeholder's request;
-  meta.counts was dropped from the API response with it. Safety rules are untouched: guards,
-  CSRF, and role gating are identical to decisions (1)–(8).
-  (8) The list header adds single-column sorting (Name/Email/Role/Status, stakeholder request) on
-  the unpaginated list — sorted client-side for both the table and the mobile card list; this
-  respects the §8.1 exclusions, which bar pagination and multi-column sorting only.
-- **Review ask:** confirm decisions (1)–(7), that the admin gate cannot be bypassed by any route ordering, and that no excluded feature (user deletion, bulk ops, import/export, pagination, email delivery) crept in.
+---
+
+Issue Queue — feat(lab3): IT Staff Ticket Queue (API + screen + tests + evidence):
+
+Reviewer name / student ID / GitHub username:
+- Name: NAPATR KASEMWEERASAN
+- Student ID: 67070501014
+- GitHub username: napatsun
+
+Reviewer name / student ID / GitHub username:
+- Name: ALONGKORN KAEWPROM
+- Student ID: 67070501050
+- GitHub username: Alongkron1234
+
+PRs reviewed (links):
+- https://github.com/krittaphato3/TokTickIT/pull/49 (feat(lab3): IT Staff Ticket Queue (API + screen + tests + evidence))
+
+Comment received from partner on my PR → my response:
+- napatsun (Approved): ครบถ้วนเรียบร้อย หน้า queue โอเค
+- Alongkron1234 (Approved): search/filter/sort/meta ครบ ผ่านครับ
+- krittaphato3 (me): ขอบคุณสำหรับ Review ครับ
+
+Status: MERGED — both reviewers approved.
+
+---
+
+Issue Detail — feat(lab3): IT Staff Ticket Detail:
+
+Reviewer name / student ID / GitHub username:
+- Name: NAPATR KASEMWEERASAN
+- Student ID: 67070501014
+- GitHub username: napatsun
+
+Reviewer name / student ID / GitHub username:
+- Name: ALONGKORN KAEWPROM
+- Student ID: 67070501050
+- GitHub username: Alongkron1234
+
+PRs reviewed (links):
+- https://github.com/krittaphato3/TokTickIT/pull/50 (feat(lab3): IT Staff Ticket Detail)
+
+Comment received from partner on my PR → my response:
+- napatsun (Approved): งานไวและเรียบร้อยดี ไป issue ต่อไปได้เลย
+- Alongkron1234 (Approved): BR-15 matrix กับ masked notes ครบครับ
+- krittaphato3 (me): ขอบคุณครับ @Alongkron1234 @napatsun
+
+Status: MERGED — both reviewers approved; 54 API + 18 component tests, 237/237 server, 99/99 client.
+
+---
+
+Issue Admin — feat(lab3): Administrator User Management — §9 API + #/admin/users screen + sortable header:
+
+Reviewer name / student ID / GitHub username:
+- Name: NAPATR KASEMWEERASAN
+- Student ID: 67070501014
+- GitHub username: napatsun
+
+Reviewer name / student ID / GitHub username:
+- Name: ALONGKORN KAEWPROM
+- Student ID: 67070501050
+- GitHub username: Alongkron1234
+
+PRs reviewed (links):
+- https://github.com/krittaphato3/TokTickIT/pull/51 (feat(lab3): Administrator User Management — §9 API + #/admin/users screen + sortable header)
+
+Comment received from partner on my PR → my response:
+- napatsun (Approved): เท่าที่ดูไม่มีปัญหา หน้า UI เรียบร้อยดี Approve
+- Alongkron1234 (Approved): safety guards กับ gate ordering ผ่านครับ
+- krittaphato3 (me): ขอบคุณครับ
+
+Status: MERGED — both reviewers approved; 27 API + 16 component tests, 275/275 server, 115/115 client.
+
+---
+
+Issue E2E — test(lab3): E2E coverage, responsive evidence, and visual QA for Lab 3:
+
+Reviewer name / student ID / GitHub username:
+- Name: ATIWIT
+- Student ID: 67070501048
+- GitHub username: atiwit
+
+Reviewer name / student ID / GitHub username:
+- Name: NAPATR KASEMWEERASAN
+- Student ID: 67070501014
+- GitHub username: napatsun
+
+Reviewer name / student ID / GitHub username:
+- Name: ALONGKORN KAEWPROM
+- Student ID: 67070501050
+- GitHub username: Alongkron1234
+
+PRs reviewed (links):
+- https://github.com/krittaphato3/TokTickIT/pull/52 (test(lab3): E2E coverage, responsive evidence, and visual QA for Lab 3)
+
+Comment received from partner on my PR → my response:
+- atiwit (Approved): ครบ 3 journeys กับ responsive probe โอเคครับ
+- napatsun (Approved): เรียบร้อย ครบถ้วน Approve
+- Alongkron1234 (Approved): เช็ค screenshots + visual-probe แล้วโอเคครับ
+- krittaphato3 (me): ขอบคุณครับ แก้ gate-card centering ที่ 1024/1440 แล้วครับ @atiwit
+
+Status: MERGED — three approvals (atiwit, napatsun, Alongkron1234). Final: 277 server, 118 client, 39 Playwright (32 lab-03 + 7 lab-02 regression).
+
+---
+
+## My Reviews — PRs I Reviewed (as reviewer: krittaphato3 (Me))
+
+> All PRs below were reviewed by me (krittaphato3) — 19 Lab 3 PRs across teammates' repos, every approval and comment body verified from the PR page (fetched Sep 21, 2026). Only Alongkron1234 #50 was approval-only with no text comment. Not reviewed by me: napatsun #42, #49; Alongkron1234 #49, #53.
+
+---
+
+### napatsun — PRs I Reviewed (2)
+
+#### My Review — napatsun/TokTickIT#43 — Feature/lab3-03-requester-regression
+
+Author: napatsun
+
+Reviewer:
+- GitHub username: krittaphato3 (Me)
+
+Co-reviewer:
+- GitHub: Alongkron1234
+
+PRs reviewed (links):
+- https://github.com/napatsun/TokTickIT/pull/43 (Feature/lab3-03-requester-regression — closes #36)
+
+Comment I gave partner on their PR → their response:
+- krittaphato3 (Me) (Approved 2026-09-13): "Implement ตาม issue ดีมาก แต่ผมเห็นว่า SEC-06 (ผู้แจ้งเรื่องต้องไม่สามารถเห็นบันทึกภายในหรือ Internal Notes) ถูกข้ามไปทำใน branch ของ Staff Ticketing ในระหว่างนี้ รบกวนช่วยตรวจสอบให้แน่ใจอีกครั้ง (double-check) ว่า endpoint GET /api/tickets/:ticketNumber (Ticket Detail) ไม่ได้เผลอดึง Internal Notes ติดไปด้วยใน Prisma query แม้ว่าทาง UI จะยังไม่ได้นำมาแสดงผลก็ตาม"
+- napatsun (fix, commits 12fdc35 + fc747c9): split SEC-06 into SEC-06a (schema-level guard, Pass — response has no internalNotes key, recursive scan + raw JSON check) and SEC-06b (full cross-role assertion, Pending until InternalNote model lands)
+- Alongkron1234 (Approved 2026-09-13): "โค้ดทุกอย่างโอเคดีมากครับ แต่ฝากไว้นิดนึงนะ ถ้าทำถึง IT Staff Detail อย่าลืมแยก Route ให้ IT Staff และ Admin สามารถอ่านและโพสต์ Public Comments บน Ticket นี้ได้ตาม BR-04 ด้วยนะครับ" — APPROVED
+
+Status: MERGED (2026-09-14, 6 commits by Alongkron1234) — both approvals after SEC-06 split. Evidence: server 248 passed / client 224 passed / E2E 8 passed.
+
+---
+
+#### My Review — napatsun/TokTickIT#48 — Release:Lab 3. TokTickIT Users, Roles, IT Staff Ticketing, and Admin Screens.
+
+Author: napatsun
+
+Reviewer:
+- GitHub username: krittaphato3 (Me)
+
+Co-reviewer:
+- GitHub: Alongkron1234
+
+PRs reviewed (links):
+- https://github.com/napatsun/TokTickIT/pull/48 (Release:Lab 3 — 41 commits lab3-staging → main)
+
+Comment I gave partner on their PR → their response:
+- krittaphato3 (Me) (Approved 2026-09-16): "ตรวจโค้ด สเปก และผลเทสทั้งหมดเรียบร้อยครับ APPROVED — ระบบ Auth/Authorization, IT Staff Queue/Detail และ Admin User Management ครบถ้วนตาม Lab 3 Spec — กันข้อมูลรั่วไหล (SEC-06) และ Admin Safety Guards ถูกต้อง — เทสผ่าน 830/830 ข้อ (100%) + เอกสารใน docs/lab-03/ ครบถ้วน — เห็นด้วยกับคุณ Alongkorn ครับ"
+- Alongkron1234 (Approved 2026-09-16) — APPROVED
+
+Status: MERGED (2026-09-17, `bf88c63` by krittaphato3) — 830/830 tests (server 480 + client 325 + E2E 25), migration chain from empty DB verified.
+
+---
+
+#### My Review — napatsun/TokTickIT#41 — lab3/01-spec-contract-docs
+
+Author: napatsun
+
+Reviewer:
+- GitHub username: krittaphato3 (Me)
+
+PRs reviewed (links):
+- https://github.com/napatsun/TokTickIT/pull/41 (lab3/01-spec-contract-docs)
+
+Comment I gave partner on their PR → their response:
+- krittaphato3 (Me) (comment + Approved 2026-09-12): "ทุกไฟล์มีความเรียบร้อยดี specification, api-specs และ ui-spec มีการออกแบบที่เป็นระบบดี และ test ก็มีความครบถ้วนดี" — APPROVED, sole approver
+
+Status: MERGED (by krittaphato3).
+
+---
+
+#### My Review — napatsun/TokTickIT#44 — Feature/lab3-04-staff-ticketing
+
+Author: napatsun
+
+Reviewer:
+- GitHub username: krittaphato3 (Me)
+
+PRs reviewed (links):
+- https://github.com/napatsun/TokTickIT/pull/44 (Feature/lab3-04-staff-ticketing)
+
+Comment I gave partner on their PR → their response:
+- krittaphato3 (Me) (comment + Approved 2026-09-14): "ทุกอย่างเรียบร้อยครับถ้วยดีนะครับ Implement ได้ถูกต้อง และก็มี artifacts ครบตามที่ สร้าง issue เอาไว้" — APPROVED, sole approver
+
+Status: MERGED (5 commits, by krittaphato3).
+
+---
+
+#### My Review — napatsun/TokTickIT#45 — Feature/lab3-05-admin-users
+
+Author: napatsun
+
+Reviewer:
+- GitHub username: krittaphato3 (Me)
+
+Co-reviewer:
+- GitHub: Alongkron1234
+
+PRs reviewed (links):
+- https://github.com/napatsun/TokTickIT/pull/45 (Feature/lab3-05-admin-users)
+
+Comment I gave partner on their PR → their response:
+- krittaphato3 (Me) (comment + Approved 2026-09-15): "PR นี้ครอบคลุม scope ของ Part 8 (Administrator User Management) ครบตามที่ Lab 3 กำหนด list/search/filter, create, edit, reset initial password, guard ทั้งสองข้อ (self-deactivation + last active admin), forbidden access สำหรับ non-Administrator, responsive UI และ safe error discipline" — APPROVED
+
+Status: MERGED (by Alongkron1234).
+
+---
+
+#### My Review — napatsun/TokTickIT#46 — Feature/lab3-06-UI-polish-and-a11y
+
+Author: napatsun
+
+Reviewer:
+- GitHub username: krittaphato3 (Me)
+
+PRs reviewed (links):
+- https://github.com/napatsun/TokTickIT/pull/46 (Feature/lab3-06-UI-polish-and-a11y)
+
+Comment I gave partner on their PR → their response:
+- krittaphato3 (Me) (comment 2026-09-15): "ยอดเยี่ยมครับ ดู Implement UI ได้ตาม specs ดี และในส่วนอื่นๆก็ครบถ้วนดี แต่อาจจะมีในส่วนของไฟล์ StatusChangeConfirm.tsx ตรง const toLabel = STATUS_LABELS[to]; // เอา ?? to ออก เวลาเพื่อนจะคอมเมนต์เตือนเรื่อง Safety ทันที: ถ้า to ส่งค่าแปลกๆ มา toLabel จะกลายเป็น undefined ใน title นะ ควรใส่ fallback ไว้นะครับ ยังไงรบกวนแก้ก่อน และเดี๋ยว approve ให้นะครับ"
+- krittaphato3 (Me) (follow-up + Approved): "เรียบร้อนครบถ้วนนะครับ" — APPROVED, sole approver
+
+Status: MERGED (by krittaphato3).
+
+---
+
+#### My Review — napatsun/TokTickIT#47 — Feature/lab3-07-e2e-and-release-evidence
+
+Author: napatsun
+
+Reviewer:
+- GitHub username: krittaphato3 (Me)
+
+Co-reviewer:
+- GitHub: Alongkron1234
+
+PRs reviewed (links):
+- https://github.com/napatsun/TokTickIT/pull/47 (Feature/lab3-07-e2e-and-release-evidence)
+
+Comment I gave partner on their PR → their response:
+- krittaphato3 (Me) (comment + Approved 2026-09-16): "มีแค่ reviewer.md ที่ยังไม่เสร็จตามที่ @Alongkron1234 บอก นอกนั้นผ่านครับ" — APPROVED
+
+Status: MERGED (by krittaphato3).
+
+---
+
+### atiwit — PRs I Reviewed (1)
+
+#### My Review — atiwit/toktickit#48 — feat(lab-03): add IT staff ticket detail tests, confirmation dialog
+
+Author: atiwit
+
+Reviewer:
+- GitHub username: krittaphato3 (Me)
+
+Co-reviewer:
+- GitHub: Alongkron1234
+
+PRs reviewed (links):
+- https://github.com/atiwit/toktickit/pull/48 (closes Lab3 IT Staff Ticket Operations #40) — feature/lab3-staff-ops → lab3-staging
+
+Comment I gave partner on their PR → their response:
+- krittaphato3 (Me) (comment 2026-09-19): "ครบถ้วนดีมากครับไม่มีข้อติเตียนเลย ถือว่าเป็น PR ที่ทำตาม spec และ issue ได้ดีมากครับ"
+- krittaphato3 (Me) (Approved 2026-09-19): "ผ่านครับ" — APPROVED
+- Alongkron1234 (Approved 2026-09-19): "ตรวจทานโค้ดและชุดทดสอบของ PR นี้เรียบร้อยแล้วครับ" — APPROVED
+- atiwit (reply): "ขอบคุณมากครับคุณ โอโซน"
+
+Status: MERGED (2026-09-19, by Alongkron1234) — STAFF-01..10, CN-01..10, UI-10/11 plus CANCELLED/CLOSED confirm dialog.
+
+---
+
+#### My Review — atiwit/toktickit#44 — docs-preparation for lab3
+
+Author: atiwit
+
+Reviewer:
+- GitHub username: krittaphato3 (Me)
+
+Co-reviewer:
+- GitHub: Alongkron1234
+
+PRs reviewed (links):
+- https://github.com/atiwit/toktickit/pull/44 (docs-preparation for lab3)
+
+Comment I gave partner on their PR → their response:
+- krittaphato3 (Me) (comment + Approved 2026-09-13): "Specification ครบถ้วนดีมาก ในส่วนของ ui test กับ api specs ก็มีการ plan ที่ดีและถูกต้องตามหลักการไม่ได้บกพร่องตรงไหน ยอดเยี่ยมมาก" — APPROVED
+
+Status: MERGED (by Alongkron1234).
+
+---
+
+#### My Review — atiwit/toktickit#45 — feat(auth): complete Lab 3 authentication and user model migration
+
+Author: atiwit
+
+Reviewer:
+- GitHub username: krittaphato3 (Me)
+
+Co-reviewer:
+- GitHub: Alongkron1234
+
+PRs reviewed (links):
+- https://github.com/atiwit/toktickit/pull/45 (feat(auth): complete Lab 3 authentication and user model migration)
+
+Comment I gave partner on their PR → their response:
+- krittaphato3 (Me) (comment + Approved 2026-09-14): "PR นี้ทำส่วน Authentication, JWT httpOnly Cookie, และการ Migrate จาก Requester ไปเป็น User ได้ดีและถูกต้องตาม Spec ในส่วนการทำ passwordChangeGuard และ requireRole middleware ช่วยจัดการเรื่อง Server-side authorization (BR-03) ได้ดี และ Test coverage ก็ครอบคลุมทั้ง Auth API และ Regression tests ของ Requester ดังนั้น ในส่วน PR นี้ถือว่าผ่านฉลุยเลยครับ" — APPROVED
+
+Status: MERGED (by Alongkron1234).
+
+---
+
+#### My Review — atiwit/toktickit#46 — feat(auth): implement role-based authorization and role-specific navigation
+
+Author: atiwit
+
+Reviewer:
+- GitHub username: krittaphato3 (Me)
+
+Co-reviewer:
+- GitHub: Alongkron1234
+
+PRs reviewed (links):
+- https://github.com/atiwit/toktickit/pull/46 (feat(auth): implement role-based authorization and role-specific navigation)
+
+Comment I gave partner on their PR → their response:
+- krittaphato3 (Me) (comment + Approved 2026-09-15): "โครงสร้างและ Foundation ของ Lab 3 ใน Issue นี้มาถูกทางแล้วครับ รบกวนเช็คเรื่อง Data Migration เป็นพิเศษที่สุด เพราะถ้าข้อมูลเก่าหายจะผิดสเปคข้อ 5.2 ทันทีนะครับ อยากให้ระวังไว่" — APPROVED
+
+Status: MERGED (by krittaphato3).
+
+---
+
+#### My Review — atiwit/toktickit#47 — Feature/lab3 staff queue
+
+Author: atiwit
+
+Reviewer:
+- GitHub username: krittaphato3 (Me)
+
+Co-reviewer:
+- GitHub: Alongkron1234
+
+PRs reviewed (links):
+- https://github.com/atiwit/toktickit/pull/47 (Feature/lab3 staff queue)
+
+Comment I gave partner on their PR → their response:
+- krittaphato3 (Me) (comment + Approved 2026-09-19): "ผ่านครับ" — APPROVED
+
+Status: MERGED (by krittaphato3).
+
+---
+
+### Alongkron1234 — PRs I Reviewed (1)
+
+#### My Review — Alongkron1234/toktickit#51 — Implement E2E tests; fix AuthContext re-rendeerloop
+
+Author: Alongkron1234
+
+Reviewer:
+- GitHub username: krittaphato3 (Me)
+
+Co-reviewers:
+- GitHub: atiwit, napatsun
+
+PRs reviewed (links):
+- https://github.com/Alongkron1234/toktickit/pull/51 (closes #41) — feat/lab-03-e2e-and-docs → lab3-staging
+
+Comment I gave partner on their PR → their response:
+- napatsun (review 2026-09-17): "ในส่วนของหน้า UI ตรง Log in ควรไม่ต้องแสดงในส่วนของข้อความด้านล่างที่เป็น Seed Test Credentials นะครับ ยังไงรบกวนแก้ด้วยครับ"
+- Alongkron1234 (fix, commits 1a5d5c7 + 7631cab): removed Seed Test Credentials from login UI, moved to README.md — "@napatsun ตอนนี้ผมได้แก้ไขเรียบร้อยแล้วครับ"
+- krittaphato3 (Me) (Approved 2026-09-17): "คุณ alongkorn ทำได้ครบดีน่ะครับ แต่ตามที่ @napatsun ได้แจ้งไป และได้รับการแก้ไขแล้ว ก็ถือว่าครบถ้วนสมบูรณ์ดีครับ" — APPROVED
+
+Status: MERGED (2026-09-19, by napatsun) — E2E authentication/staff-flow/user-administration specs + responsive screenshots per folder.
+
+---
+
+#### My Review — Alongkron1234/toktickit#42 — Create docs/lab-03/ and .md file
+
+Author: Alongkron1234
+
+Reviewer:
+- GitHub username: krittaphato3 (Me)
+
+Co-reviewer:
+- GitHub: atiwit
+
+PRs reviewed (links):
+- https://github.com/Alongkron1234/toktickit/pull/42 (Create docs/lab-03/ and .md file)
+
+Comment I gave partner on their PR → their response:
+- krittaphato3 (Me) (comment + Approved 2026-09-12): "Specification และ api specs, test, ui-specs เขียนได้ดีมากครับ" — APPROVED
+
+Status: MERGED (by atiwit).
+
+---
+
+#### My Review — Alongkron1234/toktickit#43 — Feat/lab 03 auth foundation
+
+Author: Alongkron1234
+
+Reviewer:
+- GitHub username: krittaphato3 (Me)
+
+Co-reviewer:
+- GitHub: napatsun
+
+PRs reviewed (links):
+- https://github.com/Alongkron1234/toktickit/pull/43 (Feat/lab 03 auth foundation)
+
+Comment I gave partner on their PR → their response:
+- krittaphato3 (Me) (comment + Approved 2026-09-13): "เก่งมากครับ Implement ในส่วนของ Authentication ได้ดีมาก แต่ถ้าจำให้เน้นก็อาจจะระวังในส่วนของ password ในอนาคตนะครับ" — APPROVED
+
+Status: MERGED (by krittaphato3).
+
+---
+
+#### My Review — Alongkron1234/toktickit#44 — Implement requester public comments and ticket reopening
+
+Author: Alongkron1234
+
+Reviewer:
+- GitHub username: krittaphato3 (Me)
+
+Co-reviewer:
+- GitHub: napatsun
+
+PRs reviewed (links):
+- https://github.com/Alongkron1234/toktickit/pull/44 (Implement requester public comments and ticket reopening)
+
+Comment I gave partner on their PR → their response:
+- krittaphato3 (Me) (comment + Approved 2026-09-14): "จู๊ดก็อป เอ้ย กู๊ดจ็อป @Alongkron1234 Implement ในส่วนของ Status ได้ครบถ้วน และ ยังมีในส่วนชองการทำ Public Comment ที่มีการจัดการที่ดี เยี่ยมยอด" — APPROVED
+
+Status: MERGED (by napatsun).
+
+---
+
+#### My Review — Alongkron1234/toktickit#45 — Implement IT Staff Ticket queue search filter view detail
+
+Author: Alongkron1234
+
+Reviewer:
+- GitHub username: krittaphato3 (Me)
+
+Co-reviewer:
+- GitHub: atiwit
+
+PRs reviewed (links):
+- https://github.com/Alongkron1234/toktickit/pull/45 (Implement IT Staff Ticket queue search filter view detail)
+
+Comment I gave partner on their PR → their response:
+- krittaphato3 (Me) (comment 2026-09-15): "ถูกต้องเรียบร้อยครับ แต่ก็สงสัยในส่วนที่คุณ @atiwit พูดเหมือนกันครับ ยังไง @Alongkron1234 ตอบคำถามให้กระจ่างด้วยนะครับ"
+- krittaphato3 (Me) (follow-up + Approved 2026-09-15): "รับทราบครับ ถูกต้องครบถ้วนเรียบร้อย เก่งมากครับ" — APPROVED
+
+Status: MERGED (by atiwit).
+
+---
+
+#### My Review — Alongkron1234/toktickit#48 — docs: update ui-spec.md and api-spec.md
+
+Author: Alongkron1234
+
+Reviewer:
+- GitHub username: krittaphato3 (Me)
+
+PRs reviewed (links):
+- https://github.com/Alongkron1234/toktickit/pull/48 (docs: update ui-spec.md and api-spec.md)
+
+Comment I gave partner on their PR → their response:
+- krittaphato3 (Me) (comment + Approved 2026-09-15): "Spec ที่แก้ไขครบถ้วนดีครับ" — APPROVED, sole approver
+
+Status: MERGED (by krittaphato3).
+
+---
+
+#### My Review — Alongkron1234/toktickit#50 — Implement admin api and ui
+
+Author: Alongkron1234
+
+Reviewer:
+- GitHub username: krittaphato3 (Me)
+
+Co-reviewer:
+- GitHub: atiwit
+
+PRs reviewed (links):
+- https://github.com/Alongkron1234/toktickit/pull/50 (Implement admin api and ui)
+
+Comment I gave partner on their PR → their response:
+- krittaphato3 (Me) (Approved 2026-09-16) — APPROVED, no text comment left (only atiwit commented)
+
+Status: MERGED (by atiwit).
+
+---
+
