@@ -7,12 +7,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  REQUESTER
+  IT_STAFF
+  ADMINISTRATOR
+}
+
 enum Status {
   NEW
   OPEN
   PENDING
   IN_PROGRESS
+  WAITING_FOR_REQUESTER
   RESOLVED
+  CLOSED
+  REOPENED
+  CANCELLED
 }
 
 enum Priority {
@@ -38,6 +48,50 @@ model Requester {
   tickets   Ticket[]
 }
 
+// Lab 3 Authentication Foundation (backward-compatible).
+// Requester table is intentionally KEPT for Lab 2 regression; Ticket.requesterId
+// still points to Requester. User rows are mirrored from Requester in seed.
+// Full repoint (Ticket.requesterId -> User, drop Requester/ownerName,
+// PENDING -> WAITING_FOR_REQUESTER) happens in a later auth-API migration.
+model User {
+  id                  Int       @id @default(autoincrement())
+  name                String    @db.VarChar(100)
+  email               String    @unique @db.VarChar(255)
+  passwordHash        String
+  role                Role
+  isActive            Boolean   @default(true)
+  mustChangePassword  Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  sessions            Session[]
+  ownedTickets        Ticket[]  @relation("TicketOwner")
+  publicComments      PublicComment[] @relation("PublicCommentAuthor")
+  internalNotes       InternalNote[] @relation("InternalNoteAuthor")
+
+  @@index([role, isActive])
+  @@index([createdAt(sort: Desc)])
+}
+
+// Session per spec §7.4 (AD-01). Simplification documented for auth API layer:
+// `id` stores the 64-char hex token directly (32 random bytes, hex-encoded).
+// The spec's "stored hashed with SHA-256" is deferred: hashing the id column
+// would require a separate lookup column + migration risk now, with zero
+// security benefit until login routes exist. When login is implemented, either
+// (a) store SHA-256(id) in `id` and use the raw token only in the cookie, or
+// (b) add a `tokenHash` column. Cookie: `toktickit.sid`, httpOnly, SameSite=Lax.
+model Session {
+  id                String   @id @db.VarChar(64)
+  userId            Int
+  expiresAt         DateTime
+  absoluteExpiresAt DateTime
+  createdAt         DateTime @default(now())
+  ipHash            String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
 model Ticket {
   id            Int      @id @default(autoincrement())
   ticketNumber  String   @unique @db.VarChar(20)
@@ -47,6 +101,8 @@ model Ticket {
   priority      Priority @default(MEDIUM)
   itPriority    Priority?
   ownerName     String?
+  ownerId       Int?
+  appearsResolvedAt DateTime?
   requesterId    Int
   categoryId     Int
   relatedSystemId Int
@@ -54,14 +110,57 @@ model Ticket {
   updatedAt      DateTime @updatedAt
 
   requester    Requester      @relation(fields: [requesterId], references: [id], onDelete: Restrict)
+  owner        User?          @relation("TicketOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   category     Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   relatedSystem RelatedSystem @relation(fields: [relatedSystemId], references: [id], onDelete: Restrict)
   attachments  Attachment[]
+  attachmentEvents AttachmentEvent[]
+  publicComments  PublicComment[]
+  internalNotes   InternalNote[]
 
   @@index([requesterId, createdAt(sort: Desc)])
   @@index([categoryId])
   @@index([priority])
   @@index([relatedSystemId])
+  @@index([ownerId])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([updatedAt(sort: Desc)])
+}
+
+// Lab 3 Public Comments (FR-08/BR-14). Append-only: no update/delete paths
+// exist in code or migrations. `body` stores raw text (1..2000 trimmed chars);
+// the client escapes HTML on render. `authorId`/`createdAt` are server-derived
+// (BR-14) and never accepted from the client.
+model PublicComment {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  authorId  Int
+  body      String   @db.VarChar(2000)
+  appearsResolved Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User   @relation("PublicCommentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([ticketId, createdAt(sort: Asc)])
+}
+
+// Lab 3 §8 — Internal Notes (FR-09/BR-04). Append-only: no update/delete
+// paths exist in code or migrations. `body` stores raw text (1..2000 trimmed
+// chars); authorId/createdAt are server-derived (BR-14) and never accepted
+// from the client. Requester access is blocked at the route layer with a
+// masked 404 (api-spec §1.5) — requesters never read or write this table.
+model InternalNote {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  authorId  Int
+  body      String   @db.VarChar(2000)
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User   @relation("InternalNoteAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([ticketId, createdAt(sort: Asc)])
 }
 
 model Attachment {
@@ -71,12 +170,36 @@ model Attachment {
   storedName String   @unique
   mimeType   String
   sizeBytes  Int
+  sha256     String?
+  removeReason String?
+  removeNote   String?
   uploadedAt DateTime @default(now())
   removedAt  DateTime?
 
   ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@index([ticketId])
+}
+
+model AttachmentEvent {
+  id           Int      @id @default(autoincrement())
+  ticketId     Int
+  attachmentId Int?
+  type         String
+  actorId      Int?
+  actorName    String
+  fileName     String
+  mimeType     String
+  sizeBytes    Int
+  sha256       String?
+  reason       String?
+  note         String?
+  createdAt    DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@index([ticketId, createdAt(sort: Desc)])
 }
 
 model RelatedSystem {

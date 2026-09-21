@@ -81,7 +81,7 @@ Always use `127.0.0.1`, never `localhost`. Inside the Compose network, container
 
 ## Database (Prisma)
 
-Schema: `server/prisma/schema.prisma`. The seed inserts four categories (**Account and Access**, **Hardware**, **Software**, **Network**), five dev requesters, and seven related systems — all idempotent upserts.
+Schema: `server/prisma/schema.prisma`. The seed inserts four categories (**Account and Access**, **Hardware**, **Software**, **Network**), seven related systems, five dev requesters, and the Lab 3 user accounts (roles, passwords, sessions) — all idempotent upserts.
 
 ```bash
 cd server
@@ -91,11 +91,39 @@ npm run prisma:seed      # seed reference data
 
 In Docker mode this happens automatically when the server container starts.
 
+## Seeded accounts (local development only)
+
+The seed creates these logins for the Lab 3 authentication flow. **Local development and grading only — never use these credentials anywhere real.**
+
+| Role          | Email                     | Initial password | Notes                              |
+| ------------- | ------------------------- | ---------------- | ---------------------------------- |
+| Requester     | `alpha@toktickit.test`    | `Requester123!`  | active — has demo tickets          |
+| Requester     | `beta@toktickit.test`     | `Requester123!`  | active                             |
+| Requester     | `gamma@toktickit.test`    | `Requester123!`  | active                             |
+| Requester     | `delta@toktickit.test`    | `Requester123!`  | active                             |
+| Requester     | `epsilon@toktickit.test`  | `Requester123!`  | **inactive** — login is refused    |
+| IT Staff      | `sara.it@toktickit.test`  | `Staff123!`      | active                             |
+| IT Staff      | `tom.it@toktickit.test`   | `Staff123!`      | active                             |
+| IT Staff      | `priya.it@toktickit.test` | `Staff123!`      | active                             |
+| IT Staff      | `leo.it@toktickit.test`   | `Staff123!`      | **inactive** — login is refused    |
+| Administrator | `admin@toktickit.test`    | `Admin123!`      | active                             |
+
+- Every seeded account starts with `mustChangePassword = true`: after the first login you are placed on the **Change Password** screen and must set a new password before the app opens.
+- Re-running the seed never resets a password you have already changed (updates leave `passwordHash` and `mustChangePassword` untouched). To restore the table above, delete the user's row or reset the database (`docker compose down -v`, or delete `server/.pgdata`).
+- Inactive accounts demonstrate the safe-failure path: their login returns the same generic error as a wrong password, without revealing account status.
+
 ## Tests
 
 ```bash
-cd server && npm test    # 26 tests; DB-backed — run mode 1, 2 or 3 first
-cd client && npm test    # 16 tests; no database needed
+cd server && npm test    # DB-backed unit + API suites — run mode 1, 2 or 3 first
+cd client && npm test    # component tests; no database needed
+```
+
+E2E (Playwright, real servers + seeded database):
+
+```bash
+npx playwright install chromium   # first time only
+npx playwright test               # starts dev servers, resets seeded logins
 ```
 
 ## Build
@@ -120,4 +148,4 @@ It fails loudly if any width produces horizontal overflow.
 
 - `.env` files are gitignored; only `.env.example` is committed. `cp .env.example .env` works in PowerShell and Git Bash; on cmd use `copy`.
 - The server container runs committed migrations automatically at startup (`prisma migrate deploy`); re-running is safe.
-- The Development Requester selector in the navbar is test scaffolding (BR-03), not real authentication.
+- Lab 3: real authentication replaced the Lab 2 Development Requester selector. Signing in is required, identity comes from the server-side session, and the first login on a seeded account forces a password change (see the accounts table above).

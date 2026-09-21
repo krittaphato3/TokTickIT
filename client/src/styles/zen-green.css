@@ -33,7 +33,7 @@ body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:va
 .tok-req-caption{font-size:.8125rem;color:var(--tok-text-muted)}
 .tok-req-select:focus-visible,.tok-nav a:focus-visible{outline:none;box-shadow:var(--tok-ring);border-color:var(--tok-primary)}
 /* App shell + global footer */
-.tt-app{min-height:100vh;display:flex;flex-direction:column}
+.tt-app{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
 .tok-app-footer{margin-top:auto;padding:14px 24px;border-top:1px solid var(--tok-border);color:var(--tok-text-muted);font-size:.8125rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;background:var(--tok-surface)}
 @media (max-width:767.98px){
   .tok-app-footer{flex-direction:column;align-items:center;gap:4px;text-align:center;padding:12px 16px}
@@ -42,22 +42,97 @@ body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:va
   .tok-app-footer{padding:8px 24px}
 }
 
-/* ============ Profile dropdown (mockup: AccountSelection_Demo) ============ */
+/* ============ Profile dropdown (docs/mockups/Profile-Mockup.html) ============ */
 .tok-profile{position:relative;flex:none}
-.tok-profile-btn{display:inline-flex;align-items:center;gap:.5rem;background:none;border:none;cursor:pointer;
-  color:var(--tok-text);font-weight:600;font-size:.9375rem;padding:.4rem .625rem;border-radius:.5rem}
+.tok-profile-btn{display:flex;align-items:center;gap:9px;padding:5px 9px 5px 5px;border-radius:999px;border:1px solid transparent;background:none;cursor:pointer;
+  color:var(--tok-text);font-weight:600;font-size:.84375rem;min-height:44px;text-decoration:none;transition:background .15s,border-color .15s}
 .tok-profile-btn:hover{background:#F2F2F2}
-.tok-profile-btn svg{color:var(--tok-secondary)}
-.tok-profile-btn:focus-visible{outline:3px solid rgba(0,107,60,.28);outline-offset:2px;border-radius:.5rem}
-.tok-profile-caret{font-size:.8rem;color:var(--tok-text)}
-.tok-profile-menu{position:absolute;right:0;top:calc(100% + 8px);min-width:300px;background:var(--tok-surface);
-  border:1px solid var(--tok-border);border-radius:.625rem;padding:.5rem;box-shadow:0 8px 24px rgba(30,42,37,.14);z-index:200}
+.tok-profile-btn[aria-expanded="true"]{background:#eef2f0;border-color:var(--tok-border-soft)}
+.tok-profile-btn:focus-visible{outline:none;box-shadow:var(--tok-ring)}
+.tok-profile-trigger-name{font-weight:600;font-size:.84375rem}
+@media (max-width:640px){.tok-profile-trigger-name{display:none}}
+.tok-profile-caret{color:var(--tok-text-muted);transition:transform .18s ease;flex:none}
+.tok-profile-btn[aria-expanded="true"] .tok-profile-caret{transform:rotate(180deg)}
+.tok-avatar{border-radius:50%;background:linear-gradient(135deg,#14b8a6,#115e59);color:#fff;font-weight:600;display:grid;place-items:center;letter-spacing:.03em;user-select:none;flex:none}
+.tok-avatar--sm{width:30px;height:30px;font-size:.71875rem}
+.tok-avatar--lg{width:40px;height:40px;font-size:.875rem;position:relative}
+.tok-avatar--lg::after{content:"";position:absolute;right:-1px;bottom:-1px;width:10px;height:10px;border-radius:50%;background:#22c55e;border:2px solid #fff}
+.tok-profile-menu{position:absolute;right:0;top:calc(100% + 8px);width:292px;background:var(--tok-surface);
+  border:1px solid var(--tok-border-soft);border-radius:12px;padding:0;overflow:hidden;
+  box-shadow:0 24px 48px -12px rgba(16,24,40,.16),0 4px 14px rgba(16,24,40,.08);z-index:200}
+.tok-menu-header{display:flex;align-items:center;gap:12px;padding:14px 14px 13px;border-bottom:1px solid var(--tok-border-soft);background:linear-gradient(180deg,rgba(13,148,136,.07),rgba(13,148,136,0))}
+.tok-menu-identity{min-width:0;flex:1}
+.tok-menu-label{font-size:.65625rem;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--tok-text-muted);margin:0 0 2px}
+.tok-menu-name{font-size:.875rem;font-weight:600;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--tok-text)}
+.tok-menu-email{font-size:.78125rem;color:var(--tok-text-muted);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tok-menu-badge{font-size:.625rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--tok-primary);background:var(--tok-primary-soft);border:1px solid rgba(0,107,60,.3);padding:3px 7px;border-radius:999px;flex:none}
+.tok-menu-group{padding:5px 6px}
+.tok-menu-sep{height:1px;background:var(--tok-border-soft);margin:2px 0}
+.tok-menu-item{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:0;border-radius:8px;font-size:.84375rem;font-weight:500;color:var(--tok-text-muted);background:none;cursor:pointer;transition:background .13s,color .13s;text-align:left}
+.tok-menu-item svg{color:var(--tok-text-muted);transition:color .13s;flex:none}
+.tok-menu-item:hover{background:#f1f5f9;color:var(--tok-text)}
+.tok-menu-item:hover svg{color:var(--tok-primary)}
+.tok-menu-item:active{background:#e8eef2}
+.tok-menu-item:focus-visible{outline:none;box-shadow:var(--tok-ring)}
+.tok-menu-item:disabled,.tok-menu-item[aria-disabled="true"]{opacity:.55;cursor:not-allowed}
+.tok-menu-item:disabled:hover,.tok-menu-item[aria-disabled="true"]:hover{background:none;color:var(--tok-text-muted)}
+.tok-menu-item:disabled:hover svg,.tok-menu-item[aria-disabled="true"]:hover svg{color:var(--tok-text-muted)}
+.tok-menu-item--danger,.tok-menu-item--danger svg{color:var(--tok-error)}
+.tok-menu-item--danger:hover{background:var(--tok-error-soft);color:var(--tok-error)}
+.tok-menu-item--danger:hover svg{color:var(--tok-error)}
+.tok-menu-footer{padding:9px 14px;border-top:1px solid var(--tok-border-soft);background:#fafbfc;display:flex;justify-content:flex-end;font-size:.6875rem;color:var(--tok-text-muted)}
+/* Legacy aliases (kept harmless; menu now uses tok-menu-* classes) */
 .tok-profile-head{font-size:.78rem;color:var(--tok-text-muted);padding:.375rem .625rem .25rem;text-transform:uppercase;letter-spacing:.04em;font-weight:600}
 .tok-profile-account{font-weight:600;color:var(--tok-text);background:var(--tok-primary-soft);
   border-radius:.5rem;padding:.625rem .75rem;word-break:break-word;font-size:.875rem}
 .tok-profile-item{display:block;width:100%;text-align:left;margin-top:.375rem;padding:.5625rem .625rem;border:none;
   border-radius:.5rem;background:none;color:var(--tok-primary);font-weight:600;cursor:pointer}
 .tok-profile-item:hover{background:var(--tok-primary-soft)}
+.tok-profile-item:focus-visible{outline:none;background:var(--tok-primary-soft);box-shadow:var(--tok-ring)}
+.tok-profile-item:disabled{opacity:.6;cursor:wait}
+@media (prefers-reduced-motion:reduce){.tok-profile-btn,.tok-profile-caret,.tok-menu-item,.tok-menu-item svg{transition:none}}
+
+/* ============ PROFILE PAGE (#/profile) — shared by ALL account types ============ */
+.tok-profile-page .tok-profile-card{max-width:760px;margin:0 auto;padding:2rem}
+.tok-profile-hero{display:flex;align-items:center;gap:1.25rem}
+.tok-profile-avatar{width:72px;height:72px;border-radius:50%;background:var(--tok-primary-soft);color:var(--tok-primary);
+  display:grid;place-items:center;font-weight:700;font-size:1.375rem;flex:none}
+.tok-profile-id{min-width:0}
+.tok-profile-name{font-size:1.25rem;font-weight:700;margin:0;line-height:1.25;color:var(--tok-text)}
+.tok-profile-email{margin:.125rem 0 .5rem;color:var(--tok-text-muted);font-size:.9375rem;overflow:hidden;text-overflow:ellipsis}
+.tok-profile-role{display:inline-block;border-radius:999px;padding:.125rem .625rem;font-size:.75rem;font-weight:700}
+.tok-profile-note{margin:.875rem 0 0;font-size:.8125rem;color:var(--tok-text-muted)}
+.tok-profile-page .tok-divider{margin:1.375rem 0}
+.tok-profile-grid{margin:0;display:grid;grid-template-columns:1fr 1fr;gap:.875rem 1.5rem}
+.tok-profile-row dt{font-size:.6875rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tok-text-muted);margin-bottom:.1875rem}
+.tok-profile-row dd{margin:0;font-size:.9375rem;font-weight:600;color:var(--tok-text);overflow-wrap:anywhere}
+.tok-profile-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.tok-profile-status{display:inline-flex;align-items:center;gap:.375rem}
+.tok-profile-status.ok{color:var(--tok-success)}
+.tok-profile-status.bad{color:var(--tok-error)}
+.tok-profile-status.ok::before,.tok-profile-status.bad::before{content:'';width:.5rem;height:.5rem;border-radius:50%}
+.tok-profile-status.ok::before{background:var(--tok-success)}
+.tok-profile-status.bad::before{background:var(--tok-error)}
+.tok-profile-manage{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+.tok-profile-action{display:flex;align-items:flex-start;gap:.75rem;width:100%;text-align:left;padding:.875rem 1rem;
+  border:1px solid var(--tok-border);border-radius:.625rem;background:#fff;cursor:pointer}
+.tok-profile-action svg{flex:none;margin-top:.125rem;color:var(--tok-primary)}
+.tok-profile-action-text{display:flex;flex-direction:column;gap:.125rem;min-width:0}
+.tok-profile-action-text strong{color:var(--tok-text);font-size:.9375rem}
+.tok-profile-action-text span{color:var(--tok-text-muted);font-size:.8125rem;font-weight:500}
+.tok-profile-action:hover:not(:disabled){background:var(--tok-primary-soft);border-color:rgba(0,107,60,.35)}
+.tok-profile-action:focus-visible{outline:none;box-shadow:var(--tok-ring);border-color:var(--tok-primary)}
+.tok-profile-action:disabled{opacity:.6;cursor:not-allowed}
+.tok-profile-signout{display:flex;justify-content:flex-end;border-top:1px solid var(--tok-border-soft);
+  margin:1.375rem -2rem -2rem;padding:1rem 2rem;border-radius:0 0 var(--tok-radius-card) var(--tok-radius-card)}
+@media (max-width:767.98px){
+  .tok-profile-page .tok-profile-card{padding:1.25rem}
+  .tok-profile-hero{flex-direction:column;text-align:center;gap:.75rem}
+  .tok-profile-grid{grid-template-columns:1fr}
+  .tok-profile-manage{grid-template-columns:1fr}
+  .tok-profile-signout{margin:1.25rem -1.25rem -1.25rem;padding:1rem 1.25rem}
+  .tok-profile-signout .tok-btn{width:100%}
+}
 
 /* ============ PAGE FRAME ============ */
 .tok-main{max-width:1200px;margin:0 auto;padding:1.5rem 1rem 3rem}
@@ -318,4 +393,201 @@ body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:va
 /* Ensure selection card padding wins over generic .tok-card at mobile (same specificity, order matters) */
 @media (max-width:767.98px){
   .tok-card.tok-selection-card{padding:24px 18px 0 !important}
+}
+
+/* ============ SIGN-OUT TOAST (bottom-right, near system clock) ============ */
+.tok-toast-stack{position:fixed;right:16px;bottom:16px;z-index:1000;display:flex;flex-direction:column;gap:8px;max-width:min(360px,calc(100vw - 32px))}
+.tok-toast{display:flex;align-items:center;gap:10px;background:var(--tok-surface);color:var(--tok-text);
+  border:1px solid rgba(30,122,70,.3);border-left:4px solid var(--tok-success);border-radius:12px;
+  padding:12px 10px 12px 14px;box-shadow:0 12px 32px -12px rgba(30,42,37,.35),0 2px 6px rgba(30,42,37,.12);
+  font-size:.875rem;line-height:1.45;animation:tok-toast-in 240ms cubic-bezier(.2,.8,.2,1)}
+.tok-toast-success{background:#fff}
+.tok-toast-icon{width:24px;height:24px;flex:none;display:grid;place-items:center;border-radius:50%;
+  background:var(--tok-primary-soft);color:var(--tok-success);font-weight:800;font-size:.875rem}
+.tok-toast-text{flex:1;min-width:0;font-weight:600;color:var(--tok-success)}
+.tok-toast-close{flex:none;min-width:32px;min-height:32px;display:grid;place-items:center;border:0;border-radius:8px;
+  background:transparent;color:var(--tok-text-muted);font-size:1.125rem;line-height:1;cursor:pointer}
+.tok-toast-close:hover{background:var(--tok-primary-soft);color:var(--tok-text)}
+.tok-toast-close:focus-visible{outline:none;box-shadow:var(--tok-ring)}
+@keyframes tok-toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.tok-toast{animation:none}}
+
+/* ============ LAB 3 AUTH (login / change-password, ui-spec §3-§4) ============ */
+/* Centering comes from auth.css (.tok-auth-page is a centered flex row);
+   the card must NOT be pinned to the horizontal start on desktop — the
+   first-login gate renders inside .tt-app where the column's default
+   align-items:stretch would otherwise left-hug the card. */
+.tok-auth-page{width:100%;min-height:calc(100vh - 106px);align-items:center;padding:32px 16px;
+  background:radial-gradient(1200px 400px at 50% 0%, #EAF6EF 0%, var(--tok-page-bg) 60%)}
+.tok-auth-card{margin-top:0}
+.tok-auth-page .tok-input{min-height:44px}
+.tok-auth-page .tok-btn{min-height:44px}
+.tok-auth-page .tok-alert{display:flex;gap:.5rem;align-items:flex-start}
+@media (max-width:767.98px){
+  .tok-auth-page{padding:16px 16px 32px}
+  .tok-auth-card{margin-top:8px}
+  .tok-auth-page .tok-btn{width:100%}
+}
+
+/* ============ TICKET-DETAIL ATTACHMENTS (mockup Attachment-TIcketDetailed, teal #0d9488) ============ */
+.tok-att-panel{background:var(--tok-surface);border:1px solid var(--tok-border-soft);border-radius:12px;overflow:hidden}
+.tok-att-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:15px 18px;border-bottom:1px solid var(--tok-border-soft)}
+.tok-att-title{margin:0 !important}
+.tok-att-count{font-size:11px;font-weight:700;color:#0f766e;background:#ecfdf8;border:1px solid rgba(13,148,136,.3);border-radius:999px;padding:2px 8px}
+.tok-att-spacer{flex:1}
+.tok-att-dropzone{cursor:pointer;transition:border-color .15s,background .15s}
+.tok-att-dropzone:hover{border-color:#0d9488;background:#ecfdf8}
+.tok-att-dropzone input{position:absolute;opacity:0;width:1px;height:1px;overflow:hidden}
+.tok-att-dz-t{font-size:.9375rem;font-weight:600;color:var(--tok-text)}
+.tok-att-dz-h{font-size:.75rem;color:var(--tok-text-muted);margin-top:4px}
+.tok-att-dropzone.disabled{opacity:.6;cursor:not-allowed}
+.tok-att-toolbar{display:flex;align-items:center;gap:10px;padding:14px 18px;flex-wrap:wrap}
+.tok-att-search{position:relative;flex:1;min-width:180px;max-width:320px}
+.tok-att-search input{width:100%;padding:7px 10px;border:1px solid var(--tok-border);border-radius:8px;background:var(--tok-surface);font-size:.8125rem}
+.tok-att-search input:focus{outline:none;box-shadow:0 0 0 3px rgba(13,148,136,.28);border-color:#0d9488}
+.tok-att-toolbar select{padding:7px 10px;border:1px solid var(--tok-border);border-radius:8px;background:var(--tok-surface);font-size:.78125rem;font-weight:500;color:var(--tok-text-muted)}
+.tok-att-tally{margin-left:auto;font-size:.71875rem;color:var(--tok-text-muted);font-weight:500}
+.tok-att-bulk{margin:0 18px 8px;font-size:.8125rem;color:#0f766e;font-weight:600}
+.tok-att-list{flex-direction:column;align-items:stretch;gap:0;margin-top:0;border-top:1px solid var(--tok-border-soft)}
+.tok-att-row{border:0;border-radius:0;max-width:none;width:100%;justify-content:flex-start;gap:13px;padding:13px 18px;background:#fff}
+.tok-att-row + .tok-att-row{border-top:1px solid var(--tok-border-soft)}
+.tok-att-row:hover{background:#f8fafc}
+.tok-att-tile{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-size:.59375rem;font-weight:800;letter-spacing:.05em;flex:none}
+.tok-att-tile--img{background:#ecfdf8;color:#0f766e}
+.tok-att-tile--pdf{background:#fef3f2;color:#b42318}
+.tok-att-tile--doc{background:#eff6ff;color:#1d4ed8}
+.tok-att-tile--arc{background:#fffbeb;color:#b45309}
+.tok-att-tile--gen{background:#f1f5f9;color:#475569}
+.tok-att-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.tok-att-name{font-size:.84375rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tok-att-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:.71875rem;color:var(--tok-text-muted)}
+.tok-att-dot{color:var(--tok-border)}
+.tok-att-err{font-size:.78125rem;color:var(--tok-error);font-weight:600}
+.tok-att-actions{display:flex;gap:7px;margin-left:auto;align-items:center;flex-wrap:wrap}
+.tok-att-btn{display:inline-flex;align-items:center;gap:7px;border-radius:8px;font-weight:600;font-size:.78125rem;padding:6px 10px;border:1px solid transparent;cursor:pointer;transition:background .14s,color .14s,border-color .14s}
+.tok-att-btn:focus-visible,.tok-att-dropzone:focus-visible,.tok-att-search input:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(13,148,136,.28)}
+.tok-att-btn--ghost{background:var(--tok-surface);border-color:var(--tok-border);color:var(--tok-text-muted)}
+.tok-att-btn--ghost:hover:not(:disabled){background:#f1f5f9;color:var(--tok-text)}
+.tok-att-btn--danger{background:var(--tok-surface);border-color:rgba(180,35,24,.35);color:var(--tok-error)}
+.tok-att-btn--danger:hover:not(:disabled){background:var(--tok-error-soft)}
+.tok-att-btn:disabled{opacity:.55;cursor:not-allowed}
+.tok-att-confirm{display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:.78125rem}
+.tok-att-row.removed,.attachment-chip.removed,.attachment-chip.grayed{background:#fafbfc;color:var(--tok-text-muted)}
+.tok-att-row.removed .tok-att-name{text-decoration:line-through;text-decoration-color:rgba(180,35,24,.5)}
+.removed-badge{font-size:.625rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--tok-text-muted);background:#E7EBE9;border-radius:5px;padding:2px 7px}
+.tok-att-empty{padding:34px 18px;text-align:center;color:var(--tok-text-muted);font-size:.8125rem}
+@media (max-width:720px){.tok-att-row{flex-wrap:wrap}.tok-att-actions{width:100%;justify-content:flex-end;margin-left:0}}
+@media (prefers-reduced-motion:reduce){.tok-att-dropzone,.tok-att-btn,.tok-att-row{transition:none;animation:none}}
+.tok-att-sha{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.6875rem;color:var(--tok-text-muted);background:#f1f5f9;border-radius:5px;padding:1px 6px}
+.tok-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+
+/* ============ REMOVE MODAL (mockup Attachment-TIcketDetailed) ============ */
+.tok-overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:grid;place-items:center;z-index:80;padding:16px}
+.tok-modal{width:min(460px,100%);background:var(--tok-surface);border-radius:14px;box-shadow:0 24px 48px -12px rgba(16,24,40,.16),0 4px 14px rgba(16,24,40,.08);padding:20px;border:1px solid var(--tok-border-soft)}
+.tok-modal-title{font-size:.9375rem;font-weight:700;margin:0 0 4px;color:var(--tok-text)}
+.tok-modal-sub{font-size:.78125rem;color:var(--tok-text-muted);margin:0 0 14px}
+.tok-modal-filebox{display:flex;align-items:center;gap:10px;background:#f1f5f9;border:1px solid var(--tok-border-soft);border-radius:10px;padding:10px 12px;margin-bottom:14px;min-width:0}
+.tok-modal-filemeta{display:flex;flex-direction:column;gap:2px;min-width:0}
+.tok-modal-fn{font-size:.8125rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tok-modal-fm{font-size:.71875rem;color:var(--tok-text-muted)}
+.tok-modal-field{margin-bottom:12px}
+.tok-modal-field label{display:block;font-size:.6875rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--tok-text-muted);margin-bottom:5px}
+.tok-modal-field select,.tok-modal-field input{width:100%;padding:8px 10px;border:1px solid var(--tok-border);border-radius:8px;background:var(--tok-surface);font-size:.8125rem;color:var(--tok-text);font-family:inherit}
+.tok-modal-field select:focus,.tok-modal-field input:focus{outline:none;box-shadow:0 0 0 3px rgba(13,148,136,.28);border-color:#0d9488}
+.tok-modal-warn{display:flex;gap:9px;background:#fffbeb;border:1px solid rgba(180,83,9,.25);border-radius:10px;padding:10px 12px;font-size:.71875rem;color:#78350f;margin-bottom:16px}
+.tok-modal-actions{display:flex;justify-content:flex-end;gap:9px}
+.tok-att-btn--danger-solid{background:var(--tok-error);border-color:var(--tok-error);color:#fff}
+.tok-att-btn--danger-solid:hover:not(:disabled){background:#922015;border-color:#922015}
+
+/* ============ AUDIT TRAIL LEDGER ============ */
+.tok-aud-panel{margin-top:18px}
+.tok-aud-note{padding:10px 18px;font-size:.71875rem;color:var(--tok-text-muted);display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--tok-border-soft);background:#fafbfc}
+.tok-aud-list{border-top:1px solid var(--tok-border-soft)}
+.tok-aud{border-bottom:1px solid var(--tok-border-soft)}
+.tok-aud:last-child{border-bottom:0}
+.tok-aud-summary{display:flex;align-items:center;gap:12px;padding:12px 18px;cursor:pointer;list-style:none}
+.tok-aud-summary::-webkit-details-marker{display:none}
+.tok-aud-summary:hover{background:#f8fafc}
+.tok-aud-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.tok-aud-l1{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.tok-aud-name{font-size:.8125rem;font-weight:600;color:var(--tok-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tok-aud-name--struck{color:var(--tok-text-muted);text-decoration:line-through;text-decoration-color:rgba(180,35,24,.5)}
+.tok-aud-badge{font-size:.59375rem;font-weight:800;letter-spacing:.08em;padding:2px 7px;border-radius:5px;text-transform:uppercase}
+.tok-aud-badge--remove{background:var(--tok-error-soft);color:var(--tok-error)}
+.tok-aud-badge--restore{background:#ecfdf8;color:#0f766e}
+.tok-aud-badge--muted{background:#f1f5f9;color:#475569}
+.tok-aud-meta{font-size:.71875rem;color:var(--tok-text-muted)}
+.tok-aud-chev{color:var(--tok-text-muted);font-size:1rem;line-height:1;transition:transform .16s}
+.tok-aud[open] .tok-aud-chev{transform:rotate(90deg)}
+.tok-aud-detail{padding:2px 18px 16px 68px}
+.tok-aud-detail dl{display:grid;grid-template-columns:150px 1fr;gap:6px 14px;background:#fafbfc;border:1px solid var(--tok-border-soft);border-radius:10px;padding:12px 14px;margin:0}
+.tok-aud-detail dt{font-size:.65625rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--tok-text-muted);padding-top:1px}
+.tok-aud-detail dd{font-size:.75rem;color:var(--tok-text-muted);word-break:break-word;margin:0}
+@media (max-width:720px){.tok-aud-detail{padding-left:18px}.tok-aud-detail dl{grid-template-columns:1fr}}
+
+/* ============ FORCED CHANGE-PASSWORD SUCCESS INTERSTITIAL (scoped polish) ============ */
+.tok-auth-card.tok-auth-card--success::before{height:4px;background:linear-gradient(90deg,#14b8a6,#0d9488 48%,#5eead4);opacity:1}
+.cp-lock-badge{width:52px;height:52px;display:grid;place-items:center;border-radius:14px;color:#0f766e;background:linear-gradient(145deg,#ecfdf8,#ccfbf1);border:1px solid rgba(13,148,136,.35);flex:none}
+.tok-auth-card.tok-auth-card--success .tok-auth-alert.success{color:#0f5132;background:#dff2e5;border:1px solid rgba(15,81,50,.55);font-weight:700}
+.tok-auth-card.tok-auth-card--success .tok-auth-alert.success .icon{color:#0f5132;font-weight:800}
+.cp-success-loader{display:flex;justify-content:center;align-items:center;margin:2px 0 4px;min-height:28px}
+.cp-success-spinner{width:22px;height:22px;border-radius:50%;border:3px solid rgba(13,148,136,.2);border-top-color:#0d9488;animation:cp-success-spin .7s linear infinite}
+@keyframes cp-success-spin{to{transform:rotate(360deg)}}
+.cp-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+@media (prefers-reduced-motion:reduce){.cp-success-spinner{animation:none}}
+
+/* ============ VIEWPORT-FIT PAGES (no full-page scroll on desktop) ============
+   Stakeholder ruling for the Lab 3 visual pass: on PC-sized viewports the
+   four main authenticated screens (My Tickets, requester + staff ticket
+   detail, staff queue, user management) fit the viewport height — the page
+   never scrolls; only a screen's own long content (description, comment
+   thread, table) scrolls inside its card. Below 992px the rule relaxes so
+   phones/tablets keep natural document scrolling (e2e/lab-03 asserts the
+   ≥992px behavior). */
+@media (min-width: 992px) {
+  html, body { overflow: hidden; }
+  .tt-app { height: 100vh; height: 100dvh; overflow: hidden; }
+  .tok-app-footer, .tt-app > footer { flex: none; }
+  #main-content {
+    flex: 1;
+    min-height: 0; /* allow children to shrink inside the flex column */
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  /* Pages become height-constrained flex columns that fit the viewport.
+     They keep a fallback internal scroll so nothing is ever clipped on
+     unusually short desktop windows; the per-screen styles pin the
+     header/filter/footer chrome and scroll only the long content region. */
+  #main-content > .mt-page,
+  #main-content > .tok-main,
+  #main-content > .std-page,
+  #main-content > main {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    min-height: 0;
+  }
+  .tok-main.tok-create-page {
+    min-height: 0;
+  }
+}
+/* >=992px tall viewports: a little more breathing room. */
+@media (min-width: 992px) and (min-height: 860px) {
+  #main-content > .mt-page,
+  #main-content > .tok-main,
+  #main-content > .std-page { padding-top: 20px; }
+}
+
+/* Shared warm description block (requester + staff ticket detail): multi-line
+   text with preserved line breaks and generous min-height so both screens
+   render the description identically. */
+.tok-desc-warm {
+  min-height: 64px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
 }

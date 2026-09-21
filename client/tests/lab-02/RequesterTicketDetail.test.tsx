@@ -1,10 +1,9 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 import App from '../../src/App';
+import { stubAuthenticatedFetch, sessionUser } from '../helpers/auth';
 
-const REQUESTERS = [
-  { id: 1, name: 'Dev User Alpha', email: 'alpha@toktickit.test' },
-];
+const USER = sessionUser();
 
 const TICKET = {
   id: 1,
@@ -22,9 +21,20 @@ const TICKET = {
   attachments: [
     { id: 10, fileName: 'shot.png', mimeType: 'image/png', sizeBytes: 1024, uploadedAt: '2026-08-18T09:45:00.000Z', removedAt: null },
   ],
+  appearsResolvedAt: null,
   createdAt: '2026-08-18T09:30:00.000Z',
   updatedAt: '2026-08-18T09:31:00.000Z',
 };
+
+const COMMENTS = [
+  {
+    id: 11,
+    body: 'First comment.',
+    author: { id: 1, name: 'Dev User Alpha', role: 'REQUESTER' },
+    appearsResolved: false,
+    createdAt: '2026-08-19T09:00:00.000Z',
+  },
+];
 
 function ok(body: unknown) {
   return { ok: true, status: 200, json: async () => body } as Response;
@@ -33,11 +43,9 @@ function ok(body: unknown) {
 describe('RequesterTicketDetail', () => {
   beforeEach(() => {
     localStorage.clear();
-    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
-      if (String(url).includes('/api/requesters')) return ok(REQUESTERS);
-      if (String(url).includes('/api/categories')) return ok([]);
-      if (String(url).includes('/api/related-systems')) return ok([]);
-      if (String(url).includes('/api/tickets/TTK-2026-000042')) return ok(TICKET);
+    vi.stubGlobal('fetch', stubAuthenticatedFetch(USER, (url) => {
+      if (url.includes('/api/tickets/TTK-2026-000042/comments')) return ok(COMMENTS);
+      if (url.includes('/api/tickets/TTK-2026-000042')) return ok(TICKET);
       return ok({});
     }));
   });
@@ -62,7 +70,6 @@ describe('RequesterTicketDetail', () => {
     // breadcrumb still shows ticket number
     expect(screen.getAllByText(/My Tickets/).length).toBeGreaterThan(0);
     // Lab-pure ownership: Requester shows creator, Ticket Owner shows Unassigned
-    // Header also contains "Development Requester" and badge "Requester" — scope to detail card
     expect(
       Array.from(document.querySelectorAll('.td-card label')).some((l) =>
         l.textContent?.includes('Requester'),
@@ -71,25 +78,39 @@ describe('RequesterTicketDetail', () => {
     expect(screen.getByText('Ticket Owner')).toBeInTheDocument();
     expect(screen.getByText('Unassigned')).toBeInTheDocument();
     expect(screen.getAllByText('Dev User Alpha').length).toBeGreaterThan(0);
-    // all four tabs render
+    // all tabs render — Lab 3 tab set is Public Comments + Attachments only
+    // (Service Actions removed per ui-spec §5; no Event Log tab).
     expect(screen.getByRole('tab', { name: /Public Comments/ })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Service Actions/ })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Event Log/ })).toBeInTheDocument();
-    // mock tab captions present in DOM (even when tab not active)
-    expect(screen.getByText(/UI preview only — commenting arrives in a later lab/)).toBeInTheDocument();
-    expect(screen.getByText(/Read-only preview — service actions arrive in a later lab/)).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Attachments/ })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /Service Actions/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /Event Log/ })).not.toBeInTheDocument();
+    // live comment thread replaces the Lab 2 mock caption
+    expect(screen.queryByText(/UI preview only — commenting arrives in a later lab/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Read-only preview — service actions arrive in a later lab/)).not.toBeInTheDocument();
+    expect(await screen.findByText('First comment.')).toBeInTheDocument();
   });
 
-  it('shows fallback when description empty and caption', async () => {
+  it('shows fallback when description empty; header shows the authenticated user, not a selector', async () => {
     const empty = { ...TICKET, description: null };
-    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
-      if (String(url).includes('/api/requesters')) return ok(REQUESTERS);
-      if (String(url).includes('/api/tickets/TTK-2026-000042')) return ok(empty);
-      return ok([]);
+    cleanup();
+    vi.stubGlobal('fetch', stubAuthenticatedFetch(USER, (url) => {
+      if (url.includes('/api/tickets/TTK-2026-000042/comments')) return ok([]);
+      if (url.includes('/api/tickets/TTK-2026-000042')) return ok(empty);
+      return ok({});
     }));
     window.location.hash = '#/tickets/TTK-2026-000042';
     render(<App />);
     expect(await screen.findByText('No description provided')).toBeInTheDocument();
-    expect(screen.getAllByText('Testing only — not real authentication').length).toBeGreaterThan(0);
+    // BR-03: identity comes from the session — the header shows the single
+    // "Profile" account-menu toggle for all account types (name/role details
+    // live on the Profile page, reachable from the menu); the Development
+    // Requester selector is gone.
+    const navbar = document.querySelector('.tok-navbar') as HTMLElement;
+    expect(navbar).not.toBeNull();
+    expect(navbar.textContent).toContain('Profile');
+    expect(navbar.querySelector('.tok-profile-btn[aria-haspopup="menu"]')).not.toBeNull();
+    expect(navbar.querySelector('a[href="#/profile"]')).toBeNull();
+    expect(screen.queryByText('Testing only — not real authentication')).not.toBeInTheDocument();
+    expect(document.querySelector('#dev-requester-select')).toBeNull();
   });
 });

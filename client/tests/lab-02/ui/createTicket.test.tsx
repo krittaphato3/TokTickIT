@@ -2,10 +2,9 @@ import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../../../src/App';
+import { stubAuthenticatedFetch, sessionUser } from '../../helpers/auth';
 
-const REQUESTERS = [
-  { id: 1, name: 'Dev User Alpha', email: 'alpha@toktickit.test' },
-];
+const USER = sessionUser();
 const CATEGORIES = [
   { id: 1, name: 'Account and Access' },
   { id: 2, name: 'Hardware' },
@@ -30,7 +29,10 @@ function ok(body: unknown) {
 describe('UI-12 Related system select', () => {
   beforeEach(() => {
     localStorage.clear();
-    window.location.hash = '';
+    // Start on the create route directly (like a real deep link): the
+    // authenticated shell otherwise redirects home to #/my and mounts the
+    // My Tickets screen, which is not the subject of this suite.
+    window.location.hash = '#/new';
   });
   afterEach(() => {
     cleanup();
@@ -42,16 +44,14 @@ describe('UI-12 Related system select', () => {
   it('renders related system options from GET /api/related-systems', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (url: string) => {
-        if (String(url).includes('/api/requesters')) return ok(REQUESTERS);
+      stubAuthenticatedFetch(USER, async (url: string) => {
         if (String(url).includes('/api/related-systems')) return ok(RELATED_SYSTEMS);
         if (String(url).includes('/api/categories')) return ok(CATEGORIES);
         return ok({});
       }),
     );
     render(<App />);
-    await userEvent.click(screen.getByRole('link', { name: 'New Ticket' }));
-    // Wait for the form to be ready (lookups loaded)
+    // Already at #/new; wait for the form to be ready (lookups loaded)
     expect(await screen.findByLabelText(/^Related System/)).toBeInTheDocument();
     for (const sys of RELATED_SYSTEMS) {
       expect(screen.getByRole('option', { name: sys.name })).toBeInTheDocument();
@@ -62,8 +62,7 @@ describe('UI-12 Related system select', () => {
     let capturedBody: Record<string, unknown> | null = null;
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (url: string, init?: RequestInit) => {
-        if (String(url).includes('/api/requesters')) return ok(REQUESTERS);
+      stubAuthenticatedFetch(USER, async (url: string, init?: RequestInit) => {
         if (String(url).includes('/api/categories')) return ok(CATEGORIES);
         if (String(url).includes('/api/related-systems')) return ok(RELATED_SYSTEMS);
         if (String(url).includes('/api/tickets') && init?.method === 'POST') {
@@ -87,7 +86,7 @@ describe('UI-12 Related system select', () => {
       }),
     );
     render(<App />);
-    await userEvent.click(screen.getByRole('link', { name: 'New Ticket' }));
+    // Already at #/new; wait for the form to be ready (lookups loaded)
     await screen.findByLabelText(/^Related System/);
 
     await userEvent.type(screen.getByLabelText(/^Title/), 'Printer jam in office');
@@ -115,15 +114,14 @@ describe('UI-12 Related system select', () => {
       owner: null,
       category: { id: 1, name: 'Account and Access' },
       relatedSystem: { id: 2, name: 'Campus Wi-Fi' },
-      requester: REQUESTERS[0],
+      requester: { id: 1, name: 'Dev User Alpha', email: 'alpha@toktickit.test' },
       attachments: [],
       createdAt: '2026-08-28T09:00:00.000Z',
       updatedAt: '2026-08-28T09:00:00.000Z',
     };
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (url: string) => {
-        if (String(url).includes('/api/requesters')) return ok(REQUESTERS);
+      stubAuthenticatedFetch(USER, async (url: string) => {
         if (String(url).includes('/api/tickets/TTK-2026-000077')) return ok(TICKET);
         if (String(url).includes('/api/categories')) return ok([]);
         if (String(url).includes('/api/related-systems')) return ok([]);

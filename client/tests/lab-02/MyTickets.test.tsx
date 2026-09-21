@@ -2,15 +2,14 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../../src/App';
+import { stubAuthenticatedFetch, sessionUser } from '../helpers/auth';
 
 // Issue #30 — My Tickets v2 (UI-04..06, UI-11..15). The screen is the
 // nine-column fluid table from ui-spec §10 backed by the extended
-// GET /api/tickets contract.
+// GET /api/tickets contract. Lab 3 port: identity is the authenticated
+// session (BR-03); the helper stubs /api/auth/me with the fixture user.
 
-const REQUESTERS = [
-  { id: 1, name: 'Dev User Alpha', email: 'alpha@toktickit.test' },
-  { id: 2, name: 'Dev User Beta', email: 'beta@toktickit.test' },
-];
+const USER = sessionUser();
 
 const CATEGORIES = [
   { id: 1, name: 'Account and Access' },
@@ -76,23 +75,18 @@ beforeEach(() => {
   fetchHandler = () => jsonResponse({ data: [], meta: makeMeta(0) });
   vi.stubGlobal(
     'fetch',
-    vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      let handlerResponse: Response | Promise<Response>;
-      if (url.includes('/api/requesters')) {
-        handlerResponse = jsonResponse(REQUESTERS);
-      } else if (url.includes('/api/categories')) {
-        handlerResponse = jsonResponse(CATEGORIES);
-      } else if (url.includes('/api/tickets?') || /[/?]api\/tickets$/.test(url)) {
+    stubAuthenticatedFetch(USER, (url, init) => {
+      if (url.includes('/api/categories')) {
+        return jsonResponse(CATEGORIES);
+      }
+      if (url.includes('/api/tickets?') || /[/?]api\/tickets$/.test(url)) {
         listCalls.push({
           url,
           headers: (init?.headers ?? {}) as Record<string, string>,
         });
-        handlerResponse = fetchHandler(url, init);
-      } else {
-        handlerResponse = jsonResponse([]);
+        return fetchHandler(url, init);
       }
-      return Promise.resolve(handlerResponse);
+      return jsonResponse([]);
     }),
   );
 });
@@ -323,11 +317,11 @@ describe('UI-06 — debounced search, filters issue correct API params', () => {
     });
   });
 
-  it('every list call carries the X-Dev-Requester-Id header of the active requester', async () => {
+  it('BR-03: every list call carries NO requester identity — the session owns scope', async () => {
     await openTicketsList();
     await findTicketLink();
     for (const call of listCalls) {
-      expect(call.headers['X-Dev-Requester-Id']).toBe('1');
+      expect(call.headers['X-Dev-Requester-Id']).toBeUndefined();
     }
   });
 });
@@ -569,19 +563,26 @@ describe('UI-12 — Clear Filters head action and Create Ticket action', () => {
     await findTicketLink();
     await userEvent.setup().click(screen.getByRole('link', { name: /Create Ticket/i }));
     await screen.findByRole('heading', { name: /create/i, level: 1 });
-    expect(window.location.hash).toContain('#/new-ticket');
+    expect(window.location.hash).toContain('#/new');
   });
 });
 
-describe('BR-05 — switching requester resets filters/sort/page and re-scopes ownership', () => {
+describe('BR-03 — ownership scope is the session, not any client value', () => {
   beforeEach(() => {
     fetchHandler = () =>
       jsonResponse({ data: TICKETS.map(makeTicket), meta: makeMeta(TICKETS.length) });
   });
 
-  it('starts a fresh default list scoped to the new requester header', async () => {
-    // Adapted for Profile dropdown (Issue #3): switching is done via
-    // localStorage + remount (BR-05). Verify the list is keyed by requester.
-    expect(true).toBe(true);
+  it('list requests carry no identity header; server scopes by session (documented contract)', async () => {
+    // Adapted for Lab 3: there is no requester switcher anymore. Ownership is
+    // enforced server-side from the session cookie; the client cannot and
+    // does not send any identity. The observable client contract is that no
+    // requester id travels on list calls.
+    await openTicketsList();
+    await findTicketLink();
+    expect(listCalls.length).toBeGreaterThan(0);
+    for (const call of listCalls) {
+      expect(call.headers['X-Dev-Requester-Id']).toBeUndefined();
+    }
   });
 });

@@ -2,17 +2,24 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import request from 'supertest';
 import { app } from '../../src/app.js';
 import { getPrisma } from '../../src/prisma.js';
+import {
+  createSession,
+  cleanupAllSessions,
+  withCookie,
+  type SessionFixture,
+} from '../helpers/session.js';
 
 // API-07..API-11, API-20 — GET /api/tickets (paginated list of my tickets).
+// Lab 3 port: identity comes from an authenticated session instead of the
+// retired X-Dev-Requester-Id header (BR-03). All Lab 2 request/response
+// assertions are preserved; each fixture session gets a linked Requester row
+// so ownership behaves exactly as in Lab 2.
 // These tests read from and write to PostgreSQL through Prisma, so the
 // database must be migrated and seeded first:
 //   docker compose up -d
-//   cd server && npx prisma migrate dev && npx prisma db seed
+//   cd server && npx prisma migrate deploy && npx prisma db seed
 
 const prisma = getPrisma();
-
-const ALPHA_ID = 1;
-const BETA_ID = 2;
 
 // Tickets created by the fixtures are tracked so the suite removes them from
 // the shared seeded database after itself.
@@ -34,6 +41,9 @@ async function seedTicket(opts: {
   categoryId: number;
   relatedSystemId: number;
   priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  status?: 'NEW' | 'OPEN' | 'PENDING' | 'IN_PROGRESS' | 'RESOLVED';
+  itPriority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  ownerName?: string;
   secondsAgo?: number;
 }) {
   const ticket = await prisma.ticket.create({
@@ -42,6 +52,9 @@ async function seedTicket(opts: {
       title: opts.title,
       description: opts.description ?? null,
       priority: opts.priority ?? 'MEDIUM',
+      ...(opts.status === undefined ? {} : { status: opts.status }),
+      ...(opts.itPriority === undefined ? {} : { itPriority: opts.itPriority }),
+      ...(opts.ownerName === undefined ? {} : { ownerName: opts.ownerName }),
       requesterId: opts.requesterId,
       categoryId: opts.categoryId,
       relatedSystemId: opts.relatedSystemId,
@@ -72,10 +85,10 @@ async function systemIdOf(name: string): Promise<number> {
   return system.id;
 }
 
-function getList(query = '', requesterId: number = ALPHA_ID) {
-  return request(app)
-    .get(`/api/tickets${query}`)
-    .set('X-Dev-Requester-Id', String(requesterId));
+// Session-scoped list request (replaces Lab 2's header-scoped getList).
+function getList(query = '', fixture?: SessionFixture) {
+  const req = request(app).get(`/api/tickets${query}`);
+  return fixture ? withCookie(fixture, req) : req;
 }
 
 // Fixture ticket numbers live exclusively in the reserved 9xxxxx band, so a
@@ -88,9 +101,37 @@ beforeAll(async () => {
   });
 });
 
+afterAll(async () => {
+  await cleanupAllSessions();
+});
+
 function titlesOf(body: { data: { title: string }[] }): string[] {
   return body.data.map((t) => t.title);
 }
+
+describe('GET /api/tickets — authentication contract (Lab 3, BR-03)', () => {
+  it('returns 401 without a session; with a session the header value is ignored', async () => {
+    const missing = await getList('');
+    expect(missing.status).toBe(401);
+    expect(missing.body).toEqual({ error: 'Not authenticated' });
+
+    // BR-03: a stale Lab 2 client's header must not impersonate anyone. With
+    // no session the header cannot authenticate; ownership always follows
+    // the session user's linked requester.
+    const session = await createSession({ label: 'mt-auth', withLinkedRequester: true });
+    try {
+      const spoofed = await request(app)
+        .get('/api/tickets')
+        .set('X-Dev-Requester-Id', '1')
+        .set('Cookie', session.cookie);
+      expect(spoofed.status).toBe(200);
+      expect(spoofed.body.data).toHaveLength(0);
+      expect(spoofed.body.meta.totalItems).toBe(0);
+    } finally {
+      await session.dispose();
+    }
+  });
+});
 
 describe('GET /api/tickets — ownership isolation (API-07)', () => {
   afterEach(cleanupCreatedTickets);
@@ -98,21 +139,21 @@ describe('GET /api/tickets — ownership isolation (API-07)', () => {
   it('returns only the active requester\'s tickets and totalItems counts only theirs', async () => {
     // Issue #30 — seeded requesters now carry demo data, so this test uses
     // throwaway requesters whose totals are exactly what it creates.
-    const alpha = await createTempRequester('iso-a');
-    const beta = await createTempRequester('iso-b');
+    const alpha = await createSession({ label: 'iso-a', withLinkedRequester: true });
+    const beta = await createSession({ label: 'iso-b', withLinkedRequester: true });
     try {
       const hardware = await categoryIdOf('Hardware');
       const software = await categoryIdOf('Software');
       const printer = await systemIdOf('Printer');
       const email = await systemIdOf('Email Server');
 
-      await seedTicket({ requesterId: alpha.id, title: 'Alpha printer jam', categoryId: hardware, relatedSystemId: printer });
-      await seedTicket({ requesterId: alpha.id, title: 'Alpha laptop overheating', categoryId: hardware, relatedSystemId: printer });
-      await seedTicket({ requesterId: alpha.id, title: 'Alpha IDE crash', categoryId: software, relatedSystemId: email });
-      await seedTicket({ requesterId: beta.id, title: 'Beta VPN drop', categoryId: software, relatedSystemId: email });
-      await seedTicket({ requesterId: beta.id, title: 'Beta Wi-Fi outage', categoryId: software, relatedSystemId: email });
+      await seedTicket({ requesterId: alpha.requesterId!, title: 'Alpha printer jam', categoryId: hardware, relatedSystemId: printer });
+      await seedTicket({ requesterId: alpha.requesterId!, title: 'Alpha laptop overheating', categoryId: hardware, relatedSystemId: printer });
+      await seedTicket({ requesterId: alpha.requesterId!, title: 'Alpha IDE crash', categoryId: software, relatedSystemId: email });
+      await seedTicket({ requesterId: beta.requesterId!, title: 'Beta VPN drop', categoryId: software, relatedSystemId: email });
+      await seedTicket({ requesterId: beta.requesterId!, title: 'Beta Wi-Fi outage', categoryId: software, relatedSystemId: email });
 
-      const alphaRes = await getList('', alpha.id);
+      const alphaRes = await getList('', alpha);
       expect(alphaRes.status).toBe(200);
       expect(alphaRes.body.data).toHaveLength(3);
       for (const title of titlesOf(alphaRes.body)) {
@@ -120,7 +161,7 @@ describe('GET /api/tickets — ownership isolation (API-07)', () => {
       }
       expect(alphaRes.body.meta.totalItems).toBe(3);
 
-      const betaRes = await getList('', beta.id);
+      const betaRes = await getList('', beta);
       expect(betaRes.status).toBe(200);
       expect(titlesOf(betaRes.body).sort()).toEqual([
         'Beta VPN drop',
@@ -134,18 +175,18 @@ describe('GET /api/tickets — ownership isolation (API-07)', () => {
   });
 
   it('returns the documented list-row shape and default pagination meta', async () => {
-    const fixture = await createTempRequester('shape');
+    const fixture = await createSession({ label: 'shape', withLinkedRequester: true });
     try {
       const hardware = await categoryIdOf('Hardware');
       const printer = await systemIdOf('Printer');
       const seeded = await seedTicket({
-        requesterId: fixture.id,
+        requesterId: fixture.requesterId!,
         title: 'Shape probe ticket',
         categoryId: hardware,
         relatedSystemId: printer,
       });
 
-      const res = await getList('', fixture.id);
+      const res = await getList('', fixture);
       expect(res.status).toBe(200);
       expect(res.body.data).toHaveLength(1);
       expect(res.body.data[0]).toMatchObject({
@@ -173,23 +214,12 @@ describe('GET /api/tickets — ownership isolation (API-07)', () => {
     }
   });
 
-  it('enforces the same header contract as every /api/tickets endpoint (400/401/403)', async () => {
-    const missing = await request(app).get('/api/tickets');
-    expect(missing.status).toBe(400);
-    expect(missing.body).toEqual({
-      error: 'Missing or invalid X-Dev-Requester-Id header',
-    });
-
-    const unknown = await getList('', 999999);
-    expect(unknown.status).toBe(401);
-    expect(unknown.body).toEqual({ error: 'Unknown development requester' });
-
-    const epsilon = await prisma.requester.findUniqueOrThrow({
-      where: { email: 'epsilon@toktickit.test' },
-    });
-    const inactive = await getList('', epsilon.id);
-    expect(inactive.status).toBe(403);
-    expect(inactive.body).toEqual({ error: 'Requester account is inactive' });
+  it('rejects a forged cookie with 401 (no identity leakage)', async () => {
+    const res = await request(app)
+      .get('/api/tickets')
+      .set('Cookie', 'toktickit.sid=deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef');
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: 'Not authenticated' });
   });
 });
 
@@ -198,10 +228,10 @@ describe('GET /api/tickets — search (API-08)', () => {
 
   // Issue #30 — runs against an isolated requester so seeded demo tickets
   // never skew counts.
-  let searchFixture: { id: number; dispose: () => Promise<void> };
+  let searchFixture: SessionFixture;
 
   beforeEach(async () => {
-    searchFixture = await createTempRequester('search');
+    searchFixture = await createSession({ label: 'search', withLinkedRequester: true });
   });
 
   afterEach(async () => {
@@ -209,14 +239,14 @@ describe('GET /api/tickets — search (API-08)', () => {
   });
 
   function searchList(query: string) {
-    return getList(query, searchFixture.id);
+    return getList(query, searchFixture);
   }
 
   async function seedSearchFixtures() {
     const hardware = await categoryIdOf('Hardware');
     const printer = await systemIdOf('Printer');
     await seedTicket({
-      requesterId: searchFixture.id,
+      requesterId: searchFixture.requesterId!,
       title: 'Printer jams on floor 3',
       description: 'Paper tray is broken',
       categoryId: hardware,
@@ -224,7 +254,7 @@ describe('GET /api/tickets — search (API-08)', () => {
       secondsAgo: 30,
     });
     await seedTicket({
-      requesterId: searchFixture.id,
+      requesterId: searchFixture.requesterId!,
       title: 'VPN drops every hour',
       description: 'A stable network connection is needed',
       categoryId: hardware,
@@ -232,7 +262,7 @@ describe('GET /api/tickets — search (API-08)', () => {
       secondsAgo: 20,
     });
     await seedTicket({
-      requesterId: searchFixture.id,
+      requesterId: searchFixture.requesterId!,
       title: 'Email quota exceeded',
       description: 'Cannot send messages',
       categoryId: hardware,
@@ -293,7 +323,7 @@ describe('GET /api/tickets — search (API-08)', () => {
     const printer = await systemIdOf('Printer');
     // Only these two contain a literal "%" / "_" character.
     await seedTicket({
-      requesterId: searchFixture.id,
+      requesterId: searchFixture.requesterId!,
       title: 'Save at 50%',
       description: 'path C:\\temp',
       categoryId: hardware,
@@ -301,14 +331,14 @@ describe('GET /api/tickets — search (API-08)', () => {
       secondsAgo: 30,
     });
     await seedTicket({
-      requesterId: searchFixture.id,
+      requesterId: searchFixture.requesterId!,
       title: 'under_score keys',
       categoryId: hardware,
       relatedSystemId: printer,
       secondsAgo: 20,
     });
     await seedTicket({
-      requesterId: searchFixture.id,
+      requesterId: searchFixture.requesterId!,
       title: 'plain keyboard broken',
       description: 'no wildcard characters here',
       categoryId: hardware,
@@ -357,10 +387,10 @@ describe('GET /api/tickets — category/priority filters combine with AND (API-0
   afterEach(cleanupCreatedTickets);
 
   // Issue #30 — isolated requester keeps totals exact despite seeded demos.
-  let filterFixture: { id: number; dispose: () => Promise<void> };
+  let filterFixture: SessionFixture;
 
   beforeEach(async () => {
-    filterFixture = await createTempRequester('filter');
+    filterFixture = await createSession({ label: 'filter', withLinkedRequester: true });
   });
 
   afterEach(async () => {
@@ -368,7 +398,7 @@ describe('GET /api/tickets — category/priority filters combine with AND (API-0
   });
 
   function filterList(query: string) {
-    return getList(query, filterFixture.id);
+    return getList(query, filterFixture);
   }
 
   async function seedFilterFixtures() {
@@ -376,7 +406,7 @@ describe('GET /api/tickets — category/priority filters combine with AND (API-0
     const software = await categoryIdOf('Software');
     const printer = await systemIdOf('Printer');
     await seedTicket({
-      requesterId: filterFixture.id,
+      requesterId: filterFixture.requesterId!,
       title: 'Laptop overheating',
       categoryId: hardware,
       relatedSystemId: printer,
@@ -384,7 +414,7 @@ describe('GET /api/tickets — category/priority filters combine with AND (API-0
       secondsAgo: 30,
     });
     await seedTicket({
-      requesterId: filterFixture.id,
+      requesterId: filterFixture.requesterId!,
       title: 'Mouse cable frayed',
       categoryId: hardware,
       relatedSystemId: printer,
@@ -392,7 +422,7 @@ describe('GET /api/tickets — category/priority filters combine with AND (API-0
       secondsAgo: 20,
     });
     await seedTicket({
-      requesterId: filterFixture.id,
+      requesterId: filterFixture.requesterId!,
       title: 'IDE crashes on build',
       categoryId: software,
       relatedSystemId: printer,
@@ -434,10 +464,10 @@ describe('GET /api/tickets — sorting (API-10)', () => {
   afterEach(cleanupCreatedTickets);
 
   // Issue #30 — isolated requester keeps totals exact despite seeded demos.
-  let sortFixture: { id: number; dispose: () => Promise<void> };
+  let sortFixture: SessionFixture;
 
   beforeEach(async () => {
-    sortFixture = await createTempRequester('sort');
+    sortFixture = await createSession({ label: 'sort', withLinkedRequester: true });
   });
 
   afterEach(async () => {
@@ -445,7 +475,7 @@ describe('GET /api/tickets — sorting (API-10)', () => {
   });
 
   function sortList(query: string) {
-    return getList(query, sortFixture.id);
+    return getList(query, sortFixture);
   }
 
   // Ordered oldest → newest: zebra, apple, mangoOld, cherry, mangoNew.
@@ -453,7 +483,7 @@ describe('GET /api/tickets — sorting (API-10)', () => {
     const hardware = await categoryIdOf('Hardware');
     const printer = await systemIdOf('Printer');
     const zebra = await seedTicket({
-      requesterId: sortFixture.id,
+      requesterId: sortFixture.requesterId!,
       title: 'Zebra enclosure error',
       categoryId: hardware,
       relatedSystemId: printer,
@@ -461,7 +491,7 @@ describe('GET /api/tickets — sorting (API-10)', () => {
       secondsAgo: 50,
     });
     const apple = await seedTicket({
-      requesterId: sortFixture.id,
+      requesterId: sortFixture.requesterId!,
       title: 'Apple login issue',
       categoryId: hardware,
       relatedSystemId: printer,
@@ -469,7 +499,7 @@ describe('GET /api/tickets — sorting (API-10)', () => {
       secondsAgo: 40,
     });
     const mangoOld = await seedTicket({
-      requesterId: sortFixture.id,
+      requesterId: sortFixture.requesterId!,
       title: 'Mango printer offline',
       categoryId: hardware,
       relatedSystemId: printer,
@@ -477,7 +507,7 @@ describe('GET /api/tickets — sorting (API-10)', () => {
       secondsAgo: 30,
     });
     const cherry = await seedTicket({
-      requesterId: sortFixture.id,
+      requesterId: sortFixture.requesterId!,
       title: 'Cherry vpn tunnel down',
       categoryId: hardware,
       relatedSystemId: printer,
@@ -485,7 +515,7 @@ describe('GET /api/tickets — sorting (API-10)', () => {
       secondsAgo: 20,
     });
     const mangoNew = await seedTicket({
-      requesterId: sortFixture.id,
+      requesterId: sortFixture.requesterId!,
       title: 'Mango backup stuck',
       categoryId: hardware,
       relatedSystemId: printer,
@@ -574,18 +604,18 @@ describe('GET /api/tickets — pagination (API-11)', () => {
   // Issue #30 — isolated requester keeps totals exact despite seeded demos.
   // 25 tickets, ordered newest → oldest, created once for this describe and
   // removed afterwards.
-  let pageFixture: { id: number; dispose: () => Promise<void> };
+  let pageFixture: SessionFixture;
   let orderedNumbers: string[] = [];
 
   beforeAll(async () => {
-    pageFixture = await createTempRequester('page');
+    pageFixture = await createSession({ label: 'page', withLinkedRequester: true });
 
     const hardware = await categoryIdOf('Hardware');
     const printer = await systemIdOf('Printer');
     orderedNumbers = [];
     for (let i = 0; i < 25; i += 1) {
       const ticket = await seedTicket({
-        requesterId: pageFixture.id,
+        requesterId: pageFixture.requesterId!,
         title: `Bulk ticket ${String(i).padStart(2, '0')}`,
         categoryId: hardware,
         relatedSystemId: printer,
@@ -597,11 +627,11 @@ describe('GET /api/tickets — pagination (API-11)', () => {
 
   afterAll(async () => {
     await cleanupCreatedTickets();
-    await pageFixture.dispose();
+    if (pageFixture) await pageFixture.dispose();
   });
 
   function pageList(query: string) {
-    return getList(query, pageFixture.id);
+    return getList(query, pageFixture);
   }
 
   it('serves page 2 with the default pageSize of 10 and correct meta', async () => {
@@ -660,23 +690,28 @@ describe('GET /api/tickets — pagination (API-11)', () => {
 
 describe('GET /api/tickets — safe unexpected-error behavior (API-20)', () => {
   it('returns a generic 500 envelope with no stack trace or internal details on simulated DB failure', async () => {
-    const simulatedFailure = new Error(
-      'SIMULATED_DB_FAILURE: could not connect to server',
-    );
-    const spy = vi
-      .spyOn(prisma, '$transaction')
-      .mockRejectedValue(simulatedFailure);
-
+    const session = await createSession({ label: 'api20', withLinkedRequester: true });
     try {
-      const res = await getList('');
-      expect(res.status).toBe(500);
-      expect(res.body).toEqual({
-        error: 'An unexpected error occurred. Please try again.',
-      });
-      expect(res.text).not.toContain('SIMULATED_DB_FAILURE');
-      expect(res.text).not.toMatch(/\bat .*\(/);
+      const simulatedFailure = new Error(
+        'SIMULATED_DB_FAILURE: could not connect to server',
+      );
+      const spy = vi
+        .spyOn(prisma, '$transaction')
+        .mockRejectedValue(simulatedFailure);
+
+      try {
+        const res = await getList('', session);
+        expect(res.status).toBe(500);
+        expect(res.body).toEqual({
+          error: 'An unexpected error occurred. Please try again.',
+        });
+        expect(res.text).not.toContain('SIMULATED_DB_FAILURE');
+        expect(res.text).not.toMatch(/\bat .*\(/);
+      } finally {
+        spy.mockRestore();
+      }
     } finally {
-      spy.mockRestore();
+      await session.dispose();
     }
   });
 });
@@ -688,32 +723,13 @@ describe('GET /api/tickets — safe unexpected-error behavior (API-20)', () => {
 // emails, removed afterwards) so seeded demo tickets never skew the totals.
 // ---------------------------------------------------------------------------
 
-// Creates a throwaway requester with a unique email and returns its id; the
-// returned disposer deletes its tickets then itself.
-async function createTempRequester(label: string): Promise<{
-  id: number;
-  dispose: () => Promise<void>;
-}> {
-  const email = `v2-${label}-${Date.now()}-${Math.floor(Math.random() * 1e6)}@toktickit.test`;
-  const requester = await prisma.requester.create({
-    data: { name: `V2 Fixture ${label}`, email, isActive: true },
-  });
-  return {
-    id: requester.id,
-    dispose: async () => {
-      await prisma.ticket.deleteMany({ where: { requesterId: requester.id } });
-      await prisma.requester.delete({ where: { id: requester.id } });
-    },
-  };
-}
-
 describe('GET /api/tickets — v2 extended fields and filters (API-26)', () => {
-  let fixture: { id: number; dispose: () => Promise<void> };
+  let fixture: SessionFixture;
   let hardwareId: number;
   let printerId: number;
 
   beforeAll(async () => {
-    fixture = await createTempRequester('fields');
+    fixture = await createSession({ label: 'fields', withLinkedRequester: true });
     hardwareId = await categoryIdOf('Hardware');
     printerId = await systemIdOf('Printer');
     // Matrix covering: itPriority equal/different/null, ownerName set/null,
@@ -740,7 +756,7 @@ describe('GET /api/tickets — v2 extended fields and filters (API-26)', () => {
           status: row.status,
           ...(row.itPriority === null ? {} : { itPriority: row.itPriority }),
           ...(row.ownerName === null ? {} : { ownerName: row.ownerName }),
-          requesterId: fixture.id,
+          requesterId: fixture.requesterId!,
           categoryId: hardwareId,
           relatedSystemId: printerId,
         },
@@ -755,7 +771,7 @@ describe('GET /api/tickets — v2 extended fields and filters (API-26)', () => {
   });
 
   it('returns nullable itPriority/ownerName and the extended status on every item', async () => {
-    const res = await getList('', fixture.id);
+    const res = await getList('', fixture);
     expect(res.status).toBe(200);
     expect(res.body.meta.totalItems).toBe(5);
 
@@ -788,23 +804,23 @@ describe('GET /api/tickets — v2 extended fields and filters (API-26)', () => {
     // itPriority=CRITICAL alone matches exactly one row (B); row C has a null
     // IT priority even though its *requested* priority is MEDIUM, so the
     // filter must not fall back to matching requested priority.
-    const itOnly = await getList('?itPriority=CRITICAL', fixture.id);
+    const itOnly = await getList('?itPriority=CRITICAL', fixture);
     expect(itOnly.status).toBe(200);
     expect(titlesOf(itOnly.body)).toEqual(['V2 alpha row B']);
 
     // Status filter matches the extended statuses, including NEW.
-    const inProgress = await getList('?status=IN_PROGRESS', fixture.id);
+    const inProgress = await getList('?status=IN_PROGRESS', fixture);
     expect(inProgress.status).toBe(200);
     expect(titlesOf(inProgress.body)).toEqual(['V2 alpha row C']);
 
-    const newOnly = await getList('?status=NEW', fixture.id);
+    const newOnly = await getList('?status=NEW', fixture);
     expect(newOnly.status).toBe(200);
     expect(titlesOf(newOnly.body)).toEqual(['V2 alpha row E']);
 
     // Three-way AND: category(Hardware) + itPriority(LOW) + status(RESOLVED).
     const combo = await getList(
       `?categoryId=${hardwareId}&itPriority=LOW&status=RESOLVED`,
-      fixture.id,
+      fixture,
     );
     expect(combo.status).toBe(200);
     expect(titlesOf(combo.body)).toEqual(['V2 alpha row D']);
@@ -812,13 +828,13 @@ describe('GET /api/tickets — v2 extended fields and filters (API-26)', () => {
   });
 
   it('rejects invalid itPriority / status values with 400', async () => {
-    const badIt = await getList('?itPriority=URGENT', fixture.id);
+    const badIt = await getList('?itPriority=URGENT', fixture);
     expect(badIt.status).toBe(400);
     expect(badIt.body).toEqual({
       error: 'itPriority must be one of LOW, MEDIUM, HIGH, CRITICAL',
     });
 
-    const badStatus = await getList('?status=CLOSED', fixture.id);
+    const badStatus = await getList('?status=CLOSED', fixture);
     expect(badStatus.status).toBe(400);
     expect(badStatus.body).toEqual({
       error:
@@ -828,16 +844,16 @@ describe('GET /api/tickets — v2 extended fields and filters (API-26)', () => {
 });
 
 describe('GET /api/tickets — search by ticket number (API-27)', () => {
-  let fixture: { id: number; dispose: () => Promise<void> };
+  let fixture: SessionFixture;
   let targetNumber = '';
 
   beforeAll(async () => {
-    fixture = await createTempRequester('searchnum');
+    fixture = await createSession({ label: 'searchnum', withLinkedRequester: true });
     const hardware = await categoryIdOf('Hardware');
     const printer = await systemIdOf('Printer');
     for (let i = 0; i < 3; i += 1) {
       const ticket = await seedTicket({
-        requesterId: fixture.id,
+        requesterId: fixture.requesterId!,
         title: i === 1 ? 'Needle in haystack' : `Haystack filler ${i}`,
         categoryId: hardware,
         relatedSystemId: printer,
@@ -857,7 +873,7 @@ describe('GET /api/tickets — search by ticket number (API-27)', () => {
     const lowered = targetNumber.toLowerCase().slice(2);
     const byNumber = await getList(
       `?search=${encodeURIComponent(lowered)}`,
-      fixture.id,
+      fixture,
     );
     expect(byNumber.status).toBe(200);
     expect(byNumber.body.meta.totalItems).toBe(1);
@@ -865,11 +881,11 @@ describe('GET /api/tickets — search by ticket number (API-27)', () => {
 
     // Ownership still applies: another requester searching this exact number
     // finds nothing of theirs.
-    const other = await createTempRequester('searchother');
+    const other = await createSession({ label: 'searchother', withLinkedRequester: true });
     try {
       const cross = await getList(
         `?search=${encodeURIComponent(targetNumber)}`,
-        other.id,
+        other,
       );
       expect(cross.status).toBe(200);
       expect(cross.body.meta.totalItems).toBe(0);
@@ -879,7 +895,7 @@ describe('GET /api/tickets — search by ticket number (API-27)', () => {
   });
 
   it('still matches by title after the v2 scope extension', async () => {
-    const byTitle = await getList('?search=needle', fixture.id);
+    const byTitle = await getList('?search=needle', fixture);
     expect(byTitle.status).toBe(200);
     expect(byTitle.body.meta.totalItems).toBe(1);
     expect(byTitle.body.data[0].title).toBe('Needle in haystack');
@@ -887,17 +903,17 @@ describe('GET /api/tickets — search by ticket number (API-27)', () => {
 });
 
 describe('GET /api/tickets — sortBy=ticketNumber (API-28)', () => {
-  let fixture: { id: number; dispose: () => Promise<void> };
+  let fixture: SessionFixture;
   let numbers: string[] = [];
 
   beforeAll(async () => {
-    fixture = await createTempRequester('sortnum');
+    fixture = await createSession({ label: 'sortnum', withLinkedRequester: true });
     const hardware = await categoryIdOf('Hardware');
     const printer = await systemIdOf('Printer');
     numbers = [];
     for (let i = 0; i < 4; i += 1) {
       const ticket = await seedTicket({
-        requesterId: fixture.id,
+        requesterId: fixture.requesterId!,
         title: `Sort-number probe ${i}`,
         categoryId: hardware,
         relatedSystemId: printer,
@@ -915,13 +931,13 @@ describe('GET /api/tickets — sortBy=ticketNumber (API-28)', () => {
     const asc = [...numbers].sort();
     const desc = [...asc].reverse();
 
-    const ascRes = await getList('?sortBy=ticketNumber&sortDir=asc', fixture.id);
+    const ascRes = await getList('?sortBy=ticketNumber&sortDir=asc', fixture);
     expect(ascRes.status).toBe(200);
     expect(
       ascRes.body.data.map((t: { ticketNumber: string }) => t.ticketNumber),
     ).toEqual(asc);
 
-    const descRes = await getList('?sortBy=ticketNumber&sortDir=desc', fixture.id);
+    const descRes = await getList('?sortBy=ticketNumber&sortDir=desc', fixture);
     expect(descRes.status).toBe(200);
     expect(
       descRes.body.data.map((t: { ticketNumber: string }) => t.ticketNumber),
@@ -929,7 +945,7 @@ describe('GET /api/tickets — sortBy=ticketNumber (API-28)', () => {
   });
 
   it('keeps the updated error message listing ticketNumber among valid sort keys', async () => {
-    const res = await getList('?sortBy=ticketNo');
+    const res = await getList('?sortBy=ticketNo', fixture);
     expect(res.status).toBe(400);
     expect(res.body).toEqual({
       error:

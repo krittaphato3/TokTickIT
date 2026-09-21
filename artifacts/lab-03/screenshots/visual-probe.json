@@ -1,0 +1,191 @@
+[
+  {
+    "screen": "login",
+    "width": 1440,
+    "hOverflow": false,
+    "focusVisible": false,
+    "cardOffCenterPx": 0
+  },
+  {
+    "screen": "login",
+    "width": 834,
+    "hOverflow": false,
+    "focusVisible": false,
+    "cardOffCenterPx": 0
+  },
+  {
+    "screen": "login",
+    "width": 375,
+    "hOverflow": false,
+    "focusVisible": false,
+    "cardOffCenterPx": 0
+  },
+  {
+    "screen": "change-password-gate",
+    "width": 1440,
+    "hOverflow": false,
+    "focusVisible": false,
+    "cardOffCenterPx": 0
+  },
+  {
+    "screen": "change-password-gate",
+    "width": 834,
+    "hOverflow": false,
+    "focusVisible": false,
+    "cardOffCenterPx": 0
+  },
+  {
+    "screen": "change-password-gate",
+    "width": 375,
+    "hOverflow": false,
+    "focusVisible": false,
+    "cardOffCenterPx": 0
+  },
+  {
+    "screen": "my-tickets",
+    "width": 1440,
+    "hOverflow": false,
+    "focusVisible": false,
+    "cardOffCenterPx": null
+  },
+  {
+    "screen": "create-ticket",
+    "width": 1440,
+    "hOverflow": false,
+    "focusVisible": false,
+    "cardOffCenterPx": null
+  },
+  {
+    "screen": "requester-detail",
+    "width": 1440,
+    "hOverflow": false,
+    "focusVisible": false,
+    "cardOffCenterPx": null
+  },
+  {
+    "screen": "my-tickets",
+    "width": 834,
+    "hOverflow": false,
+    "focusVisible": false,
+    "cardOffCenterPx": null
+  },
+  {
+    "screen": "create-ticket",
+    "width": 834,
+    "hOverflow": false,
+    "focusVisible": false,
+    "cardOffCenterPx": null
+  },
+  {
+    "screen": "requester-detail",
+    "width": 834,
+    "hOverflow": false,
+    "focusVisible": false,
+    "cardOffCenterPx": null
+  },
+  {
+    "screen": "my-tickets",
+    "width": 375,
+    "hOverflow": false,
+    "focusVisible": false,
+    "cardOffCenterPx": null
+  },
+  {
+    "screen": "create-ticket",
+    "width": 375,
+    "hOverflow": false,
+    "focusVisible": false,
+    "cardOffCenterPx": null
+  },
+  {
+    "screen": "requester-detail",
+    "width": 375,
+    "hOverflow": false,
+    "focusVisible": false,
+    "cardOffCenterPx": null
+  },
+  {
+    "screen": "requester-detail",
+    "width": 1440,
+    "hOverflow": false,
+    "focusVisible": null
+  },
+  {
+    "screen": "requester-detail",
+    "width": 834,
+    "hOverflow": false,
+    "focusVisible": null
+  },
+  {
+    "screen": "requester-detail",
+    "width": 375,
+    "hOverflow": false,
+    "focusVisible": null
+  },
+  {
+    "screen": "requester-forbidden",
+    "width": 1440,
+    "hOverflow": false,
+    "focusVisible": null
+  },
+  {
+    "screen": "staff-queue",
+    "width": 1440,
+    "hOverflow": false,
+    "focusVisible": false,
+    "cardOffCenterPx": null
+  },
+  {
+    "screen": "staff-queue",
+    "width": 834,
+    "hOverflow": false,
+    "focusVisible": false,
+    "cardOffCenterPx": null
+  },
+  {
+    "screen": "staff-queue",
+    "width": 375,
+    "hOverflow": false,
+    "focusVisible": false,
+    "cardOffCenterPx": null
+  },
+  {
+    "screen": "staff-ticket-detail",
+    "width": 1440,
+    "hOverflow": false,
+    "focusVisible": null
+  },
+  {
+    "screen": "staff-ticket-detail",
+    "width": 834,
+    "hOverflow": false,
+    "focusVisible": null
+  },
+  {
+    "screen": "staff-ticket-detail",
+    "width": 375,
+    "hOverflow": false,
+    "focusVisible": null
+  },
+  {
+    "screen": "user-management",
+    "width": 1440,
+    "hOverflow": false,
+    "focusVisible": false,
+    "cardOffCenterPx": null
+  },
+  {
+    "screen": "user-management",
+    "width": 834,
+    "hOverflow": false,
+    "focusVisible": false,
+    "cardOffCenterPx": null
+  },
+  {
+    "screen": "user-management",
+    "width": 375,
+    "hOverflow": false,
+    "focusVisible": false,
+    "cardOffCenterPx": null
+  }
+]
