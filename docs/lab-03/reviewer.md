@@ -198,13 +198,43 @@ Status: MERGED — three approvals (atiwit, napatsun, Alongkron1234). Final: 277
 
 ---
 
+Issue 43 — GitHub #43 LAB3-07 Release integration and final submission evidence:
+
+Reviewer name / student ID / GitHub username:
+- Name: ATIWIT
+- Student ID: 67070501048
+- GitHub username: atiwit
+
+Reviewer name / student ID / GitHub username:
+- Name: NAPATR KASEMWEERASAN
+- Student ID: 67070501014
+- GitHub username: napatsun
+
+Reviewer name / student ID / GitHub username:
+- Name: ALONGKORN KAEWPROM
+- Student ID: 67070501050
+- GitHub username: Alongkron1234
+
+PRs reviewed (links):
+- https://github.com/krittaphato3/TokTickIT/pull/53 (docs(lab3): LAB3-07 release docs finalization — ai-use, reviewer, tests) — Refs #43, lab3-staging → main
+
+Comment received from partner on my PR → my response:
+- Alongkron1234 (Approved 2026-09-21): "โค้ดไฟล์ต่างๆทำออกมาได้ดีเลยครับ ครบถ้วนดีมากครับ ให้ไปเลย 1 นิ้ว☝️"
+- atiwit (Approved 2026-09-21): "โดยรวมแล้วเอกสาร ต่างๆครบถ้วนพร้อมขึ้น main ได้เลยครับสุดยอดมาก"
+- napatsun (Approved 2026-09-21): "ผ่านครับ เสี่ยโอ โซน"
+- krittaphato3 (me): "ขอบคุณ ครับ @atiwit @Alongkron1234 @napatsun"
+
+Status: OPEN — three approvals (Alongkron1234, atiwit, napatsun); Refs #43, does not close it (main verification + final PDF still pending).
+
+---
+
 ## My Reviews — PRs I Reviewed (as reviewer: krittaphato3 (Me))
 
 > All PRs below were reviewed by me (krittaphato3) — 19 Lab 3 PRs across teammates' repos, every approval and comment body verified from the PR page (fetched Sep 21, 2026). Only Alongkron1234 #50 was approval-only with no text comment. Not reviewed by me: napatsun #42, #49; Alongkron1234 #49, #53.
 
 ---
 
-### napatsun — PRs I Reviewed (2)
+### napatsun — PRs I Reviewed (7)
 
 #### My Review — napatsun/TokTickIT#43 — Feature/lab3-03-requester-regression
 
@@ -341,7 +371,7 @@ Status: MERGED (by krittaphato3).
 
 ---
 
-### atiwit — PRs I Reviewed (1)
+### atiwit — PRs I Reviewed (5)
 
 #### My Review — atiwit/toktickit#48 — feat(lab-03): add IT staff ticket detail tests, confirmation dialog
 
@@ -446,7 +476,7 @@ Status: MERGED (by krittaphato3).
 
 ---
 
-### Alongkron1234 — PRs I Reviewed (1)
+### Alongkron1234 — PRs I Reviewed (7)
 
 #### My Review — Alongkron1234/toktickit#51 — Implement E2E tests; fix AuthContext re-rendeerloop
 
