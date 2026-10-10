@@ -18,6 +18,8 @@ const prisma = new PrismaClient();
 //   REQUESTER     gamma@toktickit.test         Requester123!
 //   REQUESTER     delta@toktickit.test         Requester123!
 //   REQUESTER     epsilon@toktickit.test       Requester123!  (inactive)
+//   REQUESTER     eta@toktickit.test           Requester123!  (Lab 4 demo owner)
+//   REQUESTER     zeta@toktickit.test          Requester123!  (Lab 4 zero tickets)
 //   IT_STAFF      sara.it@toktickit.test       Staff123!
 //   IT_STAFF      tom.it@toktickit.test        Staff123!
 //   IT_STAFF      priya.it@toktickit.test      Staff123!
@@ -27,6 +29,11 @@ const prisma = new PrismaClient();
 // Quotas (spec §7.6): 4 active + 1 inactive REQUESTER, 3 active + 1 inactive
 // IT_STAFF, 1 active ADMINISTRATOR. All upserts are keyed on `email`, so the
 // seed is idempotent and safe to re-run.
+//
+// Lab 4 adds L4_REQUESTERS below (eta owns the Lab 4 demo tickets, zeta owns
+// zero tickets for the zero-state dashboards). They live in a SEPARATE list
+// so the Lab 3 quota lists above stay byte-pristine; the shared
+// migrateRequestersToUsers mirror covers them into User rows.
 // ---------------------------------------------------------------------------
 
 const BCRYPT_COST = 12;
@@ -61,6 +68,14 @@ const QUOTA_STAFF: Array<{ name: string; email: string; isActive: boolean }> = [
 
 const QUOTA_ADMINS: Array<{ name: string; email: string; isActive: boolean }> = [
   { name: 'Ada Admin', email: 'admin@toktickit.test', isActive: true },
+];
+
+// Lab 4 (L4-2, spec §7.6/BR-17): eta owns every Lab 4 demo ticket, zeta owns
+// zero tickets (zero-state dashboards). Kept out of REQUESTERS/QUOTA_* so
+// Lab 3 quota assertions stay pristine.
+const L4_REQUESTERS: Array<{ name: string; email: string; isActive: boolean }> = [
+  { name: 'Eta Demo', email: 'eta@toktickit.test', isActive: true },
+  { name: 'Zeta Demo', email: 'zeta@toktickit.test', isActive: true },
 ];
 
 const RELATED_SYSTEMS = [
@@ -179,6 +194,25 @@ async function seedDemoTickets(): Promise<void> {
     // Idempotency: wipe the dedicated demo band AND any stray tickets the
     // dev-fixture requesters accumulated from manual testing, so every seed
     // run converges to the exact per-requester counts below.
+    // Lab 4 (L4-2): ActionTaken rows Restrict-delete their ticket, so clear
+    // the actions of every soon-to-be-wiped ticket FIRST, else the wipe
+    // below fails on the FK. Lab 3 demo tickets never carry actions; only
+    // the Lab 4 810xxx band does (recreated by seedLab4Tickets after this).
+    await tx.actionTaken.deleteMany({
+      where: {
+        ticket: {
+          OR: [
+            { requesterId: { in: plans.map((p) => p.requesterId) } },
+            {
+              ticketNumber: {
+                gte: `TTK-2026-${String(DEMO_TICKET_NUMBER_BASE).padStart(6, '0')}`,
+                lt: `TTK-2026-${String(DEMO_TICKET_NUMBER_BASE + 100000).padStart(6, '0')}`,
+              },
+            },
+          ],
+        },
+      },
+    });
     await tx.ticket.deleteMany({
       where: { requesterId: { in: plans.map((p) => p.requesterId) } },
     });
@@ -320,6 +354,158 @@ async function seedQuotaUsers(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Lab 4 (L4-2, spec §7.6/BR-17) — Actions Taken demo data. Idempotent:
+// tickets are upserted by stable numbers TTK-2026-810001+ (inside the demo
+// band, recreated by seedDemoTickets' wipe on every run, so this runs AFTER
+// it); actions are found-or-created by (ticketId, description). Coverage:
+// zero-action, exactly-one, ≥3-by-two-staff, unresolved follow-up
+// (gate-failure demo), legacy Resolved + legacy Closed without actions.
+// ---------------------------------------------------------------------------
+
+const L4_TICKET_BASE = 810001;
+
+function l4Number(offset: number): string {
+  return `TTK-2026-${String(L4_TICKET_BASE + offset).padStart(6, '0')}`;
+}
+
+async function seedLab4Tickets(): Promise<void> {
+  const eta = await prisma.requester.findUnique({ where: { email: 'eta@toktickit.test' } });
+  if (!eta) throw new Error('Lab 4 seed: eta@toktickit.test requester row is missing');
+  const staff = await prisma.user.findMany({
+    where: { role: 'IT_STAFF', isActive: true },
+    orderBy: { email: 'asc' },
+    take: 2,
+  });
+  if (staff.length < 2) throw new Error('Lab 4 seed: need two active IT Staff users');
+  const [staffOne, staffTwo] = staff;
+  const category = await prisma.category.findFirstOrThrow({ orderBy: { id: 'asc' } });
+  const system = await prisma.relatedSystem.findFirstOrThrow({ orderBy: { id: 'asc' } });
+  const now = Date.now();
+
+  const plans: Array<{
+    offset: number;
+    title: string;
+    status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+    ownerId: number | null;
+    ageHours: number;
+  }> = [
+    { offset: 0, title: 'Lab 4 demo: untouched ticket (zero actions)', status: 'OPEN', ownerId: staffOne.id, ageHours: 30 },
+    { offset: 1, title: 'Lab 4 demo: single action ticket', status: 'IN_PROGRESS', ownerId: staffOne.id, ageHours: 26 },
+    { offset: 2, title: 'Lab 4 demo: multi-staff ticket', status: 'OPEN', ownerId: staffTwo.id, ageHours: 22 },
+    { offset: 3, title: 'Lab 4 demo: follow-up outstanding (gate-failure demo)', status: 'IN_PROGRESS', ownerId: staffOne.id, ageHours: 18 },
+    { offset: 4, title: 'Lab 4 demo: legacy Resolved without actions', status: 'RESOLVED', ownerId: staffOne.id, ageHours: 50 },
+    { offset: 5, title: 'Lab 4 demo: legacy Closed without actions', status: 'CLOSED', ownerId: null, ageHours: 70 },
+  ];
+
+  const ticketIds = new Map<number, number>();
+  for (const plan of plans) {
+    const createdAt = new Date(now - plan.ageHours * 3600 * 1000);
+    const row = await prisma.ticket.upsert({
+      where: { ticketNumber: l4Number(plan.offset) },
+      update: {
+        title: plan.title,
+        status: plan.status,
+        ownerId: plan.ownerId,
+        ownerName: plan.ownerId === null ? null : (plan.ownerId === staffOne.id ? staffOne.name : staffTwo.name),
+        requesterId: eta.id,
+      },
+      create: {
+        ticketNumber: l4Number(plan.offset),
+        title: plan.title,
+        description: `${plan.title} — seeded Lab 4 demo ticket.`,
+        status: plan.status,
+        priority: 'MEDIUM',
+        itPriority: null,
+        ownerId: plan.ownerId,
+        ownerName: plan.ownerId === null ? null : (plan.ownerId === staffOne.id ? staffOne.name : staffTwo.name),
+        requesterId: eta.id,
+        categoryId: category.id,
+        relatedSystemId: system.id,
+        createdAt,
+      },
+    });
+    ticketIds.set(plan.offset, row.id);
+  }
+
+  const actionPlans: Array<{
+    ticketOffset: number;
+    performerId: number;
+    description: string;
+    result: string;
+    followUpRequired: boolean;
+    followUpNote: string | null;
+    ageHours: number;
+  }> = [
+    {
+      ticketOffset: 1,
+      performerId: staffOne.id,
+      description: 'Diagnosed the reported fault.',
+      result: 'Root cause isolated to a misconfigured switch port.',
+      followUpRequired: false,
+      followUpNote: null,
+      ageHours: 20,
+    },
+    {
+      ticketOffset: 2,
+      performerId: staffOne.id,
+      description: 'Initial triage completed.',
+      result: 'Fault reproduced in the staging environment.',
+      followUpRequired: false,
+      followUpNote: null,
+      ageHours: 16,
+    },
+    {
+      ticketOffset: 2,
+      performerId: staffTwo.id,
+      description: 'Replaced the faulty component.',
+      result: 'Replacement installed and passing diagnostics.',
+      followUpRequired: false,
+      followUpNote: null,
+      ageHours: 12,
+    },
+    {
+      ticketOffset: 2,
+      performerId: staffOne.id,
+      description: 'Verified the fix with the requester.',
+      result: 'Requester confirmed normal operation.',
+      followUpRequired: false,
+      followUpNote: null,
+      ageHours: 8,
+    },
+    {
+      ticketOffset: 3,
+      performerId: staffOne.id,
+      description: 'Identified the root cause; parts on order.',
+      result: 'Temporary workaround in place until parts arrive.',
+      followUpRequired: true,
+      followUpNote: 'Install the part when it arrives and retest.',
+      ageHours: 10,
+    },
+  ];
+
+  for (const plan of actionPlans) {
+    const ticketId = ticketIds.get(plan.ticketOffset);
+    if (ticketId === undefined) throw new Error('Lab 4 seed: ticket id missing for action plan');
+    const existing = await prisma.actionTaken.findFirst({
+      where: { ticketId, description: plan.description },
+    });
+    if (!existing) {
+      await prisma.actionTaken.create({
+        data: {
+          ticketId,
+          performedById: plan.performerId,
+          actionAt: new Date(now - plan.ageHours * 3600 * 1000),
+          description: plan.description,
+          result: plan.result,
+          followUpRequired: plan.followUpRequired,
+          followUpNote: plan.followUpNote,
+        },
+      });
+    }
+  }
+}
+
 async function main(): Promise<void> {
   for (const cat of CATEGORIES) {
     await prisma.category.upsert({
@@ -330,6 +516,16 @@ async function main(): Promise<void> {
   }
 
   for (const requester of REQUESTERS) {
+    await prisma.requester.upsert({
+      where: { email: requester.email },
+      update: { name: requester.name, isActive: requester.isActive },
+      create: requester,
+    });
+  }
+
+  // Lab 4 (L4-2): eta/zeta Requester rows, upserted on email like the quota
+  // list above so re-runs converge without touching Lab 3 rows.
+  for (const requester of L4_REQUESTERS) {
     await prisma.requester.upsert({
       where: { email: requester.email },
       update: { name: requester.name, isActive: requester.isActive },
@@ -365,6 +561,9 @@ async function main(): Promise<void> {
   await seedQuotaUsers(QUOTA_ADMINS, 'ADMINISTRATOR', adminHash);
 
   await seedDemoTickets();
+  // Lab 4 (L4-2): runs after the demo wipe (the 810xxx band sits inside it)
+  // and recreates the Lab 4 tickets + actions idempotently.
+  await seedLab4Tickets();
 
   const categoryCount = await prisma.category.count();
   const requesterCount = await prisma.requester.count();
