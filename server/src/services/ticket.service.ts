@@ -4,11 +4,16 @@ import { Prisma } from '@prisma/client';
 // HTTP error carrying a status code, a safe message, and optional field-level
 // validation details. Thrown by route handlers/services and translated into a
 // JSON error envelope by the app-level error middleware (Issue 4).
+// Lab 4 (A-07): optional machine-readable `code` plus an `extra` bag for
+// additive top-level fields (e.g. `currentVersion` on 409). Both default to
+// undefined, so every pre-Lab-4 call site renders byte-identical bodies.
 export class HttpError extends Error {
   constructor(
     public status: number,
     message: string,
     public details?: { field: string; message: string }[],
+    public code?: string,
+    public extra?: Record<string, unknown>,
   ) {
     super(message);
   }
@@ -622,6 +627,9 @@ export async function getTicketDetail(
     status: ticket.status,
     priority: ticket.priority,
     itPriority: ticket.itPriority,
+    // Lab 4 (L4-2 foundation): optimistic-concurrency version for workflow
+    // writes (expectedVersion arrives with L4-3 per D-04).
+    version: ticket.version,
     ownerName: ticket.ownerName,
     owner: ticket.ownerName ? { name: ticket.ownerName } : null,
     category: { id: ticket.category.id, name: ticket.category.name },
