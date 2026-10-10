@@ -20,7 +20,7 @@ One row per Lab 4 pull request. The PR link, reviewer, review comment and approv
 
 | PR link | Issue | Reviewer | Review comment | My response | Approved |
 |---|---|---|---|---|---|
-| [PR #61](https://github.com/krittaphato3/TokTickIT/pull/61) — base `lab4-staging`, head `feature/l4-1-contract` | [#54](https://github.com/krittaphato3/TokTickIT/issues/54) | `napatsun` (review requested 2026-10-10) | — | — | **Awaiting review** |
+| [PR #61](https://github.com/krittaphato3/TokTickIT/pull/61) — base `lab4-staging`, head `feature/l4-1-contract` | [#54](https://github.com/krittaphato3/TokTickIT/issues/54) | `napatsun`, `Alongkron1234` (approved 2026-10-10) | napatsun: "ครบถ้วนเรียบร้อย พร้อมทำต่อได้เลยครับ"; Alongkron1234: "ทำออกมาได้ดีมากครับ ผ่าน" | — | **APPROVED (merged 2026-10-10)** |
 | [PR #62](https://github.com/krittaphato3/TokTickIT/pull/62) — base `lab4-staging`, head `feature/l4-2-actions-taken-api` | [#55](https://github.com/krittaphato3/TokTickIT/issues/55) | `napatsun`, `Alongkron1234` (review requested 2026-10-11) | — | — | **Awaiting review** |
 
 ## Partner PRs I reviewed
