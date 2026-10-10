@@ -33,15 +33,25 @@ type Snapshot = {
 };
 
 async function snapshotLab3(): Promise<Snapshot> {
+  // Raw SQL throughout: after the MIG-02 rollback drops `Ticket.version`,
+  // the generated (Lab 4) client can no longer read the Ticket model, so
+  // typed delegates are unusable on the rolled-back database.
   const counts: Record<string, number> = {};
   for (const model of LAB3_TABLES) {
-    const delegate = (db[model.charAt(0).toLowerCase() + model.slice(1)] ?? db[model]) as any;
-    counts[model] = await delegate.count();
+    const rows = await prisma.$queryRawUnsafe<Array<{ n: bigint }>>(
+      `SELECT COUNT(*)::bigint AS n FROM "${model}"`,
+    );
+    counts[model] = Number(rows[0]?.n ?? 0);
   }
-  const sampleTickets = (
-    await prisma.ticket.findMany({ orderBy: { id: 'asc' }, take: 5 })
-  ).map((t) => ({ ticketNumber: t.ticketNumber, title: t.title, status: t.status }));
-  const firstUser = await prisma.user.findFirst({ orderBy: { id: 'asc' } });
+  const sampleTickets = await prisma.$queryRawUnsafe<
+    Array<{ ticketNumber: string; title: string; status: string }>
+  >(
+    `SELECT "ticketNumber", "title", "status" FROM "Ticket" ORDER BY "id" ASC LIMIT 5`,
+  );
+  const users = await prisma.$queryRawUnsafe<Array<{ email: string; role: string }>>(
+    `SELECT "email", "role" FROM "User" ORDER BY "id" ASC LIMIT 1`,
+  );
+  const firstUser = users[0] ?? null;
   return {
     counts,
     sampleTickets,
@@ -93,10 +103,15 @@ describe('MIG-02 — rollback removes Lab 4 objects, keeps Lab 3 data, re-apply 
     const before = await snapshotLab3();
     const sql = await readFile(rollbackPath, 'utf8');
     expect(sql).toContain('ActionTaken');
+    // Strip `--` comment LINES first: a naive startsWith('--') filter on
+    // `;`-split segments would also drop the statement following a comment.
     const statements = sql
+      .split('\n')
+      .filter((line) => !line.trim().startsWith('--'))
+      .join('\n')
       .split(';')
       .map((s) => s.trim())
-      .filter((s) => s.length > 0 && !s.startsWith('--'));
+      .filter((s) => s.length > 0);
     for (const statement of statements) {
       await prisma.$executeRawUnsafe(statement);
     }

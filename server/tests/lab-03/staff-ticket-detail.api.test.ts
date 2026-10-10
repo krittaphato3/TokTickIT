@@ -14,8 +14,9 @@ import {
 // Lab 3 §6 — IT Staff Ticket Operations API — server/tests/lab-03/staff-ticket-detail.api.test.ts
 // Covers docs/lab-03/tests.md rows: T-OWN-01/02, T-PRIO-01/02, T-STAT-01/02,
 // plus the §12 matrix rows for GET/PATCH /api/staff/tickets/:number
-// (Requester 403 on every staff surface, ADMIN view-only 403 on writes,
-// unauthenticated 401) and attachment continuity on the staff detail read.
+// (Requester 403 on every staff surface, ADMIN 200 staff-equivalent per
+// Lab 4 D-01, unauthenticated 401) and attachment continuity on the staff
+// detail read.
 //
 // Fixture pattern: self-contained disposable tickets in the reserved 9xxxxx
 // test band owned by disposable session fixtures; everything is removed in
@@ -145,7 +146,7 @@ describe('Authorization — §12 matrix rows for GET /api/staff/tickets/:number'
     await deleteProbe(t.ticketNumber);
   });
 
-  it('200 for ADMINISTRATOR (view-only role, read allowed per AD-02)', async () => {
+  it('200 for ADMINISTRATOR (staff-equivalent read per Lab 4 D-01)', async () => {
     const t = await createProbeTicket();
     const res = await withCookie(admin, request(app).get(`/api/staff/tickets/${t.ticketNumber}`));
     expect(res.status).toBe(200);
@@ -301,13 +302,14 @@ describe('T-OWN-02 — invalid owner rejection (BR-12)', () => {
     await deleteProbe(t.ticketNumber);
   });
 
-  it('403 for ADMINISTRATOR (view-only per AD-02) and 403 for REQUESTER', async () => {
+  it('200 for ADMINISTRATOR owner write per Lab 4 D-01; 403 for REQUESTER', async () => {
     const t = await createProbeTicket();
     const adminRes = await withWriteAuth(
       admin,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`),
     ).send({ ownerId: admin.userId });
-    expect(adminRes.status).toBe(403);
+    expect(adminRes.status).toBe(200);
+    expect(adminRes.body.owner).toMatchObject({ id: admin.userId });
 
     const reqRes = await withWriteAuth(
       requester,
@@ -316,7 +318,7 @@ describe('T-OWN-02 — invalid owner rejection (BR-12)', () => {
     expect(reqRes.status).toBe(403);
     expect(reqRes.body.error).toBe('IT Staff access required');
     const row = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
-    expect(row.ownerId).toBeNull();
+    expect(row.ownerId).toBe(admin.userId);
     await deleteProbe(t.ticketNumber);
   });
 
@@ -346,15 +348,16 @@ describe('T-PRIO-02 — IT Priority update permissions (BR-13, BR-20)', () => {
     await deleteProbe(t.ticketNumber);
   });
 
-  it('403 for ADMINISTRATOR (view-only per AD-02)', async () => {
+  it('200 for ADMINISTRATOR it-priority write per Lab 4 D-01', async () => {
     const t = await createProbeTicket({ itPriority: 'LOW' });
     const res = await withWriteAuth(
       admin,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/it-priority`),
     ).send({ itPriority: 'CRITICAL' });
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(200);
+    expect(res.body.itPriority).toBe('CRITICAL');
     const row = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
-    expect(row.itPriority).toBe('LOW');
+    expect(row.itPriority).toBe('CRITICAL');
     await deleteProbe(t.ticketNumber);
   });
 
@@ -540,13 +543,14 @@ describe('T-STAT-02 — illegal transitions and validation (BR-15, BR-16)', () =
     await deleteProbe(t.ticketNumber);
   });
 
-  it('403 for ADMINISTRATOR and REQUESTER on status writes', async () => {
+  it('200 for ADMINISTRATOR status write per Lab 4 D-01; 403 for REQUESTER', async () => {
     const t = await createProbeTicket({ status: 'OPEN' });
     const adminRes = await withWriteAuth(
       admin,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`),
     ).send({ status: 'IN_PROGRESS' });
-    expect(adminRes.status).toBe(403);
+    expect(adminRes.status).toBe(200);
+    expect(adminRes.body.status).toBe('IN_PROGRESS');
 
     const reqRes = await withWriteAuth(
       requester,
@@ -555,7 +559,7 @@ describe('T-STAT-02 — illegal transitions and validation (BR-15, BR-16)', () =
     expect(reqRes.status).toBe(403);
     expect(reqRes.body.error).toBe('IT Staff access required');
     const row = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
-    expect(row.status).toBe('OPEN');
+    expect(row.status).toBe('IN_PROGRESS');
     await deleteProbe(t.ticketNumber);
   });
 });
@@ -756,8 +760,9 @@ describe('Reopen without a reason — every reopen-capable source refuses (BR-15
 // ---------------------------------------------------------------------------
 // Consolidated non-permitted API matrix (reviewer ask #3). Every /api/staff/*
 // route × every role that must not use it. Reads: REQUESTER 403 (masked
-// surface), ADMIN 200 view-only per AD-02, no-session 401. Writes: REQUESTER
-// 403, ADMIN 403 (service re-check), no-session 401. Internal notes are the
+// surface), ADMIN 200 staff-equivalent per Lab 4 D-01, no-session 401.
+// Writes: REQUESTER 403, ADMIN 200 (D-01 supersedes the Lab 3 AD-02
+// view-only rule), no-session 401. Internal notes are the
 // §1.5 exception: REQUESTER gets the masked 404 instead of 403.
 // ---------------------------------------------------------------------------
 describe('Non-permitted API matrix — every staff route × every disallowed caller (BR-20, §12)', () => {
@@ -800,19 +805,18 @@ describe('Non-permitted API matrix — every staff route × every disallowed cal
     await deleteProbe(t.ticketNumber);
   });
 
-  it('every staff write route refuses ADMINISTRATOR on owner/priority/status with 403 and changes nothing (AD-02 view-only; comments/notes stay allowed per BR-04)', async () => {
+  it('every staff write route accepts ADMINISTRATOR per Lab 4 D-01 on owner/priority/status (comments/notes stay allowed per BR-04)', async () => {
     const t = await createProbeTicket({ status: 'OPEN', ownerId: staff.userId, itPriority: 'LOW' });
-    const before = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
 
-    // AD-02 view-only writes: owner, IT Priority, status.
-    const attempts: Array<[string, request.Test]> = [
-      ['PATCH owner', withWriteAuth(admin, request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`)).send({ ownerId: admin.userId })],
-      ['PATCH it-priority', withWriteAuth(admin, request(app).patch(`/api/staff/tickets/${t.ticketNumber}/it-priority`)).send({ itPriority: 'CRITICAL' })],
-      ['PATCH status', withWriteAuth(admin, request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`)).send({ status: 'IN_PROGRESS' })],
+    // D-01 staff-equivalent writes: owner, IT Priority, status.
+    const attempts: Array<[string, request.Test, number]> = [
+      ['PATCH owner', withWriteAuth(admin, request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`)).send({ ownerId: admin.userId }), 200],
+      ['PATCH it-priority', withWriteAuth(admin, request(app).patch(`/api/staff/tickets/${t.ticketNumber}/it-priority`)).send({ itPriority: 'CRITICAL' }), 200],
+      ['PATCH status', withWriteAuth(admin, request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`)).send({ status: 'IN_PROGRESS' }), 200],
     ];
-    for (const [label, req] of attempts) {
+    for (const [label, req, expected] of attempts) {
       const res = await req;
-      expect(res.status, label).toBe(403);
+      expect(res.status, label).toBe(expected);
     }
 
     // BR-04: admin participation on the threads is allowed (not a staff-write surface).
@@ -830,15 +834,19 @@ describe('Non-permitted API matrix — every staff route × every disallowed cal
     expect(adminNote.body.author.role).toBe('ADMINISTRATOR');
 
     const after = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
-    expect(after.ownerId).toBe(before.ownerId);
-    expect(after.itPriority).toBe(before.itPriority);
-    expect(after.status).toBe(before.status);
+    // D-01: the three admin writes landed (owner reassigned to the admin,
+    // IT priority set, status advanced).
+    expect(after.ownerId).toBe(admin.userId);
+    expect(after.itPriority).toBe('CRITICAL');
+    expect(after.status).toBe('IN_PROGRESS');
 
-    // ADMIN reads still work (view-only) and the thread writes did land.
+    // ADMIN reads still work and the thread writes did land: the successful
+    // admin status write appended its system comment, so the thread holds
+    // the system comment plus the admin comment, and exactly one admin note.
     const detail = await withCookie(admin, request(app).get(`/api/staff/tickets/${t.ticketNumber}`));
     expect(detail.status).toBe(200);
     expect(detail.body.internalNoteCount).toBe(1);
-    expect(detail.body.commentCount).toBe(1);
+    expect(detail.body.commentCount).toBe(2);
     await deleteProbe(t.ticketNumber);
   });
 
