@@ -20,7 +20,7 @@ One row per Lab 4 pull request. The PR link, reviewer, review comment and approv
 
 | PR link | Issue | Reviewer | Review comment | My response | Approved |
 |---|---|---|---|---|---|
-| — (no Lab 4 PR opened yet) | #54 | — | — | The contract is committed on `feature/l4-1-contract`; the PR is opened on the `PR 1` command. | — |
+| [PR #61](https://github.com/krittaphato3/TokTickIT/pull/61) — base `lab4-staging`, head `feature/l4-1-contract` | [#54](https://github.com/krittaphato3/TokTickIT/issues/54) | `napatsun` (review requested 2026-10-10) | — | — | **Awaiting review** |
 
 ## Partner PRs I reviewed
 
