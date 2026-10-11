@@ -239,15 +239,17 @@ describe('WF-02 — UI bypass and requester rejection (BR-09, AC-09)', () => {
 
     expect(res.status).toBe(422);
     expect(res.body.code).toBe('INVALID_TRANSITION');
+    expect(res.body.error).toBe(`Illegal status transition from ${from} to ${to}`);
     const permitted = (res.body.details as Array<{ field: string; message: string }>)[0];
     expect(permitted.field).toBe('status');
-    for (const target of EXPECTED_MATRIX[from]) {
-      expect(permitted.message).toContain(target);
-    }
-    for (const target of ALL_STATUSES.filter((s) => !EXPECTED_MATRIX[from].includes(s))) {
-      if (target === from) continue;
-      expect(permitted.message).not.toContain(target);
-    }
+    // The named set is compared token by token (a substring check would call
+    // "REOPENED" a match for "OPEN").
+    const named = permitted.message
+      .replace(/^Permitted targets from \w+: /, '')
+      .split(', ')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    expect(named).toEqual(EXPECTED_MATRIX[from]);
 
     const after = await prisma.ticket.findUniqueOrThrow({ where: { id: probe.id } });
     expect(after.status).toBe(from);

@@ -232,6 +232,16 @@ describe('UI-05 — the status control is server-driven (AC-09)', () => {
     expect(await screen.findByTestId('ticket-status-badge')).toHaveTextContent('New');
     expect(await screen.findByTestId('ticket-version')).toHaveTextContent('Version 1');
 
+    // The header is refreshed from the server after a success, so the post-write
+    // read returns the accepted change (this is what a real API would serve).
+    stub.setDetail(
+      makeDetail({
+        status: 'IN_PROGRESS',
+        version: 2,
+        allowedTransitions: ['OPEN', 'WAITING_FOR_REQUESTER', 'RESOLVED', 'CANCELLED'],
+      }),
+    );
+
     const statusSelect = await screen.findByLabelText(/^Status$/);
     await waitFor(() => expect(statusSelect).not.toBeDisabled());
     await userEvent.selectOptions(statusSelect, 'IN_PROGRESS');
@@ -349,8 +359,10 @@ describe('UI-06 — the Resolve dialog and the resolution gate (AC-10)', () => {
       ],
     });
     renderDetail(stub.fetchFn);
-    // The post-success refresh re-reads the detail, so the reload returns the
-    // resolved shape.
+
+    const dialog = await openResolveDialog('Port replaced and monitored for 24 hours.');
+    // The post-success refresh re-reads the detail, so from here on the server
+    // serves the resolved shape.
     stub.setDetail(
       makeDetail({
         status: 'RESOLVED',
@@ -360,8 +372,6 @@ describe('UI-06 — the Resolve dialog and the resolution gate (AC-10)', () => {
         resolutionSummary: 'Port replaced and monitored for 24 hours.',
       }),
     );
-
-    const dialog = await openResolveDialog('Port replaced and monitored for 24 hours.');
     await userEvent.click(within(dialog).getByRole('button', { name: /^resolve ticket$/i }));
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: /resolve ticket/i })).toBeNull());
@@ -407,8 +417,19 @@ describe('UI-06 — the Resolve dialog and the resolution gate (AC-10)', () => {
         (screen.getByLabelText(/resolution summary/i) as HTMLTextAreaElement).value,
       ).toBe('Part on order, monitored.'),
     );
+    // The notice and its recovery action are inside the dialog, where the user
+    // is looking, and the ticket is untouched.
     expect(screen.getByText(CONFLICT_TEXT)).toBeTruthy();
-    expect(await screen.findByRole('button', { name: /reload/i })).toBeTruthy();
+    const reload = await screen.findByRole('button', { name: /reload/i });
+    expect(screen.getByTestId('ticket-status-badge')).toHaveTextContent('Open');
+
+    // Reload realigns with the server's version and closes the dialog.
+    stub.setDetail(
+      makeDetail({ status: 'OPEN', version: 3, allowedTransitions: ['RESOLVED', 'CANCELLED'] }),
+    );
+    await userEvent.click(reload);
+    await waitFor(() => expect(screen.getByTestId('ticket-version')).toHaveTextContent('Version 3'));
+    expect(screen.queryByRole('dialog', { name: /resolve ticket/i })).toBeNull();
   });
 
   it('closes the dialog on Escape without submitting and sends nothing', async () => {
@@ -416,6 +437,7 @@ describe('UI-06 — the Resolve dialog and the resolution gate (AC-10)', () => {
     renderDetail(stub.fetchFn);
 
     const dialog = await openResolveDialog('Draft summary.');
+    expect(dialog).toBeTruthy();
     await userEvent.keyboard('{Escape}');
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: /resolve ticket/i })).toBeNull());
