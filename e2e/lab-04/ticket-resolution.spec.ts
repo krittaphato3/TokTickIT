@@ -119,7 +119,25 @@ async function ensureInProgress(page: Page, ticketNumber: string): Promise<Queue
 }
 
 test.describe('E2E-02: resolving a ticket and the stale-tab conflict', () => {
+  // Both journeys must run clean (Lab 4 §10 / AC-21): an uncaught exception is
+  // always a defect, and the only console errors tolerated are the browser's own
+  // resource-status lines for the writes this spec deliberately has refused
+  // (Chrome logs every non-2xx fetch).
+  const EXPECTED_STATUS_LINE =
+    /Failed to load resource: the server responded with a status of (401|409|422)/;
+
+  function collectPageErrors(page: Page): { uncaught: string[]; consoleErrors: string[] } {
+    const uncaught: string[] = [];
+    const consoleErrors: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') consoleErrors.push(msg.text());
+    });
+    page.on('pageerror', (err) => uncaught.push(String(err)));
+    return { uncaught, consoleErrors };
+  }
+
   test('the resolution gate blocks a ticket with outstanding follow-up', async ({ page }) => {
+    const pageErrors = collectPageErrors(page);
     await waitForHealth(page);
     await staffLoginAndSettle(page);
 
@@ -146,9 +164,12 @@ test.describe('E2E-02: resolving a ticket and the stale-tab conflict', () => {
 
     const after = await apiGetDetail(page, ticket.ticketNumber);
     expect(after.status).toBe('IN_PROGRESS');
+    expect(pageErrors.uncaught).toEqual([]);
+    expect(pageErrors.consoleErrors.filter((m) => !EXPECTED_STATUS_LINE.test(m))).toEqual([]);
   });
 
   test('a stale version shows the conflict notice, keeps the summary, then resolves after Reload', async ({ page }) => {
+    const pageErrors = collectPageErrors(page);
     await waitForHealth(page);
     await staffLoginAndSettle(page);
 
@@ -217,5 +238,7 @@ test.describe('E2E-02: resolving a ticket and the stale-tab conflict', () => {
       confirm: true,
     });
     expect((await apiGetDetail(page, seeded.ticketNumber)).status).toBe('IN_PROGRESS');
+    expect(pageErrors.uncaught).toEqual([]);
+    expect(pageErrors.consoleErrors.filter((m) => !EXPECTED_STATUS_LINE.test(m))).toEqual([]);
   });
 });
