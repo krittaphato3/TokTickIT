@@ -138,3 +138,43 @@
   .std-title { font-size: 1.05rem; }
   .std-page .td-tab { padding: 10px 12px; font-size: 0.85rem; }
 }
+
+/* ---------------------------------------------------------------------------
+   Lab 4 (L4-3) — version readout, resolution block and the Resolve dialog.
+   Colours come from the Zen Green tokens only (STYLE-01); every gate reason
+   carries an icon plus text so it is never colour-only (AC-20).
+   --------------------------------------------------------------------------- */
+.std-version {
+  margin-left: 10px;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--tok-text-muted);
+  background: var(--tok-field-readonly);
+  border: 1px solid var(--tok-field-readonly-border);
+  border-radius: 999px;
+}
+
+.std-resolution {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: var(--tok-primary-soft);
+  border-left: 3px solid var(--tok-success);
+  border-radius: var(--tok-radius);
+}
+.std-resolution b { display: block; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--tok-success); }
+.std-resolution p { margin: 6px 0 0; color: var(--tok-text); white-space: pre-wrap; }
+
+.std-resolve-modal { max-width: 560px; }
+.std-resolve-recap { font-weight: 600; color: var(--tok-text); }
+.std-resolve-summary { min-height: 110px; }
+
+.std-gate-reasons { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; }
+.std-gate-reason {
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  color: var(--tok-error);
+  background: var(--tok-error-soft);
+  border: 1px solid var(--tok-border-soft);
+  border-radius: var(--tok-radius);
+}

@@ -15,13 +15,12 @@ import { ensureTicketNumberFormat } from './attachment.service.js';
 //  - appearsResolved hint (FR-10/BR-05): Requester-only one-way signal that
 //    stamps Ticket.appearsResolvedAt and stores a flagged public comment. It
 //    never changes Ticket.status; formal Resolved/Closed stays staff-only.
-//  - Requester status writes: ONLY REOPENED from RESOLVED/CLOSED on own
-//    tickets (§7.3). RESOLVED/CLOSED targets -> 403
-//    "Only IT Staff may resolve or close tickets"; anything else -> 403.
+//  - Requester status writes: NONE. Lab 4 (D-06/BR-09) removed the Lab 3
+//    reopen path entirely; the requester status route now refuses every
+//    Requester call in the controller before any lookup happens.
 // ---------------------------------------------------------------------------
 
 export const MAX_COMMENT_LENGTH = 2000;
-export const ONLY_STAFF_RESOLVE_MESSAGE = 'Only IT Staff may resolve or close tickets';
 
 export interface CommentAuthorDto {
   id: number;
@@ -162,39 +161,3 @@ export async function createComment(
   return toCommentDto(row);
 }
 
-// §7.3 — requester-limited status change on their OWN ticket. The only
-// permitted target is REOPENED from RESOLVED or CLOSED (BR-05 exception).
-// Every other target — including RESOLVED and CLOSED — gets the dedicated
-// 403 "Only IT Staff may resolve or close tickets" (§7.3 uses one message); a
-// non-string value is malformed input -> 400 with details. T-STAT-04 asserts
-// the RESOLVED/CLOSED case specifically.
-export async function requesterStatusChange(
-  prisma: PrismaClient,
-  user: User,
-  ticketId: number,
-  requestedStatus: unknown,
-): Promise<{ id: number; ticketNumber: string; status: string; updatedAt: Date }> {
-  if (typeof requestedStatus !== 'string') {
-    throw new HttpError(400, 'Validation failed', [
-      { field: 'status', message: 'status must be a valid ticket status' },
-    ]);
-  }
-  if (requestedStatus !== 'REOPENED') {
-    throw new HttpError(403, ONLY_STAFF_RESOLVE_MESSAGE);
-  }
-  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
-  if (!ticket) throw new HttpError(404, 'Ticket not found');
-  if (ticket.status !== 'RESOLVED' && ticket.status !== 'CLOSED') {
-    throw new HttpError(409, 'Only a Resolved or Closed ticket can be reopened');
-  }
-  const updated = await prisma.ticket.update({
-    where: { id: ticketId },
-    data: { status: 'REOPENED' },
-  });
-  return {
-    id: updated.id,
-    ticketNumber: updated.ticketNumber,
-    status: updated.status,
-    updatedAt: updated.updatedAt,
-  };
-}

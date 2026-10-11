@@ -83,6 +83,9 @@ export class ApiError extends Error {
     error?: string;
     code?: string;
     details?: { field: string; message: string }[];
+    // Lab 4 §1.6 — the only additive top-level field: a 409 carries the stored
+    // version so the client can realign without parsing the message.
+    currentVersion?: number;
   };
 
   constructor(
@@ -91,6 +94,7 @@ export class ApiError extends Error {
       error?: string;
       code?: string;
       details?: { field: string; message: string }[];
+      currentVersion?: number;
     },
   ) {
     super(body.error ?? `Request failed with status ${status}`);
@@ -558,6 +562,12 @@ export interface StaffTicketDetail {
   status: StaffTicketStatus;
   priority: Priority;
   itPriority: Priority | null;
+  // Lab 4 api-spec §3.1 — optimistic-concurrency version, the server-computed
+  // transition list and the resolution lifecycle fields.
+  version: number;
+  allowedTransitions: StaffTicketStatus[];
+  resolvedAt: string | null;
+  resolutionSummary: string | null;
   owner: { id: number; name: string; email: string; role: string; isActive: boolean } | null;
   requester: { id: number; name: string; email: string };
   category: { id: number; name: string };
@@ -584,6 +594,7 @@ export interface OwnerChangeResult {
   owner: { id: number; name: string; email: string } | null;
   itPriority: Priority | null;
   itPriorityCopied: boolean;
+  version: number;
   updatedAt: string;
 }
 
@@ -597,15 +608,19 @@ export async function getStaffTicketDetail(ticketNumber: string): Promise<StaffT
   return body as StaffTicketDetail;
 }
 
+// Lab 4 D-04/BR-07 — every workflow write sends the version the screen loaded.
+// A stale value returns 409 CONFLICT (with `currentVersion`), so the caller can
+// realign instead of silently overwriting someone else's change.
 export async function changeTicketOwner(
   ticketNumber: string,
   ownerId: number | null,
+  expectedVersion: number,
 ): Promise<OwnerChangeResult> {
   const response = await fetch(`${API_URL}/api/staff/tickets/${ticketNumber}/owner`, {
     method: 'PATCH',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...authHeaders({}, true) },
-    body: JSON.stringify({ ownerId }),
+    body: JSON.stringify({ ownerId, expectedVersion }),
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new ApiError(response.status, body);
@@ -615,39 +630,51 @@ export async function changeTicketOwner(
 export async function setItPriority(
   ticketNumber: string,
   itPriority: Priority,
-): Promise<{ id: number; ticketNumber: string; priority: Priority; itPriority: Priority | null; updatedAt: string }> {
+  expectedVersion: number,
+): Promise<{ id: number; ticketNumber: string; priority: Priority; itPriority: Priority | null; version: number; updatedAt: string }> {
   const response = await fetch(`${API_URL}/api/staff/tickets/${ticketNumber}/it-priority`, {
     method: 'PATCH',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...authHeaders({}, true) },
-    body: JSON.stringify({ itPriority }),
+    body: JSON.stringify({ itPriority, expectedVersion }),
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new ApiError(response.status, body);
-  return body as { id: number; ticketNumber: string; priority: Priority; itPriority: Priority | null; updatedAt: string };
+  return body as { id: number; ticketNumber: string; priority: Priority; itPriority: Priority | null; version: number; updatedAt: string };
 }
 
 export interface StatusChangeResult {
   id: number;
   ticketNumber: string;
   status: StaffTicketStatus;
+  version: number;
+  resolvedAt: string | null;
   updatedAt: string;
   comment: { id: number; body: string } | null;
 }
 
-// BR-15: `confirm` is required for cancel/resolve/close transitions and
-// `reason` for reopening from RESOLVED/CLOSED/CANCELLED. The server is the
-// authority on both; the client only supplies what the UI collected.
+// BR-09/BR-10/D-04: the server owns the matrix, the resolution gate and the
+// version check. The client supplies exactly what the UI collected — the target
+// status, the loaded `expectedVersion`, the confirmation flag, the reopen reason
+// and (for Resolved) the resolution summary. A rejected transition comes back as
+// 422 INVALID_TRANSITION or 422 RESOLUTION_GATE with machine-readable details,
+// and a stale write as 409 CONFLICT.
 export async function changeTicketStatus(
   ticketNumber: string,
   status: StaffTicketStatus,
-  options?: { confirm?: boolean; reason?: string },
+  options: { expectedVersion: number; confirm?: boolean; reason?: string; resolutionSummary?: string },
 ): Promise<StatusChangeResult> {
   const response = await fetch(`${API_URL}/api/staff/tickets/${ticketNumber}/status`, {
     method: 'PATCH',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...authHeaders({}, true) },
-    body: JSON.stringify({ status, ...(options?.confirm ? { confirm: true } : {}), ...(options?.reason ? { reason: options.reason } : {}) }),
+    body: JSON.stringify({
+      status,
+      expectedVersion: options.expectedVersion,
+      ...(options.confirm ? { confirm: true } : {}),
+      ...(options.reason ? { reason: options.reason } : {}),
+      ...(options.resolutionSummary ? { resolutionSummary: options.resolutionSummary } : {}),
+    }),
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new ApiError(response.status, body);
