@@ -28,10 +28,10 @@ import { getStaffTicketDownloadHandler } from '../controllers/staff-attachments.
 // Role scoping per the §12 matrix + §1.5 masking rule:
 // - Queue list, owners list, ticket detail, comment aliases: REQUESTER → 403
 //   (the staff surface itself is not a secret; IT_STAFF and ADMINISTRATOR
-//   pass per AD-02 — ADMIN is view-only on writes below).
+//   pass per D-01 — Admin performs every IT Staff ticket operation).
 // - Owner / it-priority / status writes: requireStaffRole (read gate) PLUS
-//   an in-service IT_STAFF-only re-check → ADMIN gets 403 (view-only) and
-//   REQUESTER is already refused at the router.
+//   an in-service staff-or-admin re-check (Lab 4 D-01) so a dropped router
+//   guard can never open a hole; REQUESTER is already refused at the router.
 // - Internal notes: NOT role-gated at the router. Requesters must receive
 //   the masked 404 "Not found" (§1.5) — indistinguishable from a missing
 //   ticket — never a 403 that would leak that the staff note surface exists.
@@ -62,9 +62,9 @@ staffRouter.post('/tickets/:ticketNumber/comments', requireStaffRole, createComm
 staffRouter.get('/tickets/:ticketNumber/internal-notes', listInternalNotesHandler);
 staffRouter.post('/tickets/:ticketNumber/internal-notes', createInternalNoteHandler);
 
-// §6.2/§6.3/§6.4 — staff-only writes. requireStaffRole refuses REQUESTER
-// (403) up front; the service re-checks IT_STAFF-only so ADMIN writes fail
-// closed (403 view-only per AD-02) even if a router gate were dropped.
+// §6.2/§6.3/§6.4 — staff writes (D-01: IT_STAFF and ADMINISTRATOR).
+// requireStaffRole refuses REQUESTER (403) up front; the service re-checks
+// the staff-or-admin gate so a dropped router guard can never open a hole.
 staffRouter.patch('/tickets/:ticketNumber/owner', requireStaffRole, changeTicketOwnerHandler);
 staffRouter.patch('/tickets/:ticketNumber/it-priority', requireStaffRole, setItPriorityHandler);
 staffRouter.patch('/tickets/:ticketNumber/status', requireStaffRole, changeTicketStatusHandler);

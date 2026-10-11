@@ -8,8 +8,8 @@ import { ensureTicketNumberFormat } from './attachment.service.js';
 // Authorization is layered:
 //   1. Router: requireAuth (401 without a session; inactive → 403 + destroy)
 //      then requireStaffRole per route — REQUESTER never reaches these
-//      handlers (403 "IT Staff access required"); ADMIN reaches read routes
-//      but is refused on every write (403 view-only per AD-02).
+//      handlers (403 "IT Staff access required"); IT_STAFF and ADMINISTRATOR
+//      pass (D-01: Admin performs every IT Staff ticket operation).
 //   2. Service: writes re-derive the staff gate from the session user, so a
 //      missing router guard can never become an authorization hole (BR-20).
 //
@@ -56,9 +56,10 @@ export const CONFIRM_REQUIRED: Record<string, string> = {
 const REOPEN_TARGETS = ['RESOLVED', 'CLOSED', 'CANCELLED'];
 
 function requireItStaffWrite(user: User): void {
-  if (user.role !== 'IT_STAFF') {
-    // Administrators are view-only on the staff ticket surface (AD-02/§12);
-    // requesters never get here from the router, but re-check defensively.
+  // Lab 4 D-01 (BR-15): an active Admin performs every IT Staff ticket
+  // operation. This supersedes the Lab 3 AD-02 view-only rule; requesters
+  // never get here from the router, but are re-checked defensively.
+  if (user.role !== 'IT_STAFF' && user.role !== 'ADMINISTRATOR') {
     throw new HttpError(403, STAFF_WRITE_REQUIRED);
   }
 }
@@ -89,6 +90,12 @@ export async function getStaffTicketDetail(prisma: PrismaClient, ticketNumber: s
     status: ticket.status,
     priority: ticket.priority,
     itPriority: ticket.itPriority,
+    // Lab 4 (L4-2 foundation, api-spec §3.1): optimistic-concurrency version
+    // plus the resolution lifecycle columns (null until the L4-3 workflow
+    // writes them; allowedTransitions arrives with L4-3).
+    version: ticket.version,
+    resolvedAt: ticket.resolvedAt,
+    resolutionSummary: ticket.resolutionSummary,
     owner: ticket.owner
       ? {
           id: ticket.owner.id,

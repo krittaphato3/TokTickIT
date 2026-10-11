@@ -40,7 +40,7 @@ export async function getStaffTicketDetailHandler(
   }
 }
 
-// §6.2 — PATCH /api/staff/tickets/:ticketNumber/owner (IT_STAFF only).
+// §6.2 — PATCH /api/staff/tickets/:ticketNumber/owner (IT_STAFF + Admin, D-01).
 export async function changeTicketOwnerHandler(
   req: Request,
   res: Response,
@@ -61,7 +61,7 @@ export async function changeTicketOwnerHandler(
   }
 }
 
-// §6.3 — PATCH /api/staff/tickets/:ticketNumber/it-priority (IT_STAFF only).
+// §6.3 — PATCH /api/staff/tickets/:ticketNumber/it-priority (IT_STAFF + Admin, D-01).
 export async function setItPriorityHandler(
   req: Request,
   res: Response,
@@ -82,7 +82,7 @@ export async function setItPriorityHandler(
   }
 }
 
-// §6.4 — PATCH /api/staff/tickets/:ticketNumber/status (IT_STAFF only).
+// §6.4 — PATCH /api/staff/tickets/:ticketNumber/status (IT_STAFF + Admin, D-01).
 export async function changeTicketStatusHandler(
   req: Request,
   res: Response,
