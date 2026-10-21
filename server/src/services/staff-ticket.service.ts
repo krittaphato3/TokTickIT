@@ -1,6 +1,25 @@
 import type { PrismaClient, User } from '@prisma/client';
 import { HttpError } from './ticket.service.js';
 import { ensureTicketNumberFormat } from './attachment.service.js';
+import {
+  MAX_RESOLUTION_SUMMARY_LENGTH,
+  RESOLVE_STATUS,
+  TICKET_STATUSES,
+  allowedTransitions,
+  confirmPrompt,
+  evaluateResolutionGate,
+  isPermitted,
+  isTicketStatus,
+  permittedTargetsMessage,
+  requiresReason,
+  type GateReason,
+  type TicketStatus,
+} from './transition-matrix.js';
+import {
+  assertExpectedVersion,
+  parseExpectedVersion,
+  validationFailure,
+} from './optimistic-lock.js';
 
 // ---------------------------------------------------------------------------
 // Lab 3 §6 — IT Staff ticket operations (FR-07, BR-12/13/15, §12 matrix).
@@ -18,42 +37,13 @@ import { ensureTicketNumberFormat } from './attachment.service.js';
 // ---------------------------------------------------------------------------
 
 export const STAFF_WRITE_REQUIRED = 'IT Staff role required for this operation';
+// Lab 4 (L4-3, BR-09/D-06): the transition matrix, the confirmation metadata
+// and the resolution gate live in ONE pure module (transition-matrix.ts); this
+// service only validates input, enforces authorization and persists. Optimistic
+// locking lives in optimistic-lock.ts and is shared with the Actions Taken
+// PATCHes (D-04).
 export const OWNER_MESSAGE = 'Owner must be an active IT Staff or Administrator';
 export const USER_NOT_FOUND = 'User not found';
-export const ONLY_IT_STAFF_RESOLVE = 'Only IT Staff may resolve or close tickets';
-
-// BR-15 — permitted transitions. Keys are the current status; values are the
-// allowed target statuses for IT_STAFF (ADMIN is view-only per AD-02).
-export const STAFF_TRANSITIONS: Record<string, string[]> = {
-  NEW: ['OPEN', 'CANCELLED'],
-  OPEN: ['IN_PROGRESS', 'WAITING_FOR_REQUESTER', 'CANCELLED'],
-  IN_PROGRESS: ['WAITING_FOR_REQUESTER', 'RESOLVED', 'CANCELLED'],
-  WAITING_FOR_REQUESTER: ['IN_PROGRESS', 'RESOLVED', 'CANCELLED'],
-  RESOLVED: ['CLOSED', 'REOPENED'],
-  CLOSED: ['REOPENED'],
-  REOPENED: ['OPEN', 'IN_PROGRESS'],
-  CANCELLED: ['REOPENED'],
-};
-
-// BR-15 confirmations: transitions that require the client to assert the
-// chosen action via `confirm: true`. Keys are "<FROM>-><TO>".
-export const CONFIRM_REQUIRED: Record<string, string> = {
-  'NEW->CANCELLED': 'Cancel this ticket?',
-  'OPEN->CANCELLED': 'Cancel this ticket?',
-  'IN_PROGRESS->CANCELLED': 'Cancel this ticket?',
-  'WAITING_FOR_REQUESTER->CANCELLED': 'Cancel this ticket?',
-  'IN_PROGRESS->RESOLVED': 'Mark this ticket resolved?',
-  'WAITING_FOR_REQUESTER->RESOLVED': 'Mark this ticket resolved?',
-  'RESOLVED->CLOSED': 'Close this ticket?',
-  'RESOLVED->REOPENED': 'Reopen this ticket? Add a reason comment below.',
-  'CLOSED->REOPENED': 'Reopen this ticket? Add a reason comment below.',
-  'CANCELLED->REOPENED': 'Reopen this ticket? Add a reason comment below.',
-};
-
-// BR-15: reopening from RESOLVED/CLOSED/CANCELLED requires a reason comment
-// (staff route). The comment is flagged in the thread so it reads as an
-// operation record, not a conversation entry.
-const REOPEN_TARGETS = ['RESOLVED', 'CLOSED', 'CANCELLED'];
 
 function requireItStaffWrite(user: User): void {
   // Lab 4 D-01 (BR-15): an active Admin performs every IT Staff ticket
@@ -66,7 +56,13 @@ function requireItStaffWrite(user: User): void {
 
 // §6.1 — staff detail read. Staff/admin may read any ticket by number;
 // a well-formed but absent number is a real (unmasked) 404 (api-spec §1.5).
-export async function getStaffTicketDetail(prisma: PrismaClient, ticketNumber: string) {
+// `role` is the session role and only ever feeds the server-computed
+// `allowedTransitions` list (BR-09/FR-04).
+export async function getStaffTicketDetail(
+  prisma: PrismaClient,
+  ticketNumber: string,
+  role: string,
+) {
   ensureTicketNumberFormat(ticketNumber);
   const ticket = await prisma.ticket.findUnique({
     where: { ticketNumber },
@@ -90,10 +86,11 @@ export async function getStaffTicketDetail(prisma: PrismaClient, ticketNumber: s
     status: ticket.status,
     priority: ticket.priority,
     itPriority: ticket.itPriority,
-    // Lab 4 (L4-2 foundation, api-spec §3.1): optimistic-concurrency version
-    // plus the resolution lifecycle columns (null until the L4-3 workflow
-    // writes them; allowedTransitions arrives with L4-3).
+    // Lab 4 api-spec §3.1 — optimistic-concurrency version, the resolution
+    // lifecycle columns and the server-computed transition list. The UI renders
+    // only these targets and never re-implements the matrix (FR-04).
     version: ticket.version,
+    allowedTransitions: allowedTransitions(ticket.status as TicketStatus, role),
     resolvedAt: ticket.resolvedAt,
     resolutionSummary: ticket.resolutionSummary,
     owner: ticket.owner
@@ -137,6 +134,7 @@ export interface OwnerChangeResult {
   owner: { id: number; name: string; email: string } | null;
   itPriority: string | null;
   itPriorityCopied: boolean;
+  version: number;
   updatedAt: Date;
 }
 
@@ -149,25 +147,33 @@ export async function changeTicketOwner(
   actor: User,
   ticketNumber: string,
   rawOwnerId: unknown,
+  rawExpectedVersion: unknown,
 ): Promise<OwnerChangeResult> {
   requireItStaffWrite(actor);
   ensureTicketNumberFormat(ticketNumber);
 
+  const expectedVersion = parseExpectedVersion(rawExpectedVersion);
+
   if (rawOwnerId !== null && (typeof rawOwnerId !== 'number' || !Number.isInteger(rawOwnerId))) {
-    throw new HttpError(400, 'Validation failed', [
-      { field: 'ownerId', message: 'ownerId is required (integer or null)' },
-    ]);
+    throw new HttpError(
+      400,
+      'Validation failed',
+      [{ field: 'ownerId', message: 'ownerId is required (integer or null)' }],
+      'VALIDATION',
+    );
   }
 
   const ticket = await prisma.ticket.findUnique({ where: { ticketNumber } });
   if (!ticket) {
     throw new HttpError(404, `Ticket ${ticketNumber} does not exist`);
   }
+  // D-04/BR-07 — stale writes change nothing and report the stored version.
+  assertExpectedVersion(ticket.version, expectedVersion);
 
   if (rawOwnerId === null) {
     const cleared = await prisma.ticket.update({
       where: { id: ticket.id },
-      data: { ownerId: null, ownerName: null },
+      data: { ownerId: null, ownerName: null, version: { increment: 1 } },
       include: { owner: true },
     });
     return {
@@ -177,6 +183,7 @@ export async function changeTicketOwner(
       owner: null,
       itPriority: cleared.itPriority,
       itPriorityCopied: false,
+      version: cleared.version,
       updatedAt: cleared.updatedAt,
     };
   }
@@ -198,6 +205,7 @@ export async function changeTicketOwner(
     data: {
       ownerId: candidate.id,
       ownerName: candidate.name,
+      version: { increment: 1 },
       ...(itPriorityCopied ? { itPriority: ticket.priority } : {}),
     },
     include: { owner: true },
@@ -211,6 +219,7 @@ export async function changeTicketOwner(
       : null,
     itPriority: updated.itPriority,
     itPriorityCopied,
+    version: updated.version,
     updatedAt: updated.updatedAt,
   };
 }
@@ -222,120 +231,175 @@ export async function setItPriority(
   actor: User,
   ticketNumber: string,
   rawItPriority: unknown,
-): Promise<{ id: number; ticketNumber: string; priority: string; itPriority: string | null; updatedAt: Date }> {
+  rawExpectedVersion: unknown,
+): Promise<{
+  id: number;
+  ticketNumber: string;
+  priority: string;
+  itPriority: string | null;
+  version: number;
+  updatedAt: Date;
+}> {
   requireItStaffWrite(actor);
   ensureTicketNumberFormat(ticketNumber);
+
+  const expectedVersion = parseExpectedVersion(rawExpectedVersion);
 
   const VALID = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
   if (
     typeof rawItPriority !== 'string' ||
     !(VALID as readonly string[]).includes(rawItPriority)
   ) {
-    throw new HttpError(400, 'Validation failed', [
-      { field: 'itPriority', message: 'itPriority must be one of LOW, MEDIUM, HIGH, CRITICAL' },
-    ]);
+    throw new HttpError(
+      400,
+      'Validation failed',
+      [{ field: 'itPriority', message: 'itPriority must be one of LOW, MEDIUM, HIGH, CRITICAL' }],
+      'VALIDATION',
+    );
   }
 
   const ticket = await prisma.ticket.findUnique({ where: { ticketNumber } });
   if (!ticket) {
     throw new HttpError(404, `Ticket ${ticketNumber} does not exist`);
   }
+  assertExpectedVersion(ticket.version, expectedVersion);
 
   const updated = await prisma.ticket.update({
     where: { id: ticket.id },
-    data: { itPriority: rawItPriority as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' },
+    data: {
+      itPriority: rawItPriority as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
+      version: { increment: 1 },
+    },
   });
   return {
     id: updated.id,
     ticketNumber: updated.ticketNumber,
     priority: updated.priority,
     itPriority: updated.itPriority,
+    version: updated.version,
     updatedAt: updated.updatedAt,
   };
 }
 
-// BR-15 confirm + reason-comment validation for the staff status endpoint.
-// Returns the parsed transition or throws the documented error.
-function validateStatusInput(
-  currentStatus: string,
-  rawStatus: unknown,
-  rawConfirm: unknown,
-  rawReason: unknown,
-): { target: string; confirm: boolean; reason: string | null } {
-  if (typeof rawStatus !== 'string') {
-    throw new HttpError(400, 'Validation failed', [
-      { field: 'status', message: 'status must be a valid ticket status' },
-    ]);
-  }
-  const target = rawStatus;
-  if (target === currentStatus) {
-    throw new HttpError(400, `Ticket is already in status ${currentStatus}`);
-  }
-  if (!(STAFF_TRANSITIONS[currentStatus] ?? []).includes(target)) {
-    const allowed = (STAFF_TRANSITIONS[currentStatus] ?? []).join(', ');
-    throw new HttpError(409, `Illegal status transition from ${currentStatus} to ${target}. Allowed: ${allowed}`);
-  }
-  const confirm = rawConfirm === true;
-  const confirmationKey = `${currentStatus}->${target}`;
-  if (CONFIRM_REQUIRED[confirmationKey] && !confirm) {
-    throw new HttpError(400, 'Validation failed', [
-      {
-        field: 'confirm',
-        message: `Confirmation required to move from ${currentStatus} to ${target}`,
-      },
-    ]);
-  }
-  let reason: string | null = null;
-  if (REOPEN_TARGETS.includes(currentStatus) && target === 'REOPENED') {
-    if (typeof rawReason !== 'string' || rawReason.trim().length === 0) {
-      throw new HttpError(400, 'Validation failed', [
-        {
-          field: 'reason',
-          message: `A reason comment is required to reopen from ${currentStatus}`,
-        },
-      ]);
-    }
-    reason = rawReason.trim();
-    if (reason.length > 2000) {
-      throw new HttpError(400, 'Validation failed', [
-        { field: 'reason', message: 'Reason must be at most 2000 characters' },
-      ]);
-    }
-  }
-  return { target, confirm, reason };
-}
-
-// §6.4 — staff status change per the BR-15 matrix, inside one transaction:
-//   - update status (+ clear a stale appearsResolved signal when a ticket
-//     leaves the Resolved/Closed loop, per FR-10 one-active-signal rule),
+// §6.4 — staff status change governed by the BR-09 matrix (the one pure module
+// in transition-matrix.ts), the BR-10 resolution gate and D-04 optimistic
+// locking, inside one transaction:
+//   - update status, version and the resolution lifecycle columns,
 //   - append the audit-visible system comment (actor, from → to, timestamp),
 //   - append the reason comment for REOPENED transitions.
+export interface StatusChangeResult {
+  id: number;
+  ticketNumber: string;
+  status: string;
+  version: number;
+  resolvedAt: Date | null;
+  updatedAt: Date;
+  comment: { id: number; body: string } | null;
+}
+
 export async function changeTicketStatus(
   prisma: PrismaClient,
   actor: User,
   ticketNumber: string,
-  rawStatus: unknown,
-  rawConfirm: unknown,
-  rawReason: unknown,
-): Promise<{ id: number; ticketNumber: string; status: string; updatedAt: Date; comment: { id: number; body: string } | null }> {
+  body: Record<string, unknown>,
+): Promise<StatusChangeResult> {
   requireItStaffWrite(actor);
   ensureTicketNumberFormat(ticketNumber);
+
+  const rawStatus = body?.status;
+  if (!isTicketStatus(rawStatus)) {
+    validationFailure('status', `status must be one of ${TICKET_STATUSES.join(', ')}`);
+  }
+  const target = rawStatus;
+  const expectedVersion = parseExpectedVersion(body?.expectedVersion);
 
   const ticket = await prisma.ticket.findUnique({ where: { ticketNumber } });
   if (!ticket) {
     throw new HttpError(404, `Ticket ${ticketNumber} does not exist`);
   }
+  const current = ticket.status as TicketStatus;
 
-  const { target, confirm, reason } = validateStatusInput(
-    ticket.status,
-    rawStatus,
-    rawConfirm,
-    rawReason,
-  );
-  void confirm;
+  // D-04/BR-07 — concurrency is the precondition of reading the rest of the
+  // request: a stale client is told to reload (409 + currentVersion) instead of
+  // being handed gate reasons computed from a snapshot that is already out of
+  // date, and no stored column is touched until this passes.
+  assertExpectedVersion(ticket.version, expectedVersion);
+
+  // ANY -> same status is a no-op, reported as validation (api-spec §3.2).
+  if (target === current) {
+    throw new HttpError(400, `Ticket is already in status ${current}`, undefined, 'VALIDATION');
+  }
+
+  // BR-09 — the matrix is never bypassable by calling the API directly, and the
+  // rejection names the permitted set so a client can realign.
+  if (!isPermitted(current, target)) {
+    throw new HttpError(
+      422,
+      `Illegal status transition from ${current} to ${target}`,
+      [{ field: 'status', message: permittedTargetsMessage(current) }],
+      'INVALID_TRANSITION',
+    );
+  }
+
+  const prompt = confirmPrompt(current, target);
+  if (prompt !== null && body?.confirm !== true) {
+    throw new HttpError(
+      400,
+      'Validation failed',
+      [
+        {
+          field: 'confirm',
+          message: `Confirmation required to move from ${current} to ${target}`,
+        },
+      ],
+      'VALIDATION',
+    );
+  }
+
+  // FR-05/BR-10 — the gate applies only to *new* transitions into Resolved, and
+  // it reports every unsatisfied condition together.
+  let summary: string | null = null;
+  if (target === RESOLVE_STATUS) {
+    const rawSummary = body?.resolutionSummary;
+    if (typeof rawSummary === 'string' && rawSummary.trim().length > MAX_RESOLUTION_SUMMARY_LENGTH) {
+      validationFailure(
+        'resolutionSummary',
+        `resolutionSummary must be at most ${MAX_RESOLUTION_SUMMARY_LENGTH} characters`,
+      );
+    }
+    summary = typeof rawSummary === 'string' ? rawSummary.trim() : null;
+
+    const [actionCount, openFollowUpCount] = await Promise.all([
+      prisma.actionTaken.count({ where: { ticketId: ticket.id } }),
+      prisma.actionTaken.count({ where: { ticketId: ticket.id, followUpRequired: true } }),
+    ]);
+    const reasons: GateReason[] = evaluateResolutionGate({ actionCount, openFollowUpCount, summary });
+    if (reasons.length > 0) {
+      throw new HttpError(
+        422,
+        'Resolution requirements are not met',
+        reasons.map((reason) => ({ field: 'reasons', message: reason })),
+        'RESOLUTION_GATE',
+      );
+    }
+  }
+
+  // Reopening a resolved or closed ticket records why in the ticket thread; the
+  // reason arrives with the transition so the audit entry is never anonymous.
+  let reason: string | null = null;
+  if (requiresReason(current, target)) {
+    const rawReason = body?.reason;
+    if (typeof rawReason !== 'string' || rawReason.trim().length === 0) {
+      validationFailure('reason', `A reason comment is required to reopen from ${current}`);
+    }
+    if ((rawReason as string).trim().length > 2000) {
+      validationFailure('reason', 'Reason must be at most 2000 characters');
+    }
+    reason = (rawReason as string).trim();
+  }
 
   // BR-15/BR-12: Resolved and Closed require a live owner. Reopening and
-  // cancelling are the exceptions that stay available on a dead-owner ticket.
+  // cancelling stay available on a dead-owner ticket.
   if ((target === 'RESOLVED' || target === 'CLOSED') && ticket.ownerId !== null) {
     const owner = await prisma.user.findUnique({ where: { id: ticket.ownerId } });
     if (!owner || !owner.isActive) {
@@ -344,23 +408,25 @@ export async function changeTicketStatus(
   }
 
   const timestamp = new Date();
-  const systemBody = `Status changed from ${ticket.status} to ${target} by ${actor.name} at ${timestamp.toISOString()}.`;
-  const reopenBody =
-    reason !== null
-      ? `Reopened by ${actor.name}: ${reason}`
-      : null;
+  const systemBody = `Status changed from ${current} to ${target} by ${actor.name} at ${timestamp.toISOString()}.`;
+  const reopenBody = reason !== null ? `Reopened by ${actor.name}: ${reason}` : null;
 
   const updated = await prisma.$transaction(async (tx) => {
     const row = await tx.ticket.update({
       where: { id: ticket.id },
       data: {
         status: target as never,
-        // FR-10 one-active-signal-per-episode: a staff status change out of
-        // RESOLVED/CLOSED clears the stale requester signal so a fresh
-        // appears-resolved episode can be recorded later.
-        ...(ticket.status === 'RESOLVED' || ticket.status === 'CLOSED'
-          ? { appearsResolvedAt: null }
+        version: { increment: 1 },
+        // BR-10/§3.2 — the first successful transition into Resolved stamps
+        // resolvedAt and stores the summary; reopening clears only resolvedAt
+        // and keeps the summary as history.
+        ...(target === RESOLVE_STATUS
+          ? { resolvedAt: timestamp, resolutionSummary: summary }
           : {}),
+        ...(target === 'REOPENED' ? { resolvedAt: null } : {}),
+        // FR-10 one-active-signal-per-episode (Lab 3): a staff status change out
+        // of RESOLVED/CLOSED clears the stale requester signal.
+        ...(current === 'RESOLVED' || current === 'CLOSED' ? { appearsResolvedAt: null } : {}),
       },
     });
     const comment = await tx.publicComment.create({
@@ -378,6 +444,8 @@ export async function changeTicketStatus(
     id: updated.row.id,
     ticketNumber: updated.row.ticketNumber,
     status: updated.row.status,
+    version: updated.row.version,
+    resolvedAt: updated.row.resolvedAt,
     updatedAt: updated.row.updatedAt,
     comment: { id: updated.comment.id, body: updated.comment.body },
   };

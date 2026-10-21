@@ -29,10 +29,11 @@ export async function getStaffTicketDetailHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
-    sessionUser(req);
+    const user = sessionUser(req);
     const ticket = await getStaffTicketDetail(
       getPrisma(),
       req.params.ticketNumber as string,
+      user.role,
     );
     res.status(200).json(ticket);
   } catch (err) {
@@ -54,6 +55,7 @@ export async function changeTicketOwnerHandler(
       user as never,
       req.params.ticketNumber as string,
       body.ownerId,
+      body.expectedVersion,
     );
     res.status(200).json(result);
   } catch (err) {
@@ -75,6 +77,7 @@ export async function setItPriorityHandler(
       user as never,
       req.params.ticketNumber as string,
       body.itPriority,
+      body.expectedVersion,
     );
     res.status(200).json(result);
   } catch (err) {
@@ -91,13 +94,15 @@ export async function changeTicketStatusHandler(
   try {
     const user = sessionUser(req);
     const body = (req.body ?? {}) as Record<string, unknown>;
+    // D-04/D-06 — every governed field arrives in the body: the target status,
+    // expectedVersion, the confirmation flag, the reopen reason and the
+    // resolution summary. The service validates them against the matrix, the
+    // resolution gate and the stored version; nothing is trusted from the UI.
     const result = await changeTicketStatus(
       getPrisma(),
       user as never,
       req.params.ticketNumber as string,
-      body.status,
-      body.confirm,
-      body.reason,
+      body,
     );
     res.status(200).json(result);
   } catch (err) {

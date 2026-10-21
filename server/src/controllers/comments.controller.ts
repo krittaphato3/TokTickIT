@@ -6,7 +6,6 @@ import {
   createComment,
   extractAppearsResolvedHint,
   listComments,
-  requesterStatusChange,
   resolveAccessibleTicket,
   validateCommentBody,
 } from '../services/comment.service.js';
@@ -80,32 +79,28 @@ export async function createCommentHandler(
   }
 }
 
-// PATCH /api/tickets/:ticketNumber/status — §7.3, requester REOPEN-only.
-// Staff/admin have their own status surface (§6.4, later issue); reaching this
-// requester route with a staff/admin session is a route-use error (403).
-export async function requesterStatusChangeHandler(
+// Lab 4 D-06/BR-09 — PATCH /api/tickets/:ticketNumber/status. Lab 3 let the
+// owning Requester reopen a Resolved/Closed ticket; Lab 4 removes that
+// capability entirely, so this route stays REGISTERED purely to reject every
+// Requester call explicitly and testably (api-spec §3.5).
+//
+// The role check runs before any lookup, so ownership, ticket existence and the
+// requested target are all irrelevant: a Requester always receives the same
+// 403 FORBIDDEN body and this route can never leak whether a ticket exists.
+// Staff and Admin drive the lifecycle through §3.2 instead.
+export const ONLY_IT_STAFF_STATUS_MESSAGE = 'Only IT Staff may change ticket status';
+
+export function requesterStatusChangeHandler(
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction,
-): Promise<void> {
+): void {
   try {
     const user = sessionUser(req);
-    if (user.role !== 'REQUESTER') {
-      throw new HttpError(403, 'Only the ticket requester may use this endpoint');
+    if (user.role === 'REQUESTER') {
+      throw new HttpError(403, ONLY_IT_STAFF_STATUS_MESSAGE, undefined, 'FORBIDDEN');
     }
-    const prisma = getPrisma();
-    const ticket = await resolveAccessibleTicket(
-      prisma,
-      user,
-      req.params.ticketNumber as string,
-    );
-    const result = await requesterStatusChange(
-      prisma,
-      user as never,
-      ticket.id,
-      (req.body as Record<string, unknown> | undefined)?.status,
-    );
-    res.status(200).json(result);
+    throw new HttpError(403, 'Only the ticket requester may use this endpoint');
   } catch (err) {
     next(err);
   }
