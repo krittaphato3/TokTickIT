@@ -55,7 +55,7 @@ export const RequesterDashboard: React.FC = () => {
   if (loading) {
     return (
       <main className="dash-page" aria-busy="true">
-        <div className="tt-skeleton" role="status" aria-label="Loading dashboard" style={{ minHeight: '200px' }} />
+        <div className="tt-skeleton" role="status" aria-label="Loading dashboard" style={{ minHeight: '160px' }} />
       </main>
     );
   }
@@ -65,7 +65,7 @@ export const RequesterDashboard: React.FC = () => {
       <main className="dash-page">
         <div className="dash-error-alert" role="alert">
           <span>{error ?? 'An unexpected error occurred.'}</span>
-          <button type="button" className="tok-btn secondary" onClick={() => void loadData()}>
+          <button type="button" className="tok-btn secondary small" onClick={() => void loadData()}>
             Try again
           </button>
         </div>
@@ -81,6 +81,10 @@ export const RequesterDashboard: React.FC = () => {
 
   const displayName = user?.name ? user.name.split(' ')[0] : 'Requester';
 
+  // Display top 3 recent tickets and top 3 resolved tickets to fit the screen without scrolling
+  const displayedRecent = data.recentlyUpdated.slice(0, 3);
+  const displayedResolved = data.recentlyResolved.slice(0, 3);
+
   return (
     <main className="dash-page">
       <div className="dash-header">
@@ -89,7 +93,7 @@ export const RequesterDashboard: React.FC = () => {
             Welcome, {displayName}!
           </h1>
           <p className="dash-subtitle">
-            Here's the latest on your requests. <span className="text-muted" style={{ fontSize: '0.875rem' }}>(Your tickets)</span>
+            Here's the latest on your requests. <span className="text-muted" style={{ fontSize: '0.825rem' }}>(Your tickets)</span>
           </p>
         </div>
         <button
@@ -98,15 +102,15 @@ export const RequesterDashboard: React.FC = () => {
           onClick={() => void loadData()}
           aria-label="Refresh dashboard"
         >
-          <span aria-hidden="true" style={{ marginRight: 6 }}>↻</span> Refresh
+          <span aria-hidden="true" style={{ marginRight: 4 }}>↻</span> Refresh
         </button>
       </div>
 
       {isZeroState ? (
-        <div className="tok-card" style={{ textAlign: 'center', padding: '40px 20px', margin: '20px 0' }}>
+        <div className="tok-card" style={{ textAlign: 'center', padding: '32px 20px', margin: '16px 0' }}>
           <h2>No tickets yet</h2>
           <p className="tok-hint">You haven't submitted any IT support requests yet.</p>
-          <a href="#/new" className="tok-btn primary" style={{ display: 'inline-block', marginTop: '12px' }}>
+          <a href="#/new" className="tok-btn primary" style={{ display: 'inline-block', marginTop: '10px' }}>
             Submit your first ticket
           </a>
         </div>
@@ -155,9 +159,9 @@ export const RequesterDashboard: React.FC = () => {
             </a>
           </section>
 
-          {/* Two-Column Layout */}
+          {/* Two-Column Layout balanced to avoid scrolling */}
           <div className="dash-two-col">
-            {/* Left Column: Recent Tickets */}
+            {/* Left Column: Recent Tickets (Top 3) */}
             <div className="dash-main-col">
               <div className="dash-list-card">
                 <div className="dash-list-card-header">
@@ -165,11 +169,11 @@ export const RequesterDashboard: React.FC = () => {
                   <a href="#/my" className="dash-view-all-link">View all</a>
                 </div>
 
-                {data.recentlyUpdated.length === 0 ? (
+                {displayedRecent.length === 0 ? (
                   <p className="dash-empty-note">No recent tickets.</p>
                 ) : (
                   <ul className="dash-items-list">
-                    {data.recentlyUpdated.map((ticket) => (
+                    {displayedRecent.map((ticket) => (
                       <li key={ticket.id}>
                         <a href={`#/tickets/${ticket.ticketNumber}`} className="dash-item-link">
                           <div className="dash-item-info">
@@ -188,19 +192,56 @@ export const RequesterDashboard: React.FC = () => {
                   </ul>
                 )}
               </div>
+            </div>
 
-              {/* Recently Resolved Card */}
-              <div className="dash-list-card" style={{ marginTop: '20px' }}>
+            {/* Right Column: Quick Actions + Recently Resolved (Top 3) */}
+            <div className="dash-side-col">
+              <div className="dash-quick-actions-card">
+                <h2 className="dash-quick-actions-title">Quick Actions</h2>
+                <div className="dash-quick-actions-list">
+                  <a href="#/new" className="dash-action-card" aria-label="+ New Ticket">
+                    <div className="dash-action-icon green-icon">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                      </svg>
+                    </div>
+                    <div className="dash-action-text">
+                      <div className="dash-action-main">+ New Ticket</div>
+                      <div className="dash-action-sub">Submit a new request</div>
+                    </div>
+                  </a>
+
+                  <a href="#/my" className="dash-action-card">
+                    <div className="dash-action-icon green-icon">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                      </svg>
+                    </div>
+                    <div className="dash-action-text">
+                      <div className="dash-action-main">View My Tickets</div>
+                      <div className="dash-action-sub">Track existing requests</div>
+                    </div>
+                  </a>
+                </div>
+              </div>
+
+              {/* Recently Resolved Card (Top 3) */}
+              <div className="dash-list-card" style={{ marginTop: '14px' }}>
                 <div className="dash-list-card-header">
                   <h2 className="dash-list-card-title">Recently Resolved</h2>
                   <a href="#/my?status=RESOLVED" className="dash-view-all-link">View all</a>
                 </div>
 
-                {data.recentlyResolved.length === 0 ? (
+                {displayedResolved.length === 0 ? (
                   <p className="dash-empty-note">No resolved tickets yet.</p>
                 ) : (
                   <ul className="dash-items-list">
-                    {data.recentlyResolved.map((ticket) => (
+                    {displayedResolved.map((ticket) => (
                       <li key={ticket.id}>
                         <a href={`#/tickets/${ticket.ticketNumber}`} className="dash-item-link">
                           <div className="dash-item-info">
@@ -216,43 +257,6 @@ export const RequesterDashboard: React.FC = () => {
                     ))}
                   </ul>
                 )}
-              </div>
-            </div>
-
-            {/* Right Column: Quick Actions */}
-            <div className="dash-side-col">
-              <div className="dash-quick-actions-card">
-                <h2 className="dash-quick-actions-title">Quick Actions</h2>
-                <div className="dash-quick-actions-list">
-                  <a href="#/new" className="dash-action-card" aria-label="+ New Ticket">
-                    <div className="dash-action-icon green-icon">
-                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                      </svg>
-                    </div>
-                    <div className="dash-action-text">
-                      <div className="dash-action-main">+ New Ticket</div>
-                      <div className="dash-action-sub">Submit a new request</div>
-                    </div>
-                  </a>
-
-                  <a href="#/my" className="dash-action-card">
-                    <div className="dash-action-icon green-icon">
-                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline>
-                        <line x1="16" y1="13" x2="8" y2="13"></line>
-                        <line x1="16" y1="17" x2="8" y2="17"></line>
-                        <polyline points="10 9 9 9 8 9"></polyline>
-                      </svg>
-                    </div>
-                    <div className="dash-action-text">
-                      <div className="dash-action-main">View My Tickets</div>
-                      <div className="dash-action-sub">Track existing requests</div>
-                    </div>
-                  </a>
-                </div>
               </div>
             </div>
           </div>

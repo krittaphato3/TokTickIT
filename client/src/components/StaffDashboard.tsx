@@ -55,7 +55,7 @@ export const StaffDashboard: React.FC = () => {
   if (loading) {
     return (
       <main className="dash-page" aria-busy="true">
-        <div className="tt-skeleton" role="status" aria-label="Loading dashboard" style={{ minHeight: '200px' }} />
+        <div className="tt-skeleton" role="status" aria-label="Loading dashboard" style={{ minHeight: '160px' }} />
       </main>
     );
   }
@@ -67,7 +67,7 @@ export const StaffDashboard: React.FC = () => {
           <span>{error ?? 'An unexpected error occurred.'}</span>
           <button
             type="button"
-            className="tok-btn secondary"
+            className="tok-btn secondary small"
             onClick={() => void loadData()}
           >
             Try again
@@ -79,6 +79,8 @@ export const StaffDashboard: React.FC = () => {
 
   const userId = user?.id ?? 0;
   const displayName = user?.name ? user.name.split(' ')[0] : 'Staff';
+  const displayedRecent = data.recentlyUpdated.slice(0, 3);
+  const displayedActions = data.myRecentActions.slice(0, 3);
 
   return (
     <main className="dash-page">
@@ -89,7 +91,7 @@ export const StaffDashboard: React.FC = () => {
             Welcome back, {displayName}!
           </h1>
           <p className="dash-subtitle">
-            Here's what's happening with your queue today. <span className="text-muted" style={{ fontSize: '0.875rem' }}>(Service desk overview)</span>
+            Here's what's happening with your queue today. <span className="text-muted" style={{ fontSize: '0.825rem' }}>(Service desk overview)</span>
           </p>
         </div>
         <button
@@ -98,7 +100,7 @@ export const StaffDashboard: React.FC = () => {
           onClick={() => void loadData()}
           aria-label="Refresh dashboard"
         >
-          <span aria-hidden="true" style={{ marginRight: 6 }}>↻</span> Refresh
+          <span aria-hidden="true" style={{ marginRight: 4 }}>↻</span> Refresh
         </button>
       </div>
 
@@ -197,7 +199,7 @@ export const StaffDashboard: React.FC = () => {
 
       {/* Two-Column Layout (Matches Handout 8.1) */}
       <div className="dash-two-col">
-        {/* Left Column: Recent Tickets and Actions */}
+        {/* Left Column: Recent Tickets and Actions (3 items each) */}
         <div className="dash-main-col">
           <div className="dash-list-card">
             <div className="dash-list-card-header">
@@ -205,11 +207,11 @@ export const StaffDashboard: React.FC = () => {
               <a href="#/staff/queue" className="dash-view-all-link">View all</a>
             </div>
 
-            {data.recentlyUpdated.length === 0 ? (
+            {displayedRecent.length === 0 ? (
               <p className="dash-empty-note">No recently updated active tickets.</p>
             ) : (
               <ul className="dash-items-list">
-                {data.recentlyUpdated.map((ticket) => (
+                {displayedRecent.map((ticket) => (
                   <li key={ticket.id}>
                     <a href={`#/tickets/${ticket.ticketNumber}`} className="dash-item-link">
                       <div className="dash-item-info">
@@ -233,16 +235,16 @@ export const StaffDashboard: React.FC = () => {
           </div>
 
           {/* My Recent Actions */}
-          <div className="dash-list-card" style={{ marginTop: '20px' }}>
+          <div className="dash-list-card" style={{ marginTop: '14px' }}>
             <div className="dash-list-card-header">
               <h2 className="dash-list-card-title">My Recent Actions</h2>
             </div>
 
-            {data.myRecentActions.length === 0 ? (
+            {displayedActions.length === 0 ? (
               <p className="dash-empty-note">You haven't recorded any actions yet.</p>
             ) : (
               <ul className="dash-items-list">
-                {data.myRecentActions.map((action) => (
+                {displayedActions.map((action) => (
                   <li key={action.id}>
                     <a href={`#/tickets/${action.ticketNumber}`} className="dash-item-link">
                       <div className="dash-item-info">
@@ -265,7 +267,7 @@ export const StaffDashboard: React.FC = () => {
             <div className="dash-quick-actions-grid-3">
               <a href="#/new" className="dash-action-box" aria-label="Create Ticket">
                 <div className="dash-action-icon-circle green">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="12" y1="5" x2="12" y2="19"></line>
                     <line x1="5" y1="12" x2="19" y2="12"></line>
                   </svg>
@@ -275,7 +277,7 @@ export const StaffDashboard: React.FC = () => {
 
               <a href="#/staff/queue" className="dash-action-box" aria-label="Search Tickets">
                 <div className="dash-action-icon-circle blue">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="11" cy="11" r="8"></circle>
                     <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                   </svg>
@@ -285,7 +287,7 @@ export const StaffDashboard: React.FC = () => {
 
               <a href={`#/staff/queue?ownerId=${userId}&active=true`} className="dash-action-box" aria-label="My Queue">
                 <div className="dash-action-icon-circle teal">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                     <line x1="3" y1="9" x2="21" y2="9"></line>
                     <line x1="9" y1="21" x2="9" y2="9"></line>
@@ -298,7 +300,7 @@ export const StaffDashboard: React.FC = () => {
 
           {/* Admin User Counts (AC-17) */}
           {data.userCounts && (
-            <div className="dash-list-card" style={{ marginTop: '20px' }}>
+            <div className="dash-list-card" style={{ marginTop: '14px' }}>
               <div className="dash-list-card-header">
                 <h3 className="dash-list-card-title" style={{ margin: 0, border: 0 }}>
                   User Directory
