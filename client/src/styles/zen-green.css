@@ -54,6 +54,7 @@ body{margin:0;background:var(--tok-page-bg);color:var(--tok-text);font-family:va
 .tok-profile-caret{color:var(--tok-text-muted);transition:transform .18s ease;flex:none}
 .tok-profile-btn[aria-expanded="true"] .tok-profile-caret{transform:rotate(180deg)}
 .tok-avatar{border-radius:50%;background:linear-gradient(135deg,#14b8a6,#115e59);color:#fff;font-weight:600;display:grid;place-items:center;letter-spacing:.03em;user-select:none;flex:none}
+.tok-avatar::before{content:attr(data-initials)}
 .tok-avatar--sm{width:30px;height:30px;font-size:.71875rem}
 .tok-avatar--lg{width:40px;height:40px;font-size:.875rem;position:relative}
 .tok-avatar--lg::after{content:"";position:absolute;right:-1px;bottom:-1px;width:10px;height:10px;border-radius:50%;background:#22c55e;border:2px solid #fff}

@@ -109,51 +109,46 @@ export const StaffDashboard: React.FC = () => {
         <a
           href="#/staff/queue?status=NEW"
           className="dash-metric-card"
-          aria-label={`New: ${data.countsByStatus.NEW ?? 0}`}
         >
-          <span className="dash-metric-label">New</span>
-          <span className="dash-metric-value">{data.countsByStatus.NEW ?? 0}</span>
+          <span className="dash-metric-label">New:</span>{' '}
+          <span className="dash-metric-value">{data.countsByStatus.NEW ?? 0}</span>{' '}
           <span className="dash-metric-view-all">View all →</span>
         </a>
 
         <a
           href="#/staff/queue?status=OPEN"
           className="dash-metric-card"
-          aria-label={`Open: ${data.countsByStatus.OPEN ?? 0}`}
         >
-          <span className="dash-metric-label">Open</span>
-          <span className="dash-metric-value">{data.countsByStatus.OPEN ?? 0}</span>
+          <span className="dash-metric-label">Open:</span>{' '}
+          <span className="dash-metric-value">{data.countsByStatus.OPEN ?? 0}</span>{' '}
           <span className="dash-metric-view-all">View all →</span>
         </a>
 
         <a
           href="#/staff/queue?status=IN_PROGRESS"
           className="dash-metric-card"
-          aria-label={`In progress: ${data.countsByStatus.IN_PROGRESS ?? 0}`}
         >
-          <span className="dash-metric-label">In Progress</span>
-          <span className="dash-metric-value">{data.countsByStatus.IN_PROGRESS ?? 0}</span>
+          <span className="dash-metric-label">In Progress:</span>{' '}
+          <span className="dash-metric-value">{data.countsByStatus.IN_PROGRESS ?? 0}</span>{' '}
           <span className="dash-metric-view-all">View all →</span>
         </a>
 
         <a
           href="#/staff/queue?status=WAITING_FOR_REQUESTER"
           className="dash-metric-card"
-          aria-label={`Waiting for requester: ${data.countsByStatus.WAITING_FOR_REQUESTER ?? 0}`}
         >
-          <span className="dash-metric-label">Waiting for Requester</span>
-          <span className="dash-metric-value">{data.countsByStatus.WAITING_FOR_REQUESTER ?? 0}</span>
+          <span className="dash-metric-label">Waiting for Requester:</span>{' '}
+          <span className="dash-metric-value">{data.countsByStatus.WAITING_FOR_REQUESTER ?? 0}</span>{' '}
           <span className="dash-metric-view-all">View all →</span>
         </a>
 
         <a
           href={`#/staff/queue?ownerId=${userId}&active=true`}
           className="dash-metric-card"
-          aria-label={`My active tickets: ${data.myActiveOwnedCount}`}
         >
-          <span className="dash-metric-label">My Assigned</span>
-          <span className="dash-metric-value">{data.myActiveOwnedCount}</span>
-          <span className="dash-metric-view-all">View queue →</span>
+          <span className="dash-metric-label">My Active Tickets:</span>{' '}
+          <span className="dash-metric-value">{data.myActiveOwnedCount ?? 0}</span>{' '}
+          <span className="dash-metric-view-all">View all →</span>
         </a>
       </section>
 
@@ -162,36 +157,32 @@ export const StaffDashboard: React.FC = () => {
         <a
           href="#/staff/queue?assigned=false&active=true"
           className="dash-metric-card compact-card accent-warning"
-          aria-label={`Unassigned active: ${data.unassignedActiveCount}`}
         >
-          <span className="dash-metric-label">Unassigned Active</span>
+          <span className="dash-metric-label">Unassigned Active:</span>{' '}
           <span className="dash-metric-value">{data.unassignedActiveCount}</span>
         </a>
 
         <a
           href="#/staff/queue?itPriority=CRITICAL&active=true"
           className="dash-metric-card compact-card accent-danger"
-          aria-label={`Critical: ${data.countsByItPriority.CRITICAL ?? 0}`}
         >
-          <span className="dash-metric-label">Critical (Active)</span>
+          <span className="dash-metric-label">Critical:</span>{' '}
           <span className="dash-metric-value">{data.countsByItPriority.CRITICAL ?? 0}</span>
         </a>
 
         <a
           href="#/staff/queue?itPriority=HIGH&active=true"
           className="dash-metric-card compact-card accent-warning"
-          aria-label={`High: ${data.countsByItPriority.HIGH ?? 0}`}
         >
-          <span className="dash-metric-label">High (Active)</span>
+          <span className="dash-metric-label">High:</span>{' '}
           <span className="dash-metric-value">{data.countsByItPriority.HIGH ?? 0}</span>
         </a>
 
         <a
           href="#/staff/queue?itPriority=MEDIUM&active=true"
           className="dash-metric-card compact-card"
-          aria-label={`Medium: ${data.countsByItPriority.MEDIUM ?? 0}`}
         >
-          <span className="dash-metric-label">Medium (Active)</span>
+          <span className="dash-metric-label">Medium:</span>{' '}
           <span className="dash-metric-value">{data.countsByItPriority.MEDIUM ?? 0}</span>
         </a>
       </section>

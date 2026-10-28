@@ -121,40 +121,36 @@ export const RequesterDashboard: React.FC = () => {
             <a
               href="#/my?active=true"
               className="dash-metric-card"
-              aria-label={`Active tickets: ${data.activeCount}`}
             >
-              <span className="dash-metric-label">Active Tickets</span>
-              <span className="dash-metric-value">{data.activeCount}</span>
+              <span className="dash-metric-label">Active Tickets:</span>{' '}
+              <span className="dash-metric-value">{data.activeCount}</span>{' '}
               <span className="dash-metric-view-all">View all →</span>
             </a>
 
             <a
               href="#/my?status=WAITING_FOR_REQUESTER"
               className="dash-metric-card"
-              aria-label={`Waiting for you: ${data.waitingForRequesterCount}`}
             >
-              <span className="dash-metric-label">Waiting for You</span>
-              <span className="dash-metric-value">{data.waitingForRequesterCount}</span>
+              <span className="dash-metric-label">Waiting for You:</span>{' '}
+              <span className="dash-metric-value">{data.waitingForRequesterCount}</span>{' '}
               <span className="dash-metric-view-all">View all →</span>
             </a>
 
             <a
               href="#/my?status=RESOLVED"
               className="dash-metric-card"
-              aria-label={`Resolved: ${data.resolvedCount}`}
             >
-              <span className="dash-metric-label">Resolved</span>
-              <span className="dash-metric-value">{data.resolvedCount}</span>
+              <span className="dash-metric-label">Resolved:</span>{' '}
+              <span className="dash-metric-value">{data.resolvedCount}</span>{' '}
               <span className="dash-metric-view-all">View all →</span>
             </a>
 
             <a
               href="#/my?status=CLOSED"
               className="dash-metric-card"
-              aria-label={`Closed: ${data.closedCount}`}
             >
-              <span className="dash-metric-label">Closed</span>
-              <span className="dash-metric-value">{data.closedCount}</span>
+              <span className="dash-metric-label">Closed:</span>{' '}
+              <span className="dash-metric-value">{data.closedCount}</span>{' '}
               <span className="dash-metric-view-all">View all →</span>
             </a>
           </section>
@@ -199,7 +195,7 @@ export const RequesterDashboard: React.FC = () => {
               <div className="dash-quick-actions-card">
                 <h2 className="dash-quick-actions-title">Quick Actions</h2>
                 <div className="dash-quick-actions-list">
-                  <a href="#/new" className="dash-action-card" aria-label="+ New Ticket">
+                  <a href="#/new" className="dash-action-card">
                     <div className="dash-action-icon green-icon">
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <line x1="12" y1="5" x2="12" y2="19"></line>

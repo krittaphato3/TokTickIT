@@ -205,6 +205,7 @@ describe('PERF-01 — dashboard smoke p95 < 1000 ms (D-13, AC-22)', () => {
 
     const requesterP95 = await measureTimes('/api/dashboard/requester', reqSession.cookie);
     const staffP95 = await measureTimes('/api/dashboard/staff', staffSession.cookie);
+    console.log(`PERF-01 p95 results: Requester=${Math.round(requesterP95)}ms, Staff=${Math.round(staffP95)}ms`);
 
     await staffSession.dispose();
     await reqSession.dispose();

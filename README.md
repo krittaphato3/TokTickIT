@@ -114,17 +114,91 @@ The seed creates these logins for the Lab 3 authentication flow. **Local develop
 
 ## Tests
 
+### Running Unit & API Test Suites
 ```bash
-cd server && npm test    # DB-backed unit + API suites — run mode 1, 2 or 3 first
-cd client && npm test    # component tests; no database needed
+# Server unit & API suites (DB-backed, vitest)
+npm --prefix server test
+
+# Client component & UI test suites (vitest + testing-library)
+npm --prefix client test
+
+# Run specific Lab 4 test suites:
+npm --prefix server test -- server/tests/lab-04/authz-sweep.api.test.ts
+npm --prefix server test -- server/tests/lab-04/actions-taken.api.test.ts
+npm --prefix server test -- server/tests/lab-04/ticket-workflow.api.test.ts
+npm --prefix server test -- server/tests/lab-04/staff-dashboard.api.test.ts
+npm --prefix server test -- server/tests/lab-04/requester-dashboard.api.test.ts
+npm --prefix server test -- server/tests/lab-04/migration-regression.test.ts
+npm --prefix client test -- client/tests/lab-04/
 ```
 
-E2E (Playwright, real servers + seeded database):
+### Running E2E Test Suites (Playwright)
+```bash
+# Run all Playwright E2E suites across Labs 2, 3, 4
+npx playwright test
+
+# Run Lab 4 specific E2E specs
+npx playwright test e2e/lab-04/actions-taken-flow.spec.ts
+npx playwright test e2e/lab-04/ticket-resolution.spec.ts
+npx playwright test e2e/lab-04/dashboards.spec.ts
+npx playwright test e2e/lab-04/regression-a11y-responsive.spec.ts
+```
+
+### Database Migrations & Rollback
 
 ```bash
-npx playwright install chromium   # first time only
-npx playwright test               # starts dev servers, resets seeded logins
+# Run migrations forward
+cd server && npx prisma migrate deploy
+
+# Run seed (idempotent)
+cd server && npm run db:seed
+
+# Reset developer account credentials to initial seed state
+npm run auth:reset
+
+# Rollback Lab 4 migration (reverts schema back to Lab 3 state preserving data)
+# With Docker Postgres on port 5433:
+PGPASSWORD=toktickit psql -h localhost -p 5433 -U toktickit -d toktickit -f server/prisma/rollback/lab4_down.sql
+
+# With embedded Postgres on port 5434:
+PGPASSWORD=toktickit psql -h localhost -p 5434 -U toktickit -d toktickit -f server/prisma/rollback/lab4_down.sql
 ```
+
+## Demo Walkthrough Per Role
+
+### 1. Requester Journey
+1. Sign in with `eta@toktickit.test` / `Requester123!` (or `alpha@toktickit.test`).
+2. Land on **Requester Dashboard** (`#/dashboard`):
+   - View operational metric cards: Active Tickets, Waiting for You, Resolved, Closed. Click any card to drill down into `#/my`.
+   - Inspect **My Recent Tickets** (top 3) and **Recently Resolved** (top 3).
+3. Click **+ New Ticket** quick action (navigates to `#/new`) to submit a new ticket.
+4. Click into any ticket to open **Ticket Detail** (`#/tickets/:number`):
+   - View ticket status badge, priority, details, and attachments.
+   - Post public comments.
+   - View **Actions Taken** section: read-only timeline of staff interventions, timestamps, follow-up flags, and attachment references with zero write affordances.
+
+### 2. IT Staff Journey
+1. Sign in with `sara.it@toktickit.test` / `Staff123!` (or `tom.it@toktickit.test`).
+2. Land on **Staff Dashboard** (`#/dashboard`):
+   - View 5 status count cards, Unassigned Active card, and Owned by Me card with real-time drill-down links to `#/staff/queue`.
+   - View active ticket breakdown by IT Priority.
+   - Inspect Recent Active Tickets (top 3) and My Recent Actions (top 3), linking directly to `#/staff/tickets/:number`.
+3. Open **Staff Queue** (`#/staff/queue`): filter by status, priority, or search summary.
+4. Open a ticket to reach **Staff Ticket Detail** (`#/staff/tickets/:number`):
+   - Claim or assign ticket.
+   - Post internal notes.
+   - Under **Actions Taken**: click **+ Record Action**, fill description and result, optionally check "Follow-up required" with note, and submit.
+   - Edit previously recorded actions inline.
+   - Change ticket status via the workflow dropdown. When transitioning to **RESOLVED**, the Resolution Gate dialog automatically opens requiring a resolution summary.
+
+### 3. Administrator Journey
+1. Sign in with `admin@toktickit.test` / `Admin123!`.
+2. Land on **Staff / Admin Dashboard** (`#/dashboard`):
+   - In addition to all Staff operational metrics, view the **User Directory** card displaying active/inactive breakdown and counts by role (Requester, IT Staff, Administrator) with a link to `#/admin/users`.
+3. Open **User Management** (`#/admin/users`):
+   - Filter users by role or active status.
+   - Search user accounts.
+   - Create new user accounts or reset passwords.
 
 ## Build
 

@@ -139,29 +139,32 @@ test.describe('E2E-01: Actions Taken flow across staff and requester', () => {
     await expect(sectionB).toBeVisible();
 
     // Staff B records second action
+    const descB = `Staff B applied firmware update ${Date.now()}`;
     await sectionB.getByRole('button', { name: /record action/i }).click();
-    await sectionB.getByLabel(/description/i).fill('Staff B applied firmware update v2.4.');
+    await sectionB.getByLabel(/description/i).fill(descB);
     await sectionB.getByLabel(/result/i).fill('Firmware updated. Need to monitor thermals.');
-    await sectionB.getByLabel(/follow-up required/i).click();
+    await sectionB.getByRole('checkbox', { name: /follow-up required/i }).check();
     await sectionB.getByLabel(/follow-up note/i).fill('Check thermals after 24 hours of operation.');
 
     await sectionB.getByRole('button', { name: /^save action$|^save$/i }).click();
-    await expect(sectionB.getByText('Staff B applied firmware update v2.4.').first()).toBeVisible();
+    await expect(sectionB.getByText(descB).first()).toBeVisible();
     await expect(sectionB.getByText(/check thermals after 24 hours/i).first()).toBeVisible();
 
     // Locate Staff B's specific row in the table to edit
-    const tomRow = sectionB.locator('tbody tr', { hasText: 'Staff B applied firmware update v2.4.' }).first();
+    const tomRow = sectionB.locator('tbody tr', { hasText: descB }).first();
     await expect(tomRow).toBeVisible();
     await tomRow.getByRole('button', { name: /edit/i }).click();
 
-    await expect(tomRow.getByText(/editing action/i)).toBeVisible();
+    const editRow = sectionB.locator('tbody tr.at-edit-row');
+    await expect(editRow.getByText(/editing action/i)).toBeVisible();
     // Toggle follow-up off in that row
-    await tomRow.getByLabel(/follow-up required/i).click();
-    await tomRow.getByRole('button', { name: /^save changes$|^save$/i }).click();
+    const followupCheckbox = editRow.getByRole('checkbox', { name: /follow-up required/i });
+    await followupCheckbox.uncheck();
+    await editRow.getByRole('button', { name: /^save changes$|^save$/i }).click();
 
     await expect(sectionB.getByText(/action updated/i)).toBeVisible();
     // Follow-up note is now gone from that row
-    await expect(tomRow.getByText(/check thermals after 24 hours/i)).not.toBeVisible();
+    await expect(sectionB.locator('tbody tr', { hasText: descB }).getByText(/check thermals after 24 hours/i)).not.toBeVisible();
 
     // Check ticket owner is unchanged (BR-02: creating/editing actions leaves owner intact)
     const ownerSelect = page.locator('#std-owner option:checked');

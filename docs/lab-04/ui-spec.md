@@ -251,43 +251,43 @@ Global rules: no horizontal page scroll at any of the three viewports on any Lab
 Completion is required by L4-6 before release; every line is unchecked at contract time and is ticked against real evidence (screenshots in `artifacts/lab-04/screenshots/`, `axe` output, and the test IDs named in [`tests.md`](./tests.md)).
 
 **Design consistency**
-- [ ] Dashboard, Ticket Detail header, Actions Taken area, status control, dialog and banners all use the Zen Green tokens in §1 with no ad-hoc colour (STYLE-01).
-- [ ] Cards, radii, shadows, spacing and the monospace treatment for numbers/dates match the Lab 2/3 surfaces.
-- [ ] Editable vs read-only fields are visually unambiguous everywhere (§7, STYLE-02).
-- [ ] Badges for all eight statuses and four priorities render with text plus colour (§8, STYLE-03).
-- [ ] No obsolete or duplicated UI remains from Lab 3 (no second status control, no placeholder panels).
+- [x] Dashboard, Ticket Detail header, Actions Taken area, status control, dialog and banners all use the Zen Green tokens in §1 with no ad-hoc colour (STYLE-01).
+- [x] Cards, radii, shadows, spacing and the monospace treatment for numbers/dates match the Lab 2/3 surfaces.
+- [x] Editable vs read-only fields are visually unambiguous everywhere (§7, STYLE-02).
+- [x] Badges for all eight statuses and four priorities render with text plus colour (§8, STYLE-03).
+- [x] No obsolete or duplicated UI remains from Lab 3 (no second status control, no placeholder panels).
 
 **Dashboards**
-- [ ] Every metric card value matches its payload and its drill-down list count (UI-07, UI-08, E2E-03).
-- [ ] Zero-state and empty-state copy renders for a requester with no tickets and on an empty dataset (API-09, API-12, UI-07).
-- [ ] Admin sees user counts; IT Staff does not (UI-08).
-- [ ] Forbidden and safe-failure states render with retry where appropriate (§3.4).
-- [ ] No dashboard renders a full ticket collection, chart or export control (§11).
+- [x] Every metric card value matches its payload and its drill-down list count (UI-07, UI-08, E2E-03).
+- [x] Zero-state and empty-state copy renders for a requester with no tickets and on an empty dataset (API-09, API-12, UI-07).
+- [x] Admin sees user counts; IT Staff does not (UI-08).
+- [x] Forbidden and safe-failure states render with retry where appropriate (§3.4).
+- [x] No dashboard renders a full ticket collection, chart or export control (§11).
 
 **Actions Taken area**
-- [ ] Desktop table and mobile cards present the same fields for the same data (RESP-02, E2E-06).
-- [ ] Create mode validates per field, shows the conditional follow-up note, and cannot double-submit (UI-01, UI-02).
-- [ ] View/edit mode round-trips values; cancel restores; stale save keeps data and shows the conflict notice (UI-04).
-- [ ] Requester sees the log read-only with no write affordance (UI-03).
-- [ ] Follow-up chips and attachment notes render as specified, with no download link (UI-03).
+- [x] Desktop table and mobile cards present the same fields for the same data (RESP-02, E2E-06).
+- [x] Create mode validates per field, shows the conditional follow-up note, and cannot double-submit (UI-01, UI-02).
+- [x] View/edit mode round-trips values; cancel restores; stale save keeps data and shows the conflict notice (UI-04).
+- [x] Requester sees the log read-only with no write affordance (UI-03).
+- [x] Follow-up chips and attachment notes render as specified, with no download link (UI-03).
 
 **Status control and Resolve dialog**
-- [ ] Only server-permitted transitions are offered, and the control refreshes after a success or an invalid-transition response (UI-05).
-- [ ] Confirmation-required transitions ask before submitting (UI-05).
-- [ ] The Resolve dialog renders one message per `reasons[]` code and keeps the typed summary (UI-06).
-- [ ] A conflict keeps entered data and realigns the version (UI-05, E2E-02).
+- [x] Only server-permitted transitions are offered, and the control refreshes after a success or an invalid-transition response (UI-05).
+- [x] Confirmation-required transitions ask before submitting (UI-05).
+- [x] The Resolve dialog renders one message per `reasons[]` code and keeps the typed summary (UI-06).
+- [x] A conflict keeps entered data and realigns the version (UI-05, E2E-02).
 
 **Keyboard, focus and assistive technology**
-- [ ] Every new control is reachable and operable by keyboard with a visible focus ring (A11Y-02).
-- [ ] Dialogs trap focus, close on `Esc`, and return focus to the trigger (A11Y-02).
-- [ ] `axe` reports zero serious and zero critical violations on dashboards, ticket detail and the actions area at all three viewports (A11Y-01).
-- [ ] Status, priority and follow-up are conveyed by text as well as colour (STYLE-03).
-- [ ] Live regions announce loading, saving, success and failure (A11Y-01).
+- [x] Every new control is reachable and operable by keyboard with a visible focus ring (A11Y-02).
+- [x] Dialogs trap focus, close on `Esc`, and return focus to the trigger (A11Y-02).
+- [x] `axe` reports zero serious and zero critical violations on dashboards, ticket detail and the actions area at all three viewports (A11Y-01).
+- [x] Status, priority and follow-up are conveyed by text as well as colour (STYLE-03).
+- [x] Live regions announce loading, saving, success and failure (A11Y-01).
 
 **Clipping, overlap and overflow**
-- [ ] No clipping, overlap or horizontal page scroll at 1280×800, 820×1180 and 390×844 on every Lab 4 screen (RESP-01, RESP-02, E2E-06).
-- [ ] Screenshots exist for staff dashboard, requester dashboard and the actions area at all three viewports (E2E-06).
-- [ ] Long descriptions, long summaries and 500-character attachment notes wrap without breaking layout (RESP-02).
+- [x] No clipping, overlap or horizontal page scroll at 1280×800, 820×1180 and 390×844 on every Lab 4 screen (RESP-01, RESP-02, E2E-06).
+- [x] Screenshots exist for staff dashboard, requester dashboard and the actions area at all three viewports (E2E-06).
+- [x] Long descriptions, long summaries and 500-character attachment notes wrap without breaking layout (RESP-02).
 
 ---
 

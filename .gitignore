@@ -40,4 +40,5 @@ server/.pgdata/
 # Local tooling / scratch (never commit)
 .freebuff/
 .ruff_cache/
+.video_agent/
 

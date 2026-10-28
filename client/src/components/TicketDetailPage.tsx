@@ -255,8 +255,31 @@ export default function TicketDetailPage({ ticketNumber, onBack }: { ticketNumbe
     ) : null;
   }, [ticket?.appearsResolvedAt]);
 
-  if (status === 'loading') return <main className="mt-page td-page"><div className="tt-skeleton" /><p aria-busy="true">Loading…</p></main>;
-  if (status === 'error') return <main className="mt-page td-page"><div role="alert">{error}</div><button onClick={load}>Retry</button></main>;
+  if (status === 'loading') {
+    return (
+      <main className="mt-page td-page">
+        <div className="tt-skeleton" role="status" aria-label="Loading ticket" />
+        <p aria-busy="true">Loading…</p>
+      </main>
+    );
+  }
+  if (status === 'error') {
+    return (
+      <main className="mt-page td-page">
+        <div className="td-crumbrow">
+          <button type="button" className="tok-btn secondary" onClick={() => onBack?.()}>
+            ← Back to My Tickets
+          </button>
+        </div>
+        <div className="mt-errbar" role="alert">
+          <span>{error || 'We could not load this ticket.'}</span>
+          <button type="button" className="mt-btn mt-btn-tertiary" onClick={() => void load()}>
+            Retry
+          </button>
+        </div>
+      </main>
+    );
+  }
   if (!ticket) return null;
 
   const attCount = ticket.attachments?.filter((a) => !a.removedAt).length ?? 0;
