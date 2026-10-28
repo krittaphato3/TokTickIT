@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { getRequesterDashboard, type RequesterDashboardData, ApiError } from '../api';
+import { useAuth } from '../auth/AuthContext';
 import '../styles/dashboard.css';
 
 const STATUS_TEXT: Record<string, string> = {
@@ -15,11 +16,13 @@ const STATUS_TEXT: Record<string, string> = {
 
 function fmtDate(iso: string): string {
   try {
-    return new Date(iso).toLocaleDateString(undefined, {
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+      hour12: true,
     });
   } catch {
     return iso;
@@ -27,6 +30,7 @@ function fmtDate(iso: string): string {
 }
 
 export const RequesterDashboard: React.FC = () => {
+  const { user } = useAuth();
   const [data, setData] = useState<RequesterDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,20 +79,27 @@ export const RequesterDashboard: React.FC = () => {
     data.resolvedCount === 0 &&
     data.closedCount === 0;
 
+  const displayName = user?.name ? user.name.split(' ')[0] : 'Requester';
+
   return (
     <main className="dash-page">
       <div className="dash-header">
-        <h1 className="dash-title">Dashboard</h1>
-        <p className="dash-subtitle">Your tickets</p>
-
-        <div className="dash-quick-actions">
-          <a href="#/new" className="tok-btn primary">
-            + New Ticket
-          </a>
-          <a href="#/my" className="tok-btn secondary">
-            My Tickets
-          </a>
+        <div className="dash-header-text">
+          <h1 className="dash-title" aria-label="Dashboard">
+            Welcome, {displayName}!
+          </h1>
+          <p className="dash-subtitle">
+            Here's the latest on your requests. <span className="text-muted" style={{ fontSize: '0.875rem' }}>(Your tickets)</span>
+          </p>
         </div>
+        <button
+          type="button"
+          className="tok-btn secondary small dash-refresh-btn"
+          onClick={() => void loadData()}
+          aria-label="Refresh dashboard"
+        >
+          <span aria-hidden="true" style={{ marginRight: 6 }}>↻</span> Refresh
+        </button>
       </div>
 
       {isZeroState ? (
@@ -101,33 +112,36 @@ export const RequesterDashboard: React.FC = () => {
         </div>
       ) : (
         <>
-          {/* 4 Metric Cards */}
+          {/* Top 4 Metric Cards */}
           <section className="dash-metric-grid" aria-label="Key ticket metrics">
             <a
               href="#/my?active=true"
-              className="dash-metric-card accent-primary"
+              className="dash-metric-card"
               aria-label={`Active tickets: ${data.activeCount}`}
             >
               <span className="dash-metric-label">Active Tickets</span>
               <span className="dash-metric-value">{data.activeCount}</span>
+              <span className="dash-metric-view-all">View all →</span>
             </a>
 
             <a
               href="#/my?status=WAITING_FOR_REQUESTER"
-              className="dash-metric-card accent-warning"
+              className="dash-metric-card"
               aria-label={`Waiting for you: ${data.waitingForRequesterCount}`}
             >
               <span className="dash-metric-label">Waiting for You</span>
               <span className="dash-metric-value">{data.waitingForRequesterCount}</span>
+              <span className="dash-metric-view-all">View all →</span>
             </a>
 
             <a
               href="#/my?status=RESOLVED"
-              className="dash-metric-card accent-success"
+              className="dash-metric-card"
               aria-label={`Resolved: ${data.resolvedCount}`}
             >
               <span className="dash-metric-label">Resolved</span>
               <span className="dash-metric-value">{data.resolvedCount}</span>
+              <span className="dash-metric-view-all">View all →</span>
             </a>
 
             <a
@@ -137,69 +151,111 @@ export const RequesterDashboard: React.FC = () => {
             >
               <span className="dash-metric-label">Closed</span>
               <span className="dash-metric-value">{data.closedCount}</span>
+              <span className="dash-metric-view-all">View all →</span>
             </a>
           </section>
 
-          {/* 2 List Cards */}
-          <section className="dash-list-grid">
-            <div className="dash-list-card">
-              <h2 className="dash-list-card-title">Recently Updated</h2>
-              {data.recentlyUpdated.length === 0 ? (
-                <p className="dash-empty-note">No recently updated tickets.</p>
-              ) : (
-                <ul className="dash-items-list" aria-label="Recently updated tickets">
-                  {data.recentlyUpdated.map((t) => (
-                    <li key={t.id}>
-                      <a
-                        href={`#/tickets/${t.ticketNumber}`}
-                        className="dash-item-link"
-                        aria-label={`${t.ticketNumber}: ${t.summary}`}
-                      >
-                        <div className="dash-item-main">
-                          <div className="dash-item-top">
-                            <span className="dash-item-num">{t.ticketNumber}</span>
-                            <span className="td-badge td-b-status">
-                              {STATUS_TEXT[t.status] ?? t.status}
+          {/* Two-Column Layout */}
+          <div className="dash-two-col">
+            {/* Left Column: Recent Tickets */}
+            <div className="dash-main-col">
+              <div className="dash-list-card">
+                <div className="dash-list-card-header">
+                  <h2 className="dash-list-card-title">My Recent Tickets</h2>
+                  <a href="#/my" className="dash-view-all-link">View all</a>
+                </div>
+
+                {data.recentlyUpdated.length === 0 ? (
+                  <p className="dash-empty-note">No recent tickets.</p>
+                ) : (
+                  <ul className="dash-items-list">
+                    {data.recentlyUpdated.map((ticket) => (
+                      <li key={ticket.id}>
+                        <a href={`#/tickets/${ticket.ticketNumber}`} className="dash-item-link">
+                          <div className="dash-item-info">
+                            <span className="dash-item-num">{ticket.ticketNumber}</span>
+                            <span className="dash-item-summary">{ticket.summary}</span>
+                          </div>
+                          <div className="dash-item-badge">
+                            <span className={`tok-badge status-${ticket.status.toLowerCase()}`}>
+                              {STATUS_TEXT[ticket.status] || ticket.status}
                             </span>
                           </div>
-                          <span className="dash-item-summary">{t.summary}</span>
-                          <span className="dash-item-meta">{fmtDate(t.updatedAt)}</span>
-                        </div>
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                          <div className="dash-item-date">{fmtDate(ticket.updatedAt)}</div>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* Recently Resolved Card */}
+              <div className="dash-list-card" style={{ marginTop: '20px' }}>
+                <div className="dash-list-card-header">
+                  <h2 className="dash-list-card-title">Recently Resolved</h2>
+                  <a href="#/my?status=RESOLVED" className="dash-view-all-link">View all</a>
+                </div>
+
+                {data.recentlyResolved.length === 0 ? (
+                  <p className="dash-empty-note">No resolved tickets yet.</p>
+                ) : (
+                  <ul className="dash-items-list">
+                    {data.recentlyResolved.map((ticket) => (
+                      <li key={ticket.id}>
+                        <a href={`#/tickets/${ticket.ticketNumber}`} className="dash-item-link">
+                          <div className="dash-item-info">
+                            <span className="dash-item-num">{ticket.ticketNumber}</span>
+                            <span className="dash-item-summary">{ticket.summary}</span>
+                          </div>
+                          <div className="dash-item-badge">
+                            <span className="tok-badge status-resolved">Resolved</span>
+                          </div>
+                          <div className="dash-item-date">{fmtDate(ticket.updatedAt)}</div>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
 
-            <div className="dash-list-card">
-              <h2 className="dash-list-card-title">Recently Resolved</h2>
-              {data.recentlyResolved.length === 0 ? (
-                <p className="dash-empty-note">No resolved tickets yet.</p>
-              ) : (
-                <ul className="dash-items-list" aria-label="Recently resolved tickets">
-                  {data.recentlyResolved.map((t) => (
-                    <li key={t.id}>
-                      <a
-                        href={`#/tickets/${t.ticketNumber}`}
-                        className="dash-item-link"
-                        aria-label={`${t.ticketNumber}: ${t.summary}`}
-                      >
-                        <div className="dash-item-main">
-                          <div className="dash-item-top">
-                            <span className="dash-item-num">{t.ticketNumber}</span>
-                            <span className="td-badge td-b-status">Resolved</span>
-                          </div>
-                          <span className="dash-item-summary">{t.summary}</span>
-                          <span className="dash-item-meta">{fmtDate(t.updatedAt)}</span>
-                        </div>
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              )}
+            {/* Right Column: Quick Actions */}
+            <div className="dash-side-col">
+              <div className="dash-quick-actions-card">
+                <h2 className="dash-quick-actions-title">Quick Actions</h2>
+                <div className="dash-quick-actions-list">
+                  <a href="#/new" className="dash-action-card" aria-label="+ New Ticket">
+                    <div className="dash-action-icon green-icon">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                      </svg>
+                    </div>
+                    <div className="dash-action-text">
+                      <div className="dash-action-main">+ New Ticket</div>
+                      <div className="dash-action-sub">Submit a new request</div>
+                    </div>
+                  </a>
+
+                  <a href="#/my" className="dash-action-card">
+                    <div className="dash-action-icon green-icon">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                      </svg>
+                    </div>
+                    <div className="dash-action-text">
+                      <div className="dash-action-main">View My Tickets</div>
+                      <div className="dash-action-sub">Track existing requests</div>
+                    </div>
+                  </a>
+                </div>
+              </div>
             </div>
-          </section>
+          </div>
         </>
       )}
     </main>
