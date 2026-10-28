@@ -103,6 +103,21 @@
   }
 }
 
+.dash-metric-grid.compact-grid {
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.dash-metric-card.compact-card {
+  min-height: 60px;
+  padding: 8px 12px;
+}
+
+.dash-metric-card.compact-card .dash-metric-value {
+  font-size: 1.35rem;
+  margin: 1px 0 0;
+}
+
 .dash-metric-card {
   background: var(--tok-surface, #FFFFFF);
   border: 1px solid var(--tok-border-soft, #E2E8F0);

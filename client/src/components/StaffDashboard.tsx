@@ -158,11 +158,10 @@ export const StaffDashboard: React.FC = () => {
       </section>
 
       {/* Secondary Operational & Priority Workload */}
-      <h2 className="dash-section-title">Active Workload & Priorities</h2>
-      <section className="dash-metric-grid" aria-label="Active workload">
+      <section className="dash-metric-grid compact-grid" aria-label="Active workload">
         <a
           href="#/staff/queue?assigned=false&active=true"
-          className="dash-metric-card accent-warning"
+          className="dash-metric-card compact-card accent-warning"
           aria-label={`Unassigned active: ${data.unassignedActiveCount}`}
         >
           <span className="dash-metric-label">Unassigned Active</span>
@@ -171,7 +170,7 @@ export const StaffDashboard: React.FC = () => {
 
         <a
           href="#/staff/queue?itPriority=CRITICAL&active=true"
-          className="dash-metric-card accent-danger"
+          className="dash-metric-card compact-card accent-danger"
           aria-label={`Critical: ${data.countsByItPriority.CRITICAL ?? 0}`}
         >
           <span className="dash-metric-label">Critical (Active)</span>
@@ -180,7 +179,7 @@ export const StaffDashboard: React.FC = () => {
 
         <a
           href="#/staff/queue?itPriority=HIGH&active=true"
-          className="dash-metric-card accent-warning"
+          className="dash-metric-card compact-card accent-warning"
           aria-label={`High: ${data.countsByItPriority.HIGH ?? 0}`}
         >
           <span className="dash-metric-label">High (Active)</span>
@@ -189,7 +188,7 @@ export const StaffDashboard: React.FC = () => {
 
         <a
           href="#/staff/queue?itPriority=MEDIUM&active=true"
-          className="dash-metric-card"
+          className="dash-metric-card compact-card"
           aria-label={`Medium: ${data.countsByItPriority.MEDIUM ?? 0}`}
         >
           <span className="dash-metric-label">Medium (Active)</span>
@@ -199,7 +198,7 @@ export const StaffDashboard: React.FC = () => {
 
       {/* Two-Column Layout (Matches Handout 8.1) */}
       <div className="dash-two-col">
-        {/* Left Column: Recent Tickets and Actions (3 items each) */}
+        {/* Left Column: Recent Tickets (Top 3) */}
         <div className="dash-main-col">
           <div className="dash-list-card">
             <div className="dash-list-card-header">
@@ -233,9 +232,48 @@ export const StaffDashboard: React.FC = () => {
               </ul>
             )}
           </div>
+        </div>
 
-          {/* My Recent Actions */}
-          <div className="dash-list-card" style={{ marginTop: '14px' }}>
+        {/* Right Column: Quick Actions + My Recent Actions (Top 3) + Admin Directory */}
+        <div className="dash-side-col">
+          <div className="dash-quick-actions-card">
+            <h2 className="dash-quick-actions-title">Quick Actions</h2>
+            <div className="dash-quick-actions-grid-3">
+              <a href="#/new" className="dash-action-box" aria-label="Create Ticket">
+                <div className="dash-action-icon-circle green">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                </div>
+                <span className="dash-action-box-label">Create Ticket</span>
+              </a>
+
+              <a href="#/staff/queue" className="dash-action-box" aria-label="Search Tickets">
+                <div className="dash-action-icon-circle blue">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  </svg>
+                </div>
+                <span className="dash-action-box-label">Search Tickets</span>
+              </a>
+
+              <a href={`#/staff/queue?ownerId=${userId}&active=true`} className="dash-action-box" aria-label="My Queue">
+                <div className="dash-action-icon-circle teal">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="3" y1="9" x2="21" y2="9"></line>
+                    <line x1="9" y1="21" x2="9" y2="9"></line>
+                  </svg>
+                </div>
+                <span className="dash-action-box-label">My Queue</span>
+              </a>
+            </div>
+          </div>
+
+          {/* My Recent Actions (Top 3) */}
+          <div className="dash-list-card" style={{ marginTop: '12px' }}>
             <div className="dash-list-card-header">
               <h2 className="dash-list-card-title">My Recent Actions</h2>
             </div>
@@ -258,49 +296,10 @@ export const StaffDashboard: React.FC = () => {
               </ul>
             )}
           </div>
-        </div>
-
-        {/* Right Column: Quick Actions & Admin Directory */}
-        <div className="dash-side-col">
-          <div className="dash-quick-actions-card">
-            <h2 className="dash-quick-actions-title">Quick Actions</h2>
-            <div className="dash-quick-actions-grid-3">
-              <a href="#/new" className="dash-action-box" aria-label="Create Ticket">
-                <div className="dash-action-icon-circle green">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                  </svg>
-                </div>
-                <span className="dash-action-box-label">Create Ticket</span>
-              </a>
-
-              <a href="#/staff/queue" className="dash-action-box" aria-label="Search Tickets">
-                <div className="dash-action-icon-circle blue">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                  </svg>
-                </div>
-                <span className="dash-action-box-label">Search Tickets</span>
-              </a>
-
-              <a href={`#/staff/queue?ownerId=${userId}&active=true`} className="dash-action-box" aria-label="My Queue">
-                <div className="dash-action-icon-circle teal">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                    <line x1="3" y1="9" x2="21" y2="9"></line>
-                    <line x1="9" y1="21" x2="9" y2="9"></line>
-                  </svg>
-                </div>
-                <span className="dash-action-box-label">My Queue</span>
-              </a>
-            </div>
-          </div>
 
           {/* Admin User Counts (AC-17) */}
           {data.userCounts && (
-            <div className="dash-list-card" style={{ marginTop: '14px' }}>
+            <div className="dash-list-card" style={{ marginTop: '12px' }}>
               <div className="dash-list-card-header">
                 <h3 className="dash-list-card-title" style={{ margin: 0, border: 0 }}>
                   User Directory
