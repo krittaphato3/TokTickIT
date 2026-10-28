@@ -29,11 +29,17 @@ One row per Lab 4 pull request. The PR link, reviewer, review comment and approv
 
 ## Partner PRs I reviewed
 
-One row per pull request I reviewed in a partner's repository. Empty until the first review is submitted.
+One row per pull request I reviewed in a partner's repository.
 
 | PR link | My comment | Partner response | My approval |
 |---|---|---|---|
-| — | — | — | — |
+| [Alongkron1234/toktickit#69](https://github.com/Alongkron1234/toktickit/pull/69) — `fix(lab-04): Auth Cleanup and Final Hardening` | "แก้ไข security issues ได้ดีมากครับ good catch ในส่วนนี้เลย จากที่ลองสังเกตุดูแก้ไขได้ดีมากครับ มีเทสครบถ้วน" | — | **APPROVED (2026-10-28)** |
+| [atiwit/toktickit#66](https://github.com/atiwit/toktickit/pull/66) — `feat(workflow): Ticket workflow, Resolution Gate, and Concurrency` | "ทำส่วน workflow logic กับ test suite ออกมาได้ดีมากเลยครับ! ตัว Resolution Gate กับ Transition Matrix ก็ทำมาได้ดีมากครับ ภาพรวมผ่านเลยครับ เดี๋ยวผมกด Approve ให้นะครับ แต่ขอฝากข้อเสนอแนะไว้พิจารณาปรับเพิ่มอีกนิดหน่อยก่อน merge ครับ: 1. การทำ OCC ใน index.ts 2. Response & Frontend cleanup" | atiwit: "ขอบคุณสำหรับ comment ครับคุณโอซง เดี๋ยวผมจะรีบแก้ไขตามที่คุณโอซงแนะนำนะครับบ" | **APPROVED (2026-10-28)** |
+| [atiwit/toktickit#67](https://github.com/atiwit/toktickit/pull/67) — `feat(ui): implement Actions Taken section and Resolution Gate UI on Ticket Detail (Issue #58)` | "ทำงานได้ดีเยี่ยมมากครับสำหรับสปรินต์นี้! Test coverage ในส่วนของ workflow และ actions components ทำออกมาได้ดีมาก ไม่มีข้อติเลยครับ" | atiwit: "ขอบคุณครับคุณโอซง" | **APPROVED (2026-10-28)** |
+| [atiwit/toktickit#69](https://github.com/atiwit/toktickit/pull/69) — `feat(ui): Actions Taken on Ticket Detail UI` | "ทำงานได้ดีเยี่ยมมากครับสำหรับสปรินต์นี้! Test coverage ในส่วนของ workflow และ actions components ทำออกมาได้ดีมาก ไม่มีข้อติเลยครับ" | atiwit: "ขอบคุณมากครับคุณ Ozonggggg" | **APPROVED (2026-10-28)** |
+| [napatsun/TokTickIT#59](https://github.com/napatsun/TokTickIT/pull/59) — `feature/lab4-03-actions-taken-api` | "ครบถ้วนดีครับ มีการ ทำการ Implement ที่ดี ในส่วนของ API แต่อยากจะขอให้ลองส่ง test มาให้ดูหน่อยนะครับว่าสำเร็จทุกขั้นตอนแล้วรึเปล่า" → ต่อมา: "ผ่านครับ ครบถ้วนดี เก่งมากครับ" | napatsun: แนบหลักฐานผล test ทั้งหมด (53 passed ในไฟล์ และ 587 passed รวมทั้งโปรเจกต์) พร้อมกล่าวขอบคุณ | **APPROVED (2026-09-23)** |
+| [napatsun/TokTickIT#60](https://github.com/napatsun/TokTickIT/pull/60) — `feature/lab4-04-actions-taken-ui` | "มีการ implement spec และตาม issue อย่างครบถ้วน ไม่มีข้อติครับ" | napatsun: "ขอบคุณทั้งสองความเห็นครับ" | **APPROVED (2026-09-23)** |
+| [napatsun/TokTickIT#61](https://github.com/napatsun/TokTickIT/pull/61) — `feature/lab4-05-ticket-workflow-resolution` | "Implement ครบถ้วนนะครับ ตาม Specification ที่ได้มีการทำไว้ ในส่วนของ workflow ก็ถูกหลักการและไม่ยุ่งเหยิง เก่งมากครับ ผ่านนๆๆๆๆ" | napatsun: "ขอบคุณสำหรับคอมเมนต์ของคุณบอลเเละคุณโอ" | **APPROVED (2026-09-24)** |
 
 ## Notes
 
