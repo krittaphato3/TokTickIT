@@ -32,6 +32,8 @@ const SEED_USERS: Record<string, { password: string; isActive: boolean }> = {
   'gamma@toktickit.test': { password: 'Requester123!', isActive: true },
   'delta@toktickit.test': { password: 'Requester123!', isActive: true },
   'epsilon@toktickit.test': { password: 'Requester123!', isActive: false },
+  'eta@toktickit.test': { password: 'Requester123!', isActive: true },
+  'zeta@toktickit.test': { password: 'Requester123!', isActive: true },
   'sara.it@toktickit.test': { password: 'Staff123!', isActive: true },
   'tom.it@toktickit.test': { password: 'Staff123!', isActive: true },
   'priya.it@toktickit.test': { password: 'Staff123!', isActive: true },

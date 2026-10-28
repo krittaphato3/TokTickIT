@@ -21,6 +21,7 @@ import {
 } from '../api';
 import { useAuth } from '../auth/AuthContext';
 import ResolveTicketDialog from './ResolveTicketDialog';
+import ActionsTaken from './ActionsTaken';
 import '../styles/staff-ticket-detail.css';
 
 // Lab 3 §7 — IT Staff Ticket Detail (ui-spec §7, api-spec §6). Read-only
@@ -727,6 +728,13 @@ export default function StaffTicketDetail({
           </div>
         ) : null}
       </section>
+
+      <ActionsTaken
+        ticketNumber={ticket.ticketNumber}
+        ticketCreatedAt={ticket.createdAt}
+        isStaff={true}
+        onActionSaved={refreshDetail}
+      />
 
       <div className="td-tabs" role="tablist" onKeyDown={onTabKeyDown} aria-label="Ticket threads">
         <button
