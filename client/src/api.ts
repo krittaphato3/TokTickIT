@@ -973,4 +973,90 @@ export async function downloadAttachment(ticketNumber: string, attachmentId: num
   return await response.blob();
 }
 
+// ---------------------------------------------------------------------------
+// Lab 4 — Actions Taken (api-spec §2, FR-01/FR-02/FR-03, BR-01..BR-06).
+// ---------------------------------------------------------------------------
+
+export interface ActionPerformer {
+  id: number;
+  name: string;
+  role: string;
+}
+
+export interface ActionTaken {
+  id: number;
+  ticketId: number;
+  actionAt: string;
+  description: string;
+  result: string;
+  followUpRequired: boolean;
+  followUpNote: string | null;
+  attachmentNotes: string | null;
+  performedBy: ActionPerformer;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateActionInput {
+  actionAt?: string;
+  description: string;
+  result: string;
+  followUpRequired?: boolean;
+  followUpNote?: string | null;
+  attachmentNotes?: string | null;
+  clientRequestId?: string;
+}
+
+export interface UpdateActionInput {
+  expectedVersion: number;
+  actionAt?: string;
+  description?: string;
+  result?: string;
+  followUpRequired?: boolean;
+  followUpNote?: string | null;
+  attachmentNotes?: string | null;
+}
+
+export async function getTicketActions(ticketNumber: string): Promise<ActionTaken[]> {
+  const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}/actions`, {
+    credentials: 'include',
+    headers: { ...authHeaders({}, true) },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return (body as { actions?: ActionTaken[] }).actions ?? [];
+}
+
+export async function createTicketAction(
+  ticketNumber: string,
+  input: CreateActionInput,
+): Promise<ActionTaken> {
+  const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}/actions`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...authHeaders({}, true) },
+    body: JSON.stringify(input),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as ActionTaken;
+}
+
+export async function updateTicketAction(
+  ticketNumber: string,
+  actionId: number,
+  input: UpdateActionInput,
+): Promise<ActionTaken> {
+  const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}/actions/${actionId}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...authHeaders({}, true) },
+    body: JSON.stringify(input),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as ActionTaken;
+}
+
 export default API_URL;

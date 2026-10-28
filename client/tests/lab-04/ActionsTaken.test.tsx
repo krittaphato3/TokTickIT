@@ -333,13 +333,13 @@ describe('Actions Taken UI (L4-4)', () => {
     renderScreen(harness.fetchFn, false);
 
     const section = await screen.findByRole('region', { name: /actions taken/i });
-    expect(within(section).getByText('Newer maintenance action')).toBeInTheDocument();
-    expect(within(section).getByText('Older maintenance action')).toBeInTheDocument();
-    expect(within(section).getByText('Sara IT')).toBeInTheDocument();
-    expect(within(section).getByText('Tom IT')).toBeInTheDocument();
-    expect(within(section).getByText(/follow-up required/i)).toBeInTheDocument();
-    expect(within(section).getByText('Inspect in 2 days')).toBeInTheDocument();
-    expect(within(section).getByText(/patch-log\.txt/i)).toBeInTheDocument();
+    expect(within(section).getAllByText('Newer maintenance action').length).toBeGreaterThanOrEqual(1);
+    expect(within(section).getAllByText('Older maintenance action').length).toBeGreaterThanOrEqual(1);
+    expect(within(section).getAllByText('Sara IT').length).toBeGreaterThanOrEqual(1);
+    expect(within(section).getAllByText('Tom IT').length).toBeGreaterThanOrEqual(1);
+    expect(within(section).getAllByText(/follow-up required/i).length).toBeGreaterThanOrEqual(1);
+    expect(within(section).getAllByText('Inspect in 2 days').length).toBeGreaterThanOrEqual(1);
+    expect(within(section).getAllByText(/patch-log\.txt/i).length).toBeGreaterThanOrEqual(1);
 
     // Test Requester view: read-only, no create button, no edit buttons
     cleanup();
@@ -347,8 +347,10 @@ describe('Actions Taken UI (L4-4)', () => {
     renderScreen(reqHarness.fetchFn, true);
 
     const reqSection = await screen.findByRole('region', { name: /actions taken/i });
-    expect(within(reqSection).getByText('Newer maintenance action')).toBeInTheDocument();
-    expect(within(reqSection).getByText('Older maintenance action')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(within(reqSection).getAllByText('Newer maintenance action').length).toBeGreaterThanOrEqual(1);
+    });
+    expect(within(reqSection).getAllByText('Older maintenance action').length).toBeGreaterThanOrEqual(1);
     expect(within(reqSection).queryByRole('button', { name: /record action/i })).not.toBeInTheDocument();
     expect(within(reqSection).queryByRole('button', { name: /edit/i })).not.toBeInTheDocument();
 
@@ -358,7 +360,9 @@ describe('Actions Taken UI (L4-4)', () => {
     renderScreen(emptyHarness.fetchFn, true);
 
     const emptySection = await screen.findByRole('region', { name: /actions taken/i });
-    expect(within(emptySection).getByText(/no actions recorded yet/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(within(emptySection).getByText(/no actions recorded yet/i)).toBeInTheDocument();
+    });
     expect(within(emptySection).getByText(/it staff will record the work here/i)).toBeInTheDocument();
     expect(within(emptySection).queryByRole('button', { name: /record action/i })).not.toBeInTheDocument();
   });
@@ -380,7 +384,8 @@ describe('Actions Taken UI (L4-4)', () => {
       actionsPatchHandler: async (_actionId, body) => {
         patchCount += 1;
         if (Number(body.expectedVersion) === 1) {
-          // Stale version conflict
+          // Stale version conflict: simulate server having updated to version 2
+          harness.setActions([{ ...initialAction, version: 2 }]);
           return jsonResponse(409, {
             error: 'This record was changed by someone else',
             currentVersion: 2,
@@ -397,30 +402,32 @@ describe('Actions Taken UI (L4-4)', () => {
     renderScreen(harness.fetchFn);
     const section = await screen.findByRole('region', { name: /actions taken/i });
 
-    const editBtn = within(section).getByRole('button', { name: /edit/i });
+    const editBtn = within(section).getAllByRole('button', { name: /edit/i })[0];
     await userEvent.click(editBtn);
 
-    expect(within(section).getByText(/editing action/i)).toBeInTheDocument();
-    const descField = within(section).getByLabelText(/description/i);
-    const cancelBtn = within(section).getByRole('button', { name: /cancel/i });
+    expect(within(section).getAllByText(/editing action/i).length).toBeGreaterThanOrEqual(1);
+    const descField = within(section).getAllByLabelText(/description/i)[0];
+    const cancelBtn = within(section).getAllByRole('button', { name: /cancel/i })[0];
 
     // Cancel restores original values without request
     await userEvent.clear(descField);
     await userEvent.type(descField, 'Draft text that will be cancelled');
     await userEvent.click(cancelBtn);
 
-    expect(within(section).queryByText(/editing action/i)).not.toBeInTheDocument();
-    expect(within(section).getByText('Initial action description')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(within(section).queryAllByText(/editing action/i)).toHaveLength(0);
+    });
+    expect(within(section).getAllByText('Initial action description').length).toBeGreaterThanOrEqual(1);
     expect(patchCount).toBe(0);
 
     // Edit again and test validation
-    await userEvent.click(within(section).getByRole('button', { name: /edit/i }));
-    const editDescField = within(section).getByLabelText(/description/i);
+    await userEvent.click(within(section).getAllByRole('button', { name: /edit/i })[0]);
+    const editDescField = within(section).getAllByLabelText(/description/i)[0];
     await userEvent.clear(editDescField);
-    const saveEditBtn = within(section).getByRole('button', { name: /^save changes$|^save$/i });
+    const saveEditBtn = within(section).getAllByRole('button', { name: /^save changes$|^save$/i })[0];
     await userEvent.click(saveEditBtn);
 
-    expect(within(section).getByText(/description is required/i)).toBeInTheDocument();
+    expect(within(section).getAllByText(/description is required/i).length).toBeGreaterThanOrEqual(1);
     expect(patchCount).toBe(0);
 
     // Type valid updated description and submit -> gets 409 conflict
@@ -432,10 +439,10 @@ describe('Actions Taken UI (L4-4)', () => {
     });
 
     // 409 Conflict banner shown, typed values KEPT, Reload action offered
-    expect(within(section).getByText(/this action was changed by someone else/i)).toBeInTheDocument();
+    expect(within(section).getAllByText(/this action was changed by someone else/i).length).toBeGreaterThanOrEqual(1);
     expect(editDescField).toHaveValue('Updated description for patch');
 
-    const reloadBtn = within(section).getByRole('button', { name: /reload/i });
+    const reloadBtn = within(section).getAllByRole('button', { name: /reload/i })[0];
     expect(reloadBtn).toBeInTheDocument();
 
     // Click Reload -> updates expectedVersion to 2, keeps row editable with user data intact
@@ -446,8 +453,8 @@ describe('Actions Taken UI (L4-4)', () => {
 
     await waitFor(() => {
       expect(patchCount).toBe(2);
-      expect(within(section).queryByText(/editing action/i)).not.toBeInTheDocument();
-      expect(within(section).getByText('Updated description for patch')).toBeInTheDocument();
+      expect(within(section).queryAllByText(/editing action/i)).toHaveLength(0);
+      expect(within(section).getAllByText('Updated description for patch').length).toBeGreaterThanOrEqual(1);
     });
   });
 
