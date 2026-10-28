@@ -24,6 +24,7 @@ One row per Lab 4 pull request. The PR link, reviewer, review comment and approv
 | [PR #62](https://github.com/krittaphato3/TokTickIT/pull/62) — base `lab4-staging`, head `feature/l4-2-actions-taken-api` | [#55](https://github.com/krittaphato3/TokTickIT/issues/55) | `napatsun`, `Alongkron1234` (review requested 2026-10-11) | — | — | **Awaiting review** |
 | [PR #63](https://github.com/krittaphato3/TokTickIT/pull/63) — base `lab4-staging`, head `feature/l4-3-ticket-workflow` | [#56](https://github.com/krittaphato3/TokTickIT/issues/56) | `napatsun`, `Alongkron1234` (review requested 2026-10-12) | — | — | **Awaiting review** |
 | [PR #64](https://github.com/krittaphato3/TokTickIT/pull/64) — base `lab4-staging`, head `feature/l4-4-actions-taken-ui` | [#57](https://github.com/krittaphato3/TokTickIT/issues/57) | `atiwit` (approved 2026-10-28), `Alongkron1234` | Alongkron1234: "UI-03 มีการรวม assert หลายเคสมาก... ถ้าแยกเป็นเทสย่อยๆ น่าจะอ่านง่าย", "ตรงนี้ตอนเพิ่ม action ใหม่เข้ามา มีการเอา created ไปต่อไว้ข้างหน้าสุดเสมอ... ควรมีการ sort ใหม่ก่อนแสดงผลมั้ยครับ" | แยก UI-03 ออกเป็น UI-03a, UI-03b, UI-03c และ UI-03d; เพิ่ม sortActions() จัดเรียง actionAt desc, id desc ทั้ง create/edit ตาม BR-05 | **Awaiting review (atiwit approved)** |
+| [PR #65](https://github.com/krittaphato3/TokTickIT/pull/65) — base `lab4-staging`, head `feature/l4-5-dashboards` | [#58](https://github.com/krittaphato3/TokTickIT/issues/58) | `atiwit` (review requested 2026-10-28) | — | — | **Awaiting review** |
 
 ## Partner PRs I reviewed
 
