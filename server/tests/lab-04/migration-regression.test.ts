@@ -180,6 +180,39 @@ describe('MIG-03 — seed is idempotent and covers the Lab 4 matrix (AC-16)', ()
   }, 300_000);
 });
 
+describe('PERF-01 — dashboard smoke p95 < 1000 ms (D-13, AC-22)', () => {
+  it('20 sequential calls to each dashboard endpoint answer p95 < 1000 ms', async () => {
+    // Dynamic import to avoid circular dependency
+    const request = (await import('supertest')).default;
+    const { createApp } = await import('../../src/app.js');
+    const app = createApp();
+
+    const staffRes = await request(app).post('/api/auth/login').send({ email: 'sara.it@toktickit.test', password: 'Staff123!' });
+    const staffCookie = staffRes.headers['set-cookie']?.[0]?.split(';')[0];
+    const reqRes = await request(app).post('/api/auth/login').send({ email: 'eta@toktickit.test', password: 'Requester123!' });
+    const reqCookie = reqRes.headers['set-cookie']?.[0]?.split(';')[0];
+
+    const measureTimes = async (url: string, cookie: string) => {
+      const times: number[] = [];
+      for (let i = 0; i < 20; i++) {
+        const start = performance.now();
+        const res = await request(app).get(url).set('Cookie', cookie);
+        expect(res.status).toBe(200);
+        times.push(performance.now() - start);
+      }
+      times.sort((a, b) => a - b);
+      // p95 index in 20 items is index 18 (95th percentile)
+      return times[18];
+    };
+
+    const requesterP95 = await measureTimes('/api/dashboard/requester', reqCookie);
+    const staffP95 = await measureTimes('/api/dashboard/staff', staffCookie);
+
+    expect(requesterP95).toBeLessThan(1000);
+    expect(staffP95).toBeLessThan(1000);
+  }, 60_000);
+});
+
 afterAll(async () => {
   await prisma.$disconnect().catch(() => undefined);
 });
