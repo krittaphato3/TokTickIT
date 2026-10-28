@@ -116,6 +116,10 @@ describe('Staff & Admin Dashboard UI (L4-5, UI-07, UI-08)', () => {
     expect(screen.getByText('Printer offline on floor 3')).toBeInTheDocument();
     expect(screen.getByText(/replaced the failing network switch port/i)).toBeInTheDocument();
 
+    const ticketDetailLinks = screen.getAllByRole('link', { name: /TTK-2026-000017/i });
+    expect(ticketDetailLinks.length).toBeGreaterThan(0);
+    expect(ticketDetailLinks[0]).toHaveAttribute('href', '#/staff/tickets/TTK-2026-000017');
+
     // IT_STAFF should NOT see user counts card
     expect(screen.queryByRole('heading', { name: /user directory|users/i })).not.toBeInTheDocument();
   });

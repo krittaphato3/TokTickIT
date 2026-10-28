@@ -124,6 +124,12 @@ test.describe('E2E-03 & E2E-04: Role Dashboards Flow and Drill-downs', () => {
     await expect(page).toHaveURL(/#\/staff\/queue\?assigned=false&active=true/);
     await expect(page.getByRole('heading', { level: 1, name: /ticket queue/i })).toBeVisible();
 
+    // Verify recent ticket link navigates to staff ticket detail
+    await page.goto('/#/dashboard');
+    const recentTicketLink = page.locator('.dash-items-list a').first();
+    await expect(recentTicketLink).toBeVisible();
+    await expect(recentTicketLink).toHaveAttribute('href', /#\/staff\/tickets\//);
+
     // Capture staff dashboard screenshots across viewports
     for (const vp of viewports) {
       await page.setViewportSize({ width: vp.width, height: vp.height });

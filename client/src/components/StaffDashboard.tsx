@@ -212,7 +212,7 @@ export const StaffDashboard: React.FC = () => {
               <ul className="dash-items-list">
                 {displayedRecent.map((ticket) => (
                   <li key={ticket.id}>
-                    <a href={`#/tickets/${ticket.ticketNumber}`} className="dash-item-link">
+                    <a href={`#/staff/tickets/${ticket.ticketNumber}`} className="dash-item-link">
                       <div className="dash-item-info">
                         <span className="dash-item-num">{ticket.ticketNumber}</span>
                         <span className="dash-item-summary">{ticket.summary}</span>
@@ -284,7 +284,7 @@ export const StaffDashboard: React.FC = () => {
               <ul className="dash-items-list">
                 {displayedActions.map((action) => (
                   <li key={action.id}>
-                    <a href={`#/tickets/${action.ticketNumber}`} className="dash-item-link">
+                    <a href={`#/staff/tickets/${action.ticketNumber}`} className="dash-item-link">
                       <div className="dash-item-info">
                         <span className="dash-item-num">{action.ticketNumber}</span>
                         <span className="dash-item-summary">{action.description}</span>
