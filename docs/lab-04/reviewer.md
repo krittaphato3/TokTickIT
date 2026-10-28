@@ -9,10 +9,11 @@
 
 ## Reviewers
 
-Carried over from `docs/lab-03/reviewer.md` (same review partners in this repository — confirm at the first Lab 4 PR if the pairing changed for Sprint 4):
+Carried over from `docs/lab-03/reviewer.md` with additional Lab 4 reviewer:
 
 - Name: NAPATR KASEMWEERASAN — Student ID: 67070501014 — GitHub username: `napatsun`
 - Name: ALONGKORN KAEWPROM — Student ID: 67070501050 — GitHub username: `Alongkron1234`
+- Name: ATIWIT — GitHub username: `atiwit`
 
 ## PR review record
 
@@ -21,9 +22,9 @@ One row per Lab 4 pull request. The PR link, reviewer, review comment and approv
 | PR link | Issue | Reviewer | Review comment | My response | Approved |
 |---|---|---|---|---|---|
 | [PR #61](https://github.com/krittaphato3/TokTickIT/pull/61) — base `lab4-staging`, head `feature/l4-1-contract` | [#54](https://github.com/krittaphato3/TokTickIT/issues/54) | `napatsun`, `Alongkron1234` (approved 2026-10-10) | napatsun: "ครบถ้วนเรียบร้อย พร้อมทำต่อได้เลยครับ"; Alongkron1234: "ทำออกมาได้ดีมากครับ ผ่าน" | — | **APPROVED (merged 2026-10-10)** |
-| [PR #62](https://github.com/krittaphato3/TokTickIT/pull/62) — base `lab4-staging`, head `feature/l4-2-actions-taken-api` | [#55](https://github.com/krittaphato3/TokTickIT/issues/55) | `napatsun`, `Alongkron1234` (review requested 2026-10-11) | — | — | **Awaiting review** |
-| [PR #63](https://github.com/krittaphato3/TokTickIT/pull/63) — base `lab4-staging`, head `feature/l4-3-ticket-workflow` | [#56](https://github.com/krittaphato3/TokTickIT/issues/56) | `napatsun`, `Alongkron1234` (review requested 2026-10-12) | — | — | **Awaiting review** |
-| [PR #64](https://github.com/krittaphato3/TokTickIT/pull/64) — base `lab4-staging`, head `feature/l4-4-actions-taken-ui` | [#57](https://github.com/krittaphato3/TokTickIT/issues/57) | `atiwit` (approved 2026-10-28), `Alongkron1234` | Alongkron1234: "UI-03 มีการรวม assert หลายเคสมาก... ถ้าแยกเป็นเทสย่อยๆ น่าจะอ่านง่าย", "ตรงนี้ตอนเพิ่ม action ใหม่เข้ามา มีการเอา created ไปต่อไว้ข้างหน้าสุดเสมอ... ควรมีการ sort ใหม่ก่อนแสดงผลมั้ยครับ" | แยก UI-03 ออกเป็น UI-03a, UI-03b, UI-03c และ UI-03d; เพิ่ม sortActions() จัดเรียง actionAt desc, id desc ทั้ง create/edit ตาม BR-05 | **Awaiting review (atiwit approved)** |
+| [PR #62](https://github.com/krittaphato3/TokTickIT/pull/62) — base `lab4-staging`, head `feature/l4-2-actions-taken-api` | [#55](https://github.com/krittaphato3/TokTickIT/issues/55) | `napatsun`, `Alongkron1234` (approved 2026-10-11) | napatsun: "อ่านโค้ดแล้วเห็นว่ามีการวาง structure มาได้ดีมากครับ โดยเฉพาะการแยก concern ของ API, การทำ idempotent seed ที่ครอบคลุมหลาย use case และการมี rollback script ให้พร้อมเสมอ เยี่ยมเลยครับ"; Alongkron1234: "เห็นด้วยกับคุณซันครับมีการทำมาอย่างดีทั้ง seed การวาง structure ต่างๆ" | — | **APPROVED (merged 2026-10-11)** |
+| [PR #63](https://github.com/krittaphato3/TokTickIT/pull/63) — base `lab4-staging`, head `feature/l4-3-ticket-workflow` | [#56](https://github.com/krittaphato3/TokTickIT/issues/56) | `napatsun` (approved 2026-10-14), `Alongkron1234` (approved 2026-10-21) | Alongkron1234: "ใน reloadAfterConflict() มีการเรียก setResolveOpen(false)..."; napatsun: "1. ใน ResolveTicketDialog.tsx ตอนที่เกิด 409 และ user กด Reload มีการจัดการ state ของ resolutionSummary ให้สะอาดหรือยัง 2. ตรงส่วนที่ Requester พยายามเปลี่ยนสถานะแล้วได้ 403 มีการแสดง error message ให้ user รู้มั้ยครับ" | อธิบายการตั้งใจปิด modal หลัง Reload เพื่อให้ staff เห็นข้อมูลล่าสุดก่อนตัดสินใจ Resolve อีกครั้ง โดยเก็บ draft summary ไว้ใน state ไม่สูญหาย; มี toast notification แจ้งเตือนเมื่อได้ 403 (ทั้งสอง reviewer ยืนยันเข้าใจและ Approve เรียบร้อย) | **APPROVED (merged 2026-10-21)** |
+| [PR #64](https://github.com/krittaphato3/TokTickIT/pull/64) — base `lab4-staging`, head `feature/l4-4-actions-taken-ui` | [#57](https://github.com/krittaphato3/TokTickIT/issues/57) | `atiwit` (approved 2026-10-28), `Alongkron1234` (approved 2026-10-28) | atiwit: "ในเคส UI-03 ที่มีการเรียก cleanup() แล้ว re-render 3 รอบ แนะนำแยกเป็น 3 it() ย่อยดีกว่า"; Alongkron1234: "ตรงนี้เหมือนมันสร้าง action แล้ววางบนสุดตลอด ควร sort ใหม่หลัง create/edit นะ", ต่อมาให้ความเห็น: "ผ่าน!!!!!" | แยก UI-03 ออกเป็น UI-03a, UI-03b, UI-03c และ UI-03d; เพิ่ม sortActions() จัดเรียง actionAt desc, id desc ทั้ง create/edit ตาม BR-05 (ทั้ง Alongkron1234 และ atiwit approve เรียบร้อย) | **APPROVED (merged 2026-10-28)** |
 | [PR #65](https://github.com/krittaphato3/TokTickIT/pull/65) — base `lab4-staging`, head `feature/l4-5-dashboards` | [#58](https://github.com/krittaphato3/TokTickIT/issues/58) | `atiwit` (review requested 2026-10-28) | — | — | **Awaiting review** |
 
 ## Partner PRs I reviewed
