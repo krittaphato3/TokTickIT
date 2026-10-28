@@ -49,6 +49,15 @@ function fmtDisplayDate(iso: string): string {
   }
 }
 
+// BR-05: actions ordered by actionAt descending, then id descending
+export function sortActions(list: ActionTaken[]): ActionTaken[] {
+  return [...list].sort((a, b) => {
+    const timeDiff = new Date(b.actionAt).getTime() - new Date(a.actionAt).getTime();
+    if (timeDiff !== 0) return timeDiff;
+    return b.id - a.id;
+  });
+}
+
 export const ActionsTaken: React.FC<ActionsTakenProps> = ({
   ticketNumber,
   ticketCreatedAt,
@@ -100,7 +109,7 @@ export const ActionsTaken: React.FC<ActionsTakenProps> = ({
       setLoadState('loading');
       setLoadError('');
       const list = await getTicketActions(ticketNumber);
-      setActions(list);
+      setActions(sortActions(list));
       setLoadState('ready');
     } catch (err) {
       setLoadState('error');
@@ -202,7 +211,7 @@ export const ActionsTaken: React.FC<ActionsTakenProps> = ({
         clientRequestId,
       });
 
-      setActions((prev) => [created, ...prev.filter((a) => a.id !== created.id)]);
+      setActions((prev) => sortActions([created, ...prev.filter((a) => a.id !== created.id)]));
       setIsCreating(false);
       setSuccessBanner('Action recorded.');
       if (onActionSaved) {
@@ -287,7 +296,7 @@ export const ActionsTaken: React.FC<ActionsTakenProps> = ({
         attachmentNotes: editDraft.attachmentNotes.trim() || null,
       });
 
-      setActions((prev) => prev.map((a) => (a.id === actionId ? updated : a)));
+      setActions((prev) => sortActions(prev.map((a) => (a.id === actionId ? updated : a))));
       setEditingId(null);
       setSuccessBanner('Action updated.');
       if (onActionSaved) {

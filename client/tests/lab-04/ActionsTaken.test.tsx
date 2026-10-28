@@ -307,8 +307,8 @@ describe('Actions Taken UI (L4-4)', () => {
     expect(clientRequestIds[0]).toBe(clientRequestIds[1]);
   });
 
-  // UI-03: log rendering, empty state, requester read-only mode
-  it('UI-03: renders actions sorted with performed-by, handles empty state, and keeps requester view strictly read-only', async () => {
+  // UI-03a: log rendering with performed-by, follow-up chip, and attachment notes
+  it('UI-03a: renders actions sorted with performed-by, follow-up chip, and attachment notes in staff view', async () => {
     const action1 = makeAction({
       id: 101,
       actionAt: '2026-09-08T09:00:00.000Z',
@@ -328,7 +328,6 @@ describe('Actions Taken UI (L4-4)', () => {
       followUpRequired: false,
     });
 
-    // Test staff view with actions
     const harness = setupHarness({ actions: [action2, action1] });
     renderScreen(harness.fetchFn, false);
 
@@ -340,9 +339,21 @@ describe('Actions Taken UI (L4-4)', () => {
     expect(within(section).getAllByText(/follow-up required/i).length).toBeGreaterThanOrEqual(1);
     expect(within(section).getAllByText('Inspect in 2 days').length).toBeGreaterThanOrEqual(1);
     expect(within(section).getAllByText(/patch-log\.txt/i).length).toBeGreaterThanOrEqual(1);
+  });
 
-    // Test Requester view: read-only, no create button, no edit buttons
-    cleanup();
+  // UI-03b: requester read-only view
+  it('UI-03b: keeps requester view strictly read-only with no record action or edit buttons', async () => {
+    const action1 = makeAction({
+      id: 101,
+      actionAt: '2026-09-08T09:00:00.000Z',
+      description: 'Older maintenance action',
+    });
+    const action2 = makeAction({
+      id: 102,
+      actionAt: '2026-09-09T15:00:00.000Z',
+      description: 'Newer maintenance action',
+    });
+
     const reqHarness = setupHarness({ user: REQUESTER, actions: [action2, action1] });
     renderScreen(reqHarness.fetchFn, true);
 
@@ -353,9 +364,10 @@ describe('Actions Taken UI (L4-4)', () => {
     expect(within(reqSection).getAllByText('Older maintenance action').length).toBeGreaterThanOrEqual(1);
     expect(within(reqSection).queryByRole('button', { name: /record action/i })).not.toBeInTheDocument();
     expect(within(reqSection).queryByRole('button', { name: /edit/i })).not.toBeInTheDocument();
+  });
 
-    // Test Requester empty state
-    cleanup();
+  // UI-03c: requester empty state
+  it('UI-03c: renders the documented empty state when a ticket has no actions recorded', async () => {
     const emptyHarness = setupHarness({ user: REQUESTER, actions: [] });
     renderScreen(emptyHarness.fetchFn, true);
 
@@ -365,6 +377,52 @@ describe('Actions Taken UI (L4-4)', () => {
     });
     expect(within(emptySection).getByText(/it staff will record the work here/i)).toBeInTheDocument();
     expect(within(emptySection).queryByRole('button', { name: /record action/i })).not.toBeInTheDocument();
+  });
+
+  // UI-03d: BR-05 sorting order on create/edit
+  it('UI-03d: maintains BR-05 sort order (actionAt desc, then id desc) when backdated actions are created', async () => {
+    const existingNewer = makeAction({
+      id: 200,
+      actionAt: '2026-09-10T12:00:00.000Z',
+      description: 'Newest existing action',
+    });
+    const existingOlder = makeAction({
+      id: 100,
+      actionAt: '2026-09-01T10:00:00.000Z',
+      description: 'Oldest existing action',
+    });
+
+    const harness = setupHarness({
+      actions: [existingNewer, existingOlder],
+      actionsPostHandler: async (body) => {
+        // Backdated to between existingNewer and existingOlder
+        return jsonResponse(201, makeAction({
+          id: 300,
+          actionAt: '2026-09-05T08:00:00.000Z',
+          description: body.description as string,
+          result: body.result as string,
+        }));
+      },
+    });
+
+    renderScreen(harness.fetchFn, false);
+    const section = await screen.findByRole('region', { name: /actions taken/i });
+
+    await userEvent.click(within(section).getByRole('button', { name: /record action/i }));
+    await userEvent.type(within(section).getByLabelText(/description/i), 'Backdated intermediate action');
+    await userEvent.type(within(section).getByLabelText(/result/i), 'Successful intermediate step');
+    await userEvent.click(within(section).getByRole('button', { name: /^save action$|^save$/i }));
+
+    await waitFor(() => {
+      expect(within(section).queryByText(/new action/i)).not.toBeInTheDocument();
+    });
+
+    // Check table rows order: row 0 must be existingNewer, row 1 must be backdated (intermediate), row 2 must be existingOlder
+    const rows = section.querySelectorAll('.at-table tbody tr');
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toHaveTextContent('Newest existing action');
+    expect(rows[1]).toHaveTextContent('Backdated intermediate action');
+    expect(rows[2]).toHaveTextContent('Oldest existing action');
   });
 
   // UI-04: staff view/edit mode: validation, stale 409 conflict, reload, cancel
