@@ -130,6 +130,7 @@ test.describe('E2E-03 & E2E-04: Role Dashboards Flow and Drill-downs', () => {
       await page.goto('/#/dashboard');
       await expect(page.getByRole('heading', { level: 1, name: /dashboard/i })).toBeVisible();
       await page.screenshot({ path: join(staffDir, `staff-dashboard-${vp.name}.png`), fullPage: false });
+      await page.screenshot({ path: join(staffDir, `ready-${vp.name}.png`), fullPage: false });
     }
 
     // Capture requester dashboard screenshots across viewports
@@ -141,6 +142,19 @@ test.describe('E2E-03 & E2E-04: Role Dashboards Flow and Drill-downs', () => {
       await page.goto('/#/dashboard');
       await expect(page.getByRole('heading', { level: 1, name: /dashboard/i })).toBeVisible();
       await page.screenshot({ path: join(reqDir, `requester-dashboard-${vp.name}.png`), fullPage: false });
+      await page.screenshot({ path: join(reqDir, `ready-${vp.name}.png`), fullPage: false });
+    }
+
+    // Capture requester empty dashboard screenshots across viewports
+    await logout(page);
+    await login(page, 'zeta@toktickit.test', 'Requester123!');
+
+    for (const vp of viewports) {
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto('/#/dashboard');
+      await expect(page.getByRole('heading', { level: 1, name: /dashboard/i })).toBeVisible();
+      await expect(page.getByRole('heading', { name: /no tickets yet/i })).toBeVisible();
+      await page.screenshot({ path: join(reqDir, `empty-${vp.name}.png`), fullPage: false });
     }
   });
 });
