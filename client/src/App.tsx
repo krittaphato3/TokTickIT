@@ -11,6 +11,8 @@ import TicketDetailPage from './components/TicketDetailPage';
 import StaffTicketQueue from './components/StaffTicketQueue';
 import StaffTicketDetail from './components/StaffTicketDetail';
 import UserManagement from './components/UserManagement';
+import RequesterDashboard from './components/RequesterDashboard';
+import StaffDashboard from './components/StaffDashboard';
 import HomeScreen from './components/HomeScreen';
 
 // UI states: idle, loading, success, error.
@@ -19,6 +21,7 @@ import HomeScreen from './components/HomeScreen';
 // #/tickets/:number, #/staff/queue, #/admin/users. Legacy Lab 2 hashes
 // (#/tickets, #/new-ticket, #/select-requester) redirect to canonical routes.
 export type Route =
+  | { name: 'dashboard' }
   | { name: 'home' }
   | { name: 'login' }
   | { name: 'forgot-password' }
@@ -39,6 +42,7 @@ function parseRoute(hash: string): Route {
   const [pathPart, queryPart] = hash.replace(/^#/, '').split('?');
   const path = pathPart;
   if (path === '/login' || path === '/login/') return { name: 'login' };
+  if (path === '/dashboard' || path === '/dashboard/') return { name: 'dashboard' };
   if (path === '/forgot-password' || path === '/forgot-password/') {
     return { name: 'forgot-password' };
   }
@@ -223,6 +227,7 @@ function AppHeader({
           </a>
           {minimal ? null : (
             <nav className="tok-nav" aria-label="Primary">
+              <NavLink href="#/dashboard" active={activeRoute === 'dashboard'} label="Dashboard" onNavigate={onNavigate} />
               {(isRequesterLike || isStaff || isAdmin) && (isRequesterLike || (!isStaff && !isAdmin)) ? (
                 <>
                   <NavLink href="#/my" active={activeRoute === 'my'} label="My Tickets" onNavigate={onNavigate} />
@@ -233,7 +238,10 @@ function AppHeader({
                 <NavLink href="#/staff/queue" active={activeRoute === 'staff-queue'} label="Ticket Queue" onNavigate={onNavigate} />
               ) : null}
               {isAdmin ? (
-                <NavLink href="#/admin/users" active={activeRoute === 'admin-users'} label="User Management" onNavigate={onNavigate} />
+                <>
+                  <NavLink href="#/staff/queue" active={activeRoute === 'staff-queue'} label="Ticket Queue" onNavigate={onNavigate} />
+                  <NavLink href="#/admin/users" active={activeRoute === 'admin-users'} label="User Management" onNavigate={onNavigate} />
+                </>
               ) : null}
             </nav>
           )}
@@ -585,12 +593,16 @@ function Shell() {
   }
 
   const home = roleHome(user.role);
+  const isRequesterLike = user.role === 'REQUESTER';
   const isStaff = user.role === 'IT_STAFF';
   const isAdmin = user.role === 'ADMIN' || user.role === 'ADMINISTRATOR';
 
   let body: React.ReactNode = null;
   let activeNav = '';
-  if (route.name === 'change-password') {
+  if (route.name === 'dashboard') {
+    activeNav = 'dashboard';
+    body = isRequesterLike ? <RequesterDashboard /> : <StaffDashboard />;
+  } else if (route.name === 'change-password') {
     activeNav = 'change-password';
     body = <ChangePasswordPage first={route.first} />;
   } else if (route.name === 'profile') {

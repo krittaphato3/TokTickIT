@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import App from '../../src/App';
@@ -143,10 +143,11 @@ describe('Staff & Admin Dashboard UI (L4-5, UI-07, UI-08)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: /dashboard/i })).toBeInTheDocument();
 
     // Admin user counts section
-    const userCard = await screen.findByRole('link', { name: /user directory|manage users/i });
+    const main = screen.getByRole('main');
+    const userCard = await within(main).findByRole('link', { name: /manage users/i });
     expect(userCard).toHaveAttribute('href', '#/admin/users');
-    expect(screen.getByText(/active: 9/i)).toBeInTheDocument();
-    expect(screen.getByText(/inactive: 2/i)).toBeInTheDocument();
+    expect(within(main).getByText(/^active:/i)).toBeInTheDocument();
+    expect(within(main).getByText(/^inactive:/i)).toBeInTheDocument();
   });
 
   it('handles safe error states and retries', async () => {

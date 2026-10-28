@@ -121,7 +121,7 @@ describe('GET /api/dashboard/staff — Staff / Admin Dashboard API (AC-14, AC-17
 
     const expectedRequester = await prisma.user.count({ where: { role: 'REQUESTER' } });
     const expectedItStaff = await prisma.user.count({ where: { role: 'IT_STAFF' } });
-    const expectedAdmin = await prisma.user.count({ where: { role: { in: ['ADMINISTRATOR', 'ADMIN'] as any } } });
+    const expectedAdmin = await prisma.user.count({ where: { role: 'ADMINISTRATOR' } });
     const expectedActive = await prisma.user.count({ where: { isActive: true } });
     const expectedInactive = await prisma.user.count({ where: { isActive: false } });
 

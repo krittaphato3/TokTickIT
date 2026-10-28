@@ -37,6 +37,20 @@ function voluntaryChangePasswordHandler(url: string, init?: RequestInit) {
 
 function withWorkspace(handler: (url: string, init?: RequestInit) => Response | undefined) {
   return (url: string, init?: RequestInit) => {
+    if (url.includes('/api/dashboard')) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          activeCount: 0,
+          waitingForRequesterCount: 0,
+          resolvedCount: 0,
+          closedCount: 0,
+          recentlyUpdated: [],
+          recentlyResolved: [],
+        }),
+      } as unknown as Response;
+    }
     if (url.includes('/api/tickets')) {
       return {
         ok: true,
@@ -106,7 +120,7 @@ describe('ChangePassword forced-first flicker', () => {
         expect(screen.queryByRole('link', { name: /back/i })).toBeNull();
       }
 
-      await waitFor(() => expect(window.location.hash).toBe('#/my'));
+      await waitFor(() => expect(window.location.hash).toBe('#/dashboard'));
       expect(flashes).toEqual([]);
     } finally {
       obs.disconnect();

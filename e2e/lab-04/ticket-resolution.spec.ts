@@ -53,6 +53,9 @@ async function staffLoginAndSettle(page: Page): Promise<void> {
   await page.getByRole('textbox', { name: 'New Password', exact: true }).fill(pw);
   await page.getByRole('textbox', { name: 'Confirm New Password', exact: true }).fill(pw);
   await page.getByRole('button', { name: /save and continue/i }).click();
+  // D-12: role landing after mandatory password change is #/dashboard
+  await expect(page.getByRole('heading', { name: /dashboard/i })).toBeVisible({ timeout: 15000 });
+  await page.goto('/#/staff/queue');
   await expect(page.getByRole('heading', { name: /ticket queue/i })).toBeVisible({ timeout: 15000 });
 }
 

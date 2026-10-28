@@ -43,6 +43,7 @@ export interface StaffQueueParams {
   itPriority?: string;
   ownerId?: number;
   assigned?: boolean;
+  active?: boolean;
   sort: string;
   order: string;
   q?: string;
@@ -132,6 +133,14 @@ export function validateStaffQueueParams(query: Record<string, unknown>): StaffQ
     else throw new HttpError(400, 'assigned must be true or false');
   }
 
+  let active: boolean | undefined;
+  const rawActive = query.active as string | undefined;
+  if (rawActive !== undefined && rawActive !== '') {
+    if (rawActive === 'true') active = true;
+    else if (rawActive === 'false') active = false;
+    else throw new HttpError(400, 'active must be true or false');
+  }
+
   // Contradictory pairing per api-spec §5.1: a concrete owner and
   // assigned=false cannot both apply.
   if (ownerId !== undefined && assigned === false) {
@@ -173,6 +182,7 @@ export function validateStaffQueueParams(query: Record<string, unknown>): StaffQ
     itPriority,
     ownerId,
     assigned,
+    active,
     sort,
     order,
     q,
@@ -254,6 +264,12 @@ export async function listStaffTickets(
       : params.assigned
         ? Prisma.sql` AND t."ownerId" IS NOT NULL`
         : Prisma.sql` AND t."ownerId" IS NULL`;
+  const activeCondition =
+    params.active === undefined
+      ? Prisma.empty
+      : params.active
+        ? Prisma.sql` AND t."status"::text IN ('NEW', 'OPEN', 'PENDING', 'IN_PROGRESS', 'WAITING_FOR_REQUESTER', 'REOPENED')`
+        : Prisma.sql` AND t."status"::text IN ('RESOLVED', 'CLOSED', 'CANCELLED')`;
 
   const rankColumn =
     params.sort === 'priority'
@@ -270,7 +286,7 @@ export async function listStaffTickets(
       prisma.$queryRaw<{ id: number }[]>`
         SELECT t.id
         FROM "Ticket" AS t
-        WHERE TRUE${searchCondition}${statusCondition}${categoryCondition}${reqPriorityCondition}${itPriorityCondition}${ownerCondition}${assignedCondition}
+        WHERE TRUE${searchCondition}${statusCondition}${categoryCondition}${reqPriorityCondition}${itPriorityCondition}${ownerCondition}${assignedCondition}${activeCondition}
         ORDER BY ${rankColumn} ${directionSql}, t."createdAt" DESC, t.id DESC
         LIMIT ${params.pageSize}
         OFFSET ${(params.page - 1) * params.pageSize}
@@ -278,7 +294,7 @@ export async function listStaffTickets(
       prisma.$queryRaw<{ count: bigint }[]>`
         SELECT COUNT(*)::bigint AS count
         FROM "Ticket" AS t
-        WHERE TRUE${searchCondition}${statusCondition}${categoryCondition}${reqPriorityCondition}${itPriorityCondition}${ownerCondition}${assignedCondition}
+        WHERE TRUE${searchCondition}${statusCondition}${categoryCondition}${reqPriorityCondition}${itPriorityCondition}${ownerCondition}${assignedCondition}${activeCondition}
       `,
     ])
     .then(

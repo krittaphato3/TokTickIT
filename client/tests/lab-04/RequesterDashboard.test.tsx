@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import App from '../../src/App';
@@ -94,8 +94,9 @@ describe('Requester Dashboard UI (L4-5, UI-07)', () => {
     const printerLink = screen.getByRole('link', { name: /TTK-2026-000017/i });
     expect(printerLink).toHaveAttribute('href', '#/tickets/TTK-2026-000017');
 
-    // Quick action buttons
-    const newTicketBtn = screen.getByRole('link', { name: /new ticket|create ticket/i });
+    // Quick action buttons in dashboard main
+    const main = screen.getByRole('main');
+    const newTicketBtn = within(main).getByRole('link', { name: /\+ new ticket/i });
     expect(newTicketBtn).toHaveAttribute('href', '#/new');
   });
 

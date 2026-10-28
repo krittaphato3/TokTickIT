@@ -184,13 +184,11 @@ describe('PERF-01 — dashboard smoke p95 < 1000 ms (D-13, AC-22)', () => {
   it('20 sequential calls to each dashboard endpoint answer p95 < 1000 ms', async () => {
     // Dynamic import to avoid circular dependency
     const request = (await import('supertest')).default;
-    const { createApp } = await import('../../src/app.js');
-    const app = createApp();
+    const { app } = await import('../../src/app.js');
 
-    const staffRes = await request(app).post('/api/auth/login').send({ email: 'sara.it@toktickit.test', password: 'Staff123!' });
-    const staffCookie = staffRes.headers['set-cookie']?.[0]?.split(';')[0];
-    const reqRes = await request(app).post('/api/auth/login').send({ email: 'eta@toktickit.test', password: 'Requester123!' });
-    const reqCookie = reqRes.headers['set-cookie']?.[0]?.split(';')[0];
+    const { createSession } = await import('../helpers/session.js');
+    const staffSession = await createSession({ label: 'perf-staff', role: 'IT_STAFF' });
+    const reqSession = await createSession({ label: 'perf-req', role: 'REQUESTER', withLinkedRequester: true });
 
     const measureTimes = async (url: string, cookie: string) => {
       const times: number[] = [];
@@ -205,8 +203,11 @@ describe('PERF-01 — dashboard smoke p95 < 1000 ms (D-13, AC-22)', () => {
       return times[18];
     };
 
-    const requesterP95 = await measureTimes('/api/dashboard/requester', reqCookie);
-    const staffP95 = await measureTimes('/api/dashboard/staff', staffCookie);
+    const requesterP95 = await measureTimes('/api/dashboard/requester', reqSession.cookie);
+    const staffP95 = await measureTimes('/api/dashboard/staff', staffSession.cookie);
+
+    await staffSession.dispose();
+    await reqSession.dispose();
 
     expect(requesterP95).toBeLessThan(1000);
     expect(staffP95).toBeLessThan(1000);

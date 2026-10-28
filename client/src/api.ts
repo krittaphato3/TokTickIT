@@ -289,6 +289,7 @@ export interface TicketListParams {
   priority?: Priority;
   itPriority?: Priority;
   status?: TicketStatus;
+  active?: boolean;
   sortBy?: SortBy;
   sortDir?: SortDir;
 }
@@ -322,6 +323,7 @@ export async function getTickets(
   if (params.itPriority !== undefined)
     search.set('itPriority', params.itPriority);
   if (params.status !== undefined) search.set('status', params.status);
+  if (params.active !== undefined) search.set('active', String(params.active));
   if (params.sortBy !== undefined) search.set('sortBy', params.sortBy);
   if (params.sortDir !== undefined) search.set('sortDir', params.sortDir);
 
@@ -488,6 +490,7 @@ export interface StaffQueueParams {
   itPriority?: Priority;
   ownerId?: number;
   assigned?: boolean;
+  active?: boolean;
   sort?: StaffSortField;
   order?: SortDir;
 }
@@ -533,6 +536,7 @@ export async function getStaffTickets(
   if (params.itPriority !== undefined) search.set('itPriority', params.itPriority);
   if (params.ownerId !== undefined) search.set('ownerId', String(params.ownerId));
   if (params.assigned !== undefined) search.set('assigned', String(params.assigned));
+  if (params.active !== undefined) search.set('active', String(params.active));
   if (params.sort !== undefined) search.set('sort', params.sort);
   if (params.order !== undefined) search.set('order', params.order);
 
@@ -1057,6 +1061,82 @@ export async function updateTicketAction(
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new ApiError(response.status, body);
   return body as ActionTaken;
+}
+
+// ---------------------------------------------------------------------------
+// Lab 4 — Role Dashboards (api-spec §4, FR-08/FR-09/FR-10).
+// ---------------------------------------------------------------------------
+
+export interface RequesterRecentTicket {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  status: TicketStatus | string;
+  updatedAt: string;
+}
+
+export interface RequesterDashboardData {
+  activeCount: number;
+  waitingForRequesterCount: number;
+  resolvedCount: number;
+  closedCount: number;
+  recentlyUpdated: RequesterRecentTicket[];
+  recentlyResolved: RequesterRecentTicket[];
+}
+
+export interface StaffRecentTicket {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  status: StaffTicketStatus | string;
+  owner: { id: number; name: string } | null;
+  updatedAt: string;
+}
+
+export interface StaffRecentAction {
+  id: number;
+  ticketId: number;
+  ticketNumber: string;
+  description: string;
+  actionAt: string;
+}
+
+export interface AdminUserCounts {
+  requester: number;
+  itStaff: number;
+  administrator: number;
+  active: number;
+  inactive: number;
+}
+
+export interface StaffDashboardData {
+  countsByStatus: Record<string, number>;
+  unassignedActiveCount: number;
+  myActiveOwnedCount: number;
+  countsByItPriority: Record<string, number>;
+  recentlyUpdated: StaffRecentTicket[];
+  myRecentActions: StaffRecentAction[];
+  userCounts?: AdminUserCounts;
+}
+
+export async function getRequesterDashboard(): Promise<RequesterDashboardData> {
+  const response = await fetch(`${API_URL}/api/dashboard/requester`, {
+    credentials: 'include',
+    headers: { ...authHeaders({}, true) },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as RequesterDashboardData;
+}
+
+export async function getStaffDashboard(): Promise<StaffDashboardData> {
+  const response = await fetch(`${API_URL}/api/dashboard/staff`, {
+    credentials: 'include',
+    headers: { ...authHeaders({}, true) },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as StaffDashboardData;
 }
 
 export default API_URL;
