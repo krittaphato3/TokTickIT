@@ -178,4 +178,53 @@ describe('GET /api/dashboard/requester — Requester Dashboard API (AC-02, AC-13
       recentlyResolved: [],
     });
   });
+
+  it('verifies email alignment when id collides with an unrelated Requester row (security & ID isolation)', async () => {
+    // 1. Create a foreign Requester with active tickets
+    const foreignReq = await prisma.requester.create({
+      data: {
+        name: 'Foreign Requester',
+        email: `foreign-${Date.now()}@toktickit.test`,
+        isActive: true,
+      },
+    });
+
+    const category = await prisma.category.findFirstOrThrow();
+    const system = await prisma.relatedSystem.findFirstOrThrow();
+
+    await prisma.ticket.create({
+      data: {
+        ticketNumber: `TTK-2026-COLL-${Date.now().toString().slice(-4)}`,
+        title: 'Confidential foreign ticket',
+        categoryId: category.id,
+        relatedSystemId: system.id,
+        requesterId: foreignReq.id,
+        status: 'OPEN',
+      },
+    });
+
+    // 2. Create a User fixture whose user.id matches foreignReq.id but with a DIFFERENT email
+    // Or a User whose email does NOT match foreignReq.email.
+    // If we test with a session whose User.id matches foreignReq.id, or test resolveSessionRequester behavior:
+    // We can create a user with that exact id if available, or test a user that collides on id:
+    const mockUser = {
+      id: foreignReq.id,
+      name: 'Unrelated Requester User',
+      email: `unrelated-${Date.now()}@toktickit.test`,
+      role: 'REQUESTER' as const,
+      isActive: true,
+    };
+
+    // Call getRequesterDashboard directly to test the service with mockUser
+    const { getRequesterDashboard } = await import('../../src/services/dashboard.service.js');
+    const result = await getRequesterDashboard(prisma, mockUser, {});
+
+    // Must NOT leak foreignReq's active ticket
+    expect(result.activeCount).toBe(0);
+    expect(result.recentlyUpdated).toHaveLength(0);
+
+    // Clean up
+    await prisma.ticket.deleteMany({ where: { requesterId: foreignReq.id } });
+    await prisma.requester.delete({ where: { id: foreignReq.id } });
+  });
 });

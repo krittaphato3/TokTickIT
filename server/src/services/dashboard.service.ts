@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { HttpError } from './ticket.service.js';
+import { HttpError, resolveSessionRequester } from './ticket.service.js';
 
 // ---------------------------------------------------------------------------
 // Lab 4 — Role Dashboards (api-spec §4, FR-08/FR-09/FR-10, BR-12/BR-13/BR-16).
@@ -45,17 +45,13 @@ export async function getRequesterDashboard(
     throw new HttpError(403, 'Only requesters may access the requester dashboard', undefined, 'FORBIDDEN');
   }
 
-  // Resolve linked requester
-  const requester = await prisma.requester.findFirst({
-    where: {
-      OR: [
-        { id: user.id },
-        { email: { equals: user.email, mode: 'insensitive' } },
-      ],
-    },
+  // Resolve linked requester using shared session requester resolver
+  const requester = await resolveSessionRequester(prisma, {
+    ...user,
+    isActive: true,
   });
 
-  const requesterId = requester?.id ?? -1;
+  const requesterId = requester.id;
 
   const [activeCount, waitingCount, resolvedCount, closedCount, recentlyUpdated, recentlyResolved] =
     await Promise.all([

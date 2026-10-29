@@ -56,6 +56,8 @@ test.describe('T-E2E-03: Administrator user administration', () => {
     await page.getByRole('textbox', { name: 'New Password', exact: true }).fill(pw);
     await page.getByRole('textbox', { name: 'Confirm New Password', exact: true }).fill(pw);
     await page.getByRole('button', { name: /save and continue/i }).click();
+    await expect(page.getByRole('heading', { name: /dashboard/i })).toBeVisible({ timeout: 15000 });
+    await page.goto('/#/admin/users');
     await expect(page.getByRole('heading', { name: /user management/i })).toBeVisible({ timeout: 15000 });
   }
 
@@ -162,7 +164,7 @@ test.describe('T-E2E-03: Administrator user administration', () => {
     await page.getByRole('textbox', { name: 'New Password', exact: true }).fill(pw);
     await page.getByRole('textbox', { name: 'Confirm New Password', exact: true }).fill(pw);
     await page.getByRole('button', { name: /save and continue/i }).click();
-    await expect(page.getByRole('heading', { name: /my tickets/i })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: /dashboard/i })).toBeVisible({ timeout: 15000 });
   });
 
   test('blocks self-deactivation in the UI and on the server (last-admin safe)', async ({ page }) => {
@@ -217,7 +219,7 @@ test.describe('T-E2E-03: Administrator user administration', () => {
     await page.getByRole('textbox', { name: 'New Password', exact: true }).fill(pw);
     await page.getByRole('textbox', { name: 'Confirm New Password', exact: true }).fill(pw);
     await page.getByRole('button', { name: /save and continue/i }).click();
-    await expect(page.getByRole('heading', { name: /ticket queue/i })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: /dashboard/i })).toBeVisible({ timeout: 15000 });
 
     await page.goto('/#/admin/users');
     await expect(page.getByText('User management is restricted to administrators.')).toBeVisible({ timeout: 15000 });

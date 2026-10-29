@@ -269,7 +269,7 @@ export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
   return body as Ticket;
 }
 
-// Issue #15/#16 — list the active Development Requester's tickets.
+// Issue #15/#16 — list the authenticated requester's tickets.
 // Search/filter params are appended only when set; sort is always sent
 // explicitly (the UI's default "newest first" maps to sortBy=createdAt
 // &sortDir=desc, matching the server default). Page/pageSize are always sent.

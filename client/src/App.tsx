@@ -272,11 +272,11 @@ function AppHeader({
                   }
                 }}
               >
-                <span className="tok-avatar tok-avatar--sm" aria-hidden="true">{initials}</span>
+                <span className="tok-avatar tok-avatar--sm" aria-hidden="true" data-initials={initials} />
                 <span className="tok-profile-trigger-name">{user.name}</span>
-                <span className="visually-hidden" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>Profile</span>
                 <svg className="tok-profile-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9" /></svg>
               </button>
+              <span className="visually-hidden">Profile</span>
               {open ? (
                 <div
                   ref={menuRef}
@@ -287,7 +287,7 @@ function AppHeader({
                   onKeyDown={onMenuKeyDown}
                 >
                   <div className="tok-menu-header">
-                    <span className="tok-avatar tok-avatar--lg" aria-hidden="true">{initials}</span>
+                    <span className="tok-avatar tok-avatar--lg" aria-hidden="true" data-initials={initials} />
                     <div className="tok-menu-identity">
                       <p className="tok-menu-label">Signed in as</p>
                       <p className="tok-menu-name">{user.name}</p>

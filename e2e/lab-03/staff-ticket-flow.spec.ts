@@ -84,6 +84,8 @@ test.describe('T-E2E-02: IT Staff ticket flow', () => {
     await page.getByRole('textbox', { name: 'New Password', exact: true }).fill(pw);
     await page.getByRole('textbox', { name: 'Confirm New Password', exact: true }).fill(pw);
     await page.getByRole('button', { name: /save and continue/i }).click();
+    await expect(page.getByRole('heading', { name: /dashboard/i })).toBeVisible({ timeout: 15000 });
+    await page.goto('/#/staff/queue');
     await expect(page.getByRole('heading', { name: /ticket queue/i })).toBeVisible({ timeout: 15000 });
   }
 
@@ -97,6 +99,8 @@ test.describe('T-E2E-02: IT Staff ticket flow', () => {
     await page.getByRole('textbox', { name: 'New Password', exact: true }).fill(pw);
     await page.getByRole('textbox', { name: 'Confirm New Password', exact: true }).fill(pw);
     await page.getByRole('button', { name: /save and continue/i }).click();
+    await expect(page.getByRole('heading', { name: /dashboard/i })).toBeVisible({ timeout: 15000 });
+    await page.goto('/#/my');
     await expect(page.getByRole('heading', { name: /my tickets/i })).toBeVisible({ timeout: 15000 });
   }
 

@@ -95,8 +95,9 @@ test.describe('E2E-03 & E2E-04: Role Dashboards Flow and Drill-downs', () => {
     await expect(page).toHaveURL(/#\/my\?active=true/);
     await expect(page.getByRole('heading', { level: 1, name: /my tickets/i })).toBeVisible();
 
-    // Verify row count matches card count
-    await expect(page.locator('tbody tr')).toHaveCount(expectedCount);
+    // Verify row count matches page limit and total matches card count
+    await expect(page.locator('tbody tr')).toHaveCount(Math.min(10, expectedCount));
+    await expect(page.locator('.mt-showing')).toContainText(new RegExp(`of ${expectedCount} tickets`));
   });
 
   test('Staff dashboard: metrics, drill-down to queue with filters, and screenshots', async ({ page }) => {
