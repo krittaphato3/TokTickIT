@@ -10,6 +10,7 @@ import {
 } from '../api';
 import { useAuth } from '../auth/AuthContext';
 import AttachmentSection from './AttachmentSection';
+import ActionsTaken from './ActionsTaken';
 import '../styles/ticket-detail.css';
 
 // Lab 3 — Ticket Detail (requester surface, ui-spec §5). Lab 2 read-only
@@ -254,8 +255,31 @@ export default function TicketDetailPage({ ticketNumber, onBack }: { ticketNumbe
     ) : null;
   }, [ticket?.appearsResolvedAt]);
 
-  if (status === 'loading') return <main className="mt-page td-page"><div className="tt-skeleton" /><p aria-busy="true">Loading…</p></main>;
-  if (status === 'error') return <main className="mt-page td-page"><div role="alert">{error}</div><button onClick={load}>Retry</button></main>;
+  if (status === 'loading') {
+    return (
+      <main className="mt-page td-page">
+        <div className="tt-skeleton" role="status" aria-label="Loading ticket" />
+        <p aria-busy="true">Loading…</p>
+      </main>
+    );
+  }
+  if (status === 'error') {
+    return (
+      <main className="mt-page td-page">
+        <div className="td-crumbrow">
+          <button type="button" className="tok-btn secondary" onClick={() => onBack?.()}>
+            ← Back to My Tickets
+          </button>
+        </div>
+        <div className="mt-errbar" role="alert">
+          <span>{error || 'We could not load this ticket.'}</span>
+          <button type="button" className="mt-btn mt-btn-tertiary" onClick={() => void load()}>
+            Retry
+          </button>
+        </div>
+      </main>
+    );
+  }
   if (!ticket) return null;
 
   const attCount = ticket.attachments?.filter((a) => !a.removedAt).length ?? 0;
@@ -305,6 +329,13 @@ export default function TicketDetailPage({ ticketNumber, onBack }: { ticketNumbe
           <p className="td-caption td-signal-caption">Marked as appearing resolved ✓</p>
         ) : null}
       </section>
+
+      <ActionsTaken
+        ticketNumber={ticket.ticketNumber}
+        ticketCreatedAt={ticket.createdAt}
+        isStaff={false}
+        onActionSaved={load}
+      />
 
       <div className="td-tabs" role="tablist" onKeyDown={onTabKeyDown}>
         <button ref={el => { tabRefs.current['comments'] = el; }} className={`td-tab ${activeTab === 'comments' ? 'active' : ''}`} role="tab" aria-selected={activeTab === 'comments'} data-p="comments" onClick={() => setActiveTab('comments')}>💬 Public Comments <span className="count">{comments.length}</span></button>

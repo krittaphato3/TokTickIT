@@ -80,12 +80,12 @@ test.describe('T-E2E-01: authentication journey (AC-01, AC-02, AC-05, AC-06)', (
     await expect(page.getByText(/password updated/i)).toBeVisible({ timeout: 10000 });
     await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible({ timeout: 10000 });
 
-    // The NEW password signs in straight to My Tickets (flag cleared, no
+    // The NEW password signs in straight to Dashboard (flag cleared, no
     // gate) — this is what proves the reset actually took effect.
     await page.getByRole('textbox', { name: 'Email address', exact: true }).fill(GAMMA.email);
     await page.getByRole('textbox', { name: 'Password', exact: true }).fill(newPw);
     await page.getByRole('button', { name: /sign in/i }).click();
-    await expect(page.getByRole('heading', { name: /my tickets/i })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: /dashboard/i })).toBeVisible({ timeout: 15000 });
   });
 
   test('invalid login shows the safe generic failure and stays on login', async ({ page }) => {
@@ -147,7 +147,7 @@ test.describe('T-E2E-01: authentication journey (AC-01, AC-02, AC-05, AC-06)', (
     await page.getByRole('textbox', { name: 'New Password', exact: true }).fill(changed);
     await page.getByRole('textbox', { name: 'Confirm New Password', exact: true }).fill(changed);
     await page.getByRole('button', { name: /save and continue/i }).click();
-    await expect(page.getByRole('heading', { name: /my tickets/i })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: /dashboard/i })).toBeVisible({ timeout: 15000 });
     // (New-password round-trip is asserted at the API level in T-PWD-01; the
     // login rate limiter caps direct API logins per minute, so e2e keeps
     // to UI-driven sign-ins.)
@@ -165,7 +165,7 @@ test.describe('T-E2E-01: authentication journey (AC-01, AC-02, AC-05, AC-06)', (
     await page.getByRole('textbox', { name: 'New Password', exact: true }).fill(changed);
     await page.getByRole('textbox', { name: 'Confirm New Password', exact: true }).fill(changed);
     await page.getByRole('button', { name: /save and continue/i }).click();
-    await expect(page.getByRole('heading', { name: /my tickets/i })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: /dashboard/i })).toBeVisible({ timeout: 15000 });
 
     // Avatar dropdown: Sign out is a menuitem under the profile-menu button.
     await page.getByRole('button', { name: /^Profile menu —/ }).click();
@@ -186,7 +186,7 @@ test.describe('T-E2E-01: authentication journey (AC-01, AC-02, AC-05, AC-06)', (
 });
 
 test.describe('T-NAV-02: role navigation smoke (AC-01, BR-20)', () => {
-  test('requester lands on My Tickets; staff lands on Ticket Queue; unauthorized admin route is refused', async ({ page }) => {
+  test('requester lands on Dashboard; staff lands on Dashboard; unauthorized admin route is refused', async ({ page }) => {
     await waitForHealth(page);
     await page.goto('/#/login');
     await page.getByRole('textbox', { name: 'Email address', exact: true }).fill(ALPHA.email);
@@ -197,7 +197,7 @@ test.describe('T-NAV-02: role navigation smoke (AC-01, BR-20)', () => {
     await page.getByRole('textbox', { name: 'New Password', exact: true }).fill(alphaPw);
     await page.getByRole('textbox', { name: 'Confirm New Password', exact: true }).fill(alphaPw);
     await page.getByRole('button', { name: /save and continue/i }).click();
-    await expect(page.getByRole('heading', { name: /my tickets/i })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: /dashboard/i })).toBeVisible({ timeout: 15000 });
     // Requester has no staff/admin destinations.
     await expect(page.getByRole('link', { name: /ticket queue/i })).toHaveCount(0);
     await expect(page.getByRole('link', { name: /user management/i })).toHaveCount(0);
@@ -214,6 +214,6 @@ test.describe('T-NAV-02: role navigation smoke (AC-01, BR-20)', () => {
     await page.getByRole('textbox', { name: 'New Password', exact: true }).fill(staffPw);
     await page.getByRole('textbox', { name: 'Confirm New Password', exact: true }).fill(staffPw);
     await page.getByRole('button', { name: /save and continue/i }).click();
-    await expect(page.getByRole('heading', { name: /ticket queue/i })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: /dashboard/i })).toBeVisible({ timeout: 15000 });
   });
 });

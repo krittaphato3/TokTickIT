@@ -210,7 +210,7 @@ describe('Authorization — §12 matrix rows for GET /api/staff/tickets', () => 
     expect(res.body.meta).toMatchObject({ page: 1, pageSize: 5 });
   });
 
-  it('200 for ADMINISTRATOR (view-only role, read allowed per AD-02)', async () => {
+  it('200 for ADMINISTRATOR (staff-equivalent read per Lab 4 D-01)', async () => {
     const res = await withCookie(
       admin,
       request(app).get(`${STAFF_TICKETS_URL}?pageSize=5`),

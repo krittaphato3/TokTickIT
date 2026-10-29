@@ -29,10 +29,11 @@ export async function getStaffTicketDetailHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
-    sessionUser(req);
+    const user = sessionUser(req);
     const ticket = await getStaffTicketDetail(
       getPrisma(),
       req.params.ticketNumber as string,
+      user.role,
     );
     res.status(200).json(ticket);
   } catch (err) {
@@ -40,7 +41,7 @@ export async function getStaffTicketDetailHandler(
   }
 }
 
-// §6.2 — PATCH /api/staff/tickets/:ticketNumber/owner (IT_STAFF only).
+// §6.2 — PATCH /api/staff/tickets/:ticketNumber/owner (IT_STAFF + Admin, D-01).
 export async function changeTicketOwnerHandler(
   req: Request,
   res: Response,
@@ -54,6 +55,7 @@ export async function changeTicketOwnerHandler(
       user as never,
       req.params.ticketNumber as string,
       body.ownerId,
+      body.expectedVersion,
     );
     res.status(200).json(result);
   } catch (err) {
@@ -61,7 +63,7 @@ export async function changeTicketOwnerHandler(
   }
 }
 
-// §6.3 — PATCH /api/staff/tickets/:ticketNumber/it-priority (IT_STAFF only).
+// §6.3 — PATCH /api/staff/tickets/:ticketNumber/it-priority (IT_STAFF + Admin, D-01).
 export async function setItPriorityHandler(
   req: Request,
   res: Response,
@@ -75,6 +77,7 @@ export async function setItPriorityHandler(
       user as never,
       req.params.ticketNumber as string,
       body.itPriority,
+      body.expectedVersion,
     );
     res.status(200).json(result);
   } catch (err) {
@@ -82,7 +85,7 @@ export async function setItPriorityHandler(
   }
 }
 
-// §6.4 — PATCH /api/staff/tickets/:ticketNumber/status (IT_STAFF only).
+// §6.4 — PATCH /api/staff/tickets/:ticketNumber/status (IT_STAFF + Admin, D-01).
 export async function changeTicketStatusHandler(
   req: Request,
   res: Response,
@@ -91,13 +94,15 @@ export async function changeTicketStatusHandler(
   try {
     const user = sessionUser(req);
     const body = (req.body ?? {}) as Record<string, unknown>;
+    // D-04/D-06 — every governed field arrives in the body: the target status,
+    // expectedVersion, the confirmation flag, the reopen reason and the
+    // resolution summary. The service validates them against the matrix, the
+    // resolution gate and the stored version; nothing is trusted from the UI.
     const result = await changeTicketStatus(
       getPrisma(),
       user as never,
       req.params.ticketNumber as string,
-      body.status,
-      body.confirm,
-      body.reason,
+      body,
     );
     res.status(200).json(result);
   } catch (err) {

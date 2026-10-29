@@ -84,6 +84,8 @@ test.describe('T-E2E-02: IT Staff ticket flow', () => {
     await page.getByRole('textbox', { name: 'New Password', exact: true }).fill(pw);
     await page.getByRole('textbox', { name: 'Confirm New Password', exact: true }).fill(pw);
     await page.getByRole('button', { name: /save and continue/i }).click();
+    await expect(page.getByRole('heading', { name: /dashboard/i })).toBeVisible({ timeout: 15000 });
+    await page.goto('/#/staff/queue');
     await expect(page.getByRole('heading', { name: /ticket queue/i })).toBeVisible({ timeout: 15000 });
   }
 
@@ -97,6 +99,8 @@ test.describe('T-E2E-02: IT Staff ticket flow', () => {
     await page.getByRole('textbox', { name: 'New Password', exact: true }).fill(pw);
     await page.getByRole('textbox', { name: 'Confirm New Password', exact: true }).fill(pw);
     await page.getByRole('button', { name: /save and continue/i }).click();
+    await expect(page.getByRole('heading', { name: /dashboard/i })).toBeVisible({ timeout: 15000 });
+    await page.goto('/#/my');
     await expect(page.getByRole('heading', { name: /my tickets/i })).toBeVisible({ timeout: 15000 });
   }
 
@@ -181,7 +185,10 @@ test.describe('T-E2E-02: IT Staff ticket flow', () => {
     // Permitted status transition on an OPEN ticket: → In Progress.
     await page.getByLabel('Status').selectOption({ label: 'In Progress' });
     await expect(page.locator('.std-banner.success')).toContainText(
-      'Status changed to In Progress.',
+      // Lab 4 (L4-3, ui-spec §6 Success row) — the success banner copy is now
+      // "Status updated to <label>." This Lab 3 journey is deliberately updated
+      // for it (specification.md §11 D-04 names this spec).
+      'Status updated to In Progress.',
       { timeout: 15000 },
     );
   });

@@ -84,7 +84,27 @@ interface Filters {
   status: string;
   ownerId: string; // '', 'unassigned', or a user id
   assigned: string; // '', 'true', 'false' (derived from ownerId)
+  active: string; // '', 'true', 'false'
   sort: SortState;
+}
+
+function parseInitialFilters(): Filters {
+  const hash = window.location.hash;
+  const qIndex = hash.indexOf('?');
+  const params = qIndex >= 0 ? new URLSearchParams(hash.slice(qIndex)) : new URLSearchParams();
+  const ownerParam = params.get('ownerId') ?? '';
+  const assignedParam = params.get('assigned') ?? (ownerParam === 'unassigned' ? 'false' : '');
+  return {
+    q: params.get('q') ?? '',
+    categoryId: params.get('categoryId') ?? '',
+    priority: params.get('reqPriority') ?? params.get('priority') ?? '',
+    itPriority: params.get('itPriority') ?? '',
+    status: params.get('status') ?? '',
+    ownerId: ownerParam,
+    assigned: assignedParam,
+    active: params.get('active') ?? '',
+    sort: DEFAULT_SORT,
+  };
 }
 
 const DEFAULT_FILTERS: Filters = {
@@ -95,6 +115,7 @@ const DEFAULT_FILTERS: Filters = {
   status: '',
   ownerId: '',
   assigned: '',
+  active: '',
   sort: DEFAULT_SORT,
 };
 
@@ -105,7 +126,8 @@ function isDefaultFilters(f: Filters): boolean {
     f.priority === '' &&
     f.itPriority === '' &&
     f.status === '' &&
-    f.ownerId === ''
+    f.ownerId === '' &&
+    f.active === ''
   );
 }
 
@@ -118,6 +140,7 @@ interface QueueQuery {
   status: string;
   ownerId: string;
   assigned: string;
+  active: string;
   sort: SortState;
 }
 
@@ -130,7 +153,8 @@ function buildQuery(f: Filters, page: number): QueueQuery {
     itPriority: f.itPriority,
     status: f.status,
     ownerId: f.ownerId !== '' && f.ownerId !== 'unassigned' ? f.ownerId : '',
-    assigned: f.ownerId === 'unassigned' ? 'false' : '',
+    assigned: f.assigned || (f.ownerId === 'unassigned' ? 'false' : ''),
+    active: f.active,
     sort: f.sort,
   };
 }
@@ -273,7 +297,7 @@ export default function StaffTicketQueue({ onNavigate }: { onNavigate?: (hash: s
   const [tickets, setTickets] = useState<StaffQueueTicket[]>([]);
   const [meta, setMeta] = useState<StaffQueueMeta | null>(null);
   const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState<Filters>(parseInitialFilters);
   const [searchDraft, setSearchDraft] = useState('');
   const [owners, setOwners] = useState<QueueOwner[]>([]);
   const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([]);
@@ -361,6 +385,8 @@ export default function StaffTicketQueue({ onNavigate }: { onNavigate?: (hash: s
         ownerId: query.ownerId ? Number(query.ownerId) : undefined,
         assigned:
           query.assigned === 'true' ? true : query.assigned === 'false' ? false : undefined,
+        active:
+          query.active === 'true' ? true : query.active === 'false' ? false : undefined,
         sort: query.sort.key,
         order: query.sort.dir,
       });

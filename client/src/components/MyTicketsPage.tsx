@@ -57,7 +57,23 @@ interface Filters {
   priority: string;
   itPriority: string;
   status: string;
+  active: string;
   sort: SortState;
+}
+
+function parseInitialFilters(): Filters {
+  const hash = window.location.hash;
+  const qIndex = hash.indexOf('?');
+  const params = qIndex >= 0 ? new URLSearchParams(hash.slice(qIndex)) : new URLSearchParams();
+  return {
+    search: params.get('search') ?? '',
+    categoryId: params.get('categoryId') ?? '',
+    priority: params.get('priority') ?? '',
+    itPriority: params.get('itPriority') ?? '',
+    status: params.get('status') ?? '',
+    active: params.get('active') ?? '',
+    sort: DEFAULT_SORT,
+  };
 }
 
 const DEFAULT_FILTERS: Filters = {
@@ -66,6 +82,7 @@ const DEFAULT_FILTERS: Filters = {
   priority: '',
   itPriority: '',
   status: '',
+  active: '',
   sort: DEFAULT_SORT,
 };
 
@@ -75,7 +92,8 @@ function isDefault(filters: Filters): boolean {
     filters.categoryId === '' &&
     filters.priority === '' &&
     filters.itPriority === '' &&
-    filters.status === ''
+    filters.status === '' &&
+    filters.active === ''
   );
 }
 
@@ -86,6 +104,7 @@ function filtersDiffer(a: Filters, b: Filters): boolean {
     a.priority !== b.priority ||
     a.itPriority !== b.itPriority ||
     a.status !== b.status ||
+    a.active !== b.active ||
     a.sort.key !== b.sort.key ||
     a.sort.dir !== b.sort.dir
   );
@@ -102,6 +121,7 @@ function buildQuery(filters: Filters, page: number): URLSearchParams {
   if (filters.itPriority !== '')
     params.set('itPriority', filters.itPriority);
   if (filters.status !== '') params.set('status', filters.status);
+  if (filters.active !== '') params.set('active', filters.active);
   params.set('sortBy', filters.sort.key);
   params.set('sortDir', filters.sort.dir);
   return params;
@@ -225,7 +245,7 @@ export default function MyTicketsPage({ onNavigate }: { onNavigate?: (hash: stri
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [meta, setMeta] = useState<TicketListMeta | null>(null);
   const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState<Filters>(parseInitialFilters);
   const [searchDraft, setSearchDraft] = useState('');
 
   const requestSeq = useRef(0);

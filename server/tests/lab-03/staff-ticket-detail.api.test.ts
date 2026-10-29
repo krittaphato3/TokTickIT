@@ -14,8 +14,9 @@ import {
 // Lab 3 §6 — IT Staff Ticket Operations API — server/tests/lab-03/staff-ticket-detail.api.test.ts
 // Covers docs/lab-03/tests.md rows: T-OWN-01/02, T-PRIO-01/02, T-STAT-01/02,
 // plus the §12 matrix rows for GET/PATCH /api/staff/tickets/:number
-// (Requester 403 on every staff surface, ADMIN view-only 403 on writes,
-// unauthenticated 401) and attachment continuity on the staff detail read.
+// (Requester 403 on every staff surface, ADMIN 200 staff-equivalent per
+// Lab 4 D-01, unauthenticated 401) and attachment continuity on the staff
+// detail read.
 //
 // Fixture pattern: self-contained disposable tickets in the reserved 9xxxxx
 // test band owned by disposable session fixtures; everything is removed in
@@ -84,7 +85,20 @@ async function createProbeTicket(opts: {
 }
 
 async function deleteProbe(ticketNumber: string): Promise<void> {
+  // Lab 4 (BR-01): ActionTaken rows restrict-delete their ticket, so a probe
+  // with recorded work clears its actions first.
+  const row = await prisma.ticket.findUnique({ where: { ticketNumber } });
+  if (row) await prisma.actionTaken.deleteMany({ where: { ticketId: row.id } });
   await prisma.ticket.deleteMany({ where: { ticketNumber } });
+}
+
+// Lab 4 (D-04/BR-07) — every workflow write now carries `expectedVersion`.
+// These Lab 3 cases read the current version when they dispatch, so each one
+// still asserts exactly the rule it asserted before under the new concurrency
+// contract (D-04 names this file as deliberately updated).
+async function versionOf(ticketNumber: string): Promise<number> {
+  const row = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber } });
+  return row.version;
 }
 
 beforeAll(async () => {
@@ -145,7 +159,7 @@ describe('Authorization — §12 matrix rows for GET /api/staff/tickets/:number'
     await deleteProbe(t.ticketNumber);
   });
 
-  it('200 for ADMINISTRATOR (view-only role, read allowed per AD-02)', async () => {
+  it('200 for ADMINISTRATOR (staff-equivalent read per Lab 4 D-01)', async () => {
     const t = await createProbeTicket();
     const res = await withCookie(admin, request(app).get(`/api/staff/tickets/${t.ticketNumber}`));
     expect(res.status).toBe(200);
@@ -174,7 +188,7 @@ describe('T-OWN-01 — claim, reassign, unassign (BR-12)', () => {
     const res = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`),
-    ).send({ ownerId: staff.userId });
+    ).send({ ownerId: staff.userId, expectedVersion: await versionOf(t.ticketNumber) });
     expect(res.status).toBe(200);
     expect(res.body.owner).toMatchObject({ id: staff.userId, name: staff.name });
     const row = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
@@ -188,7 +202,7 @@ describe('T-OWN-01 — claim, reassign, unassign (BR-12)', () => {
     const res = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`),
-    ).send({ ownerId: staffB.userId });
+    ).send({ ownerId: staffB.userId, expectedVersion: await versionOf(t.ticketNumber) });
     expect(res.status).toBe(200);
     expect(res.body.owner.id).toBe(staffB.userId);
     const row = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
@@ -201,7 +215,7 @@ describe('T-OWN-01 — claim, reassign, unassign (BR-12)', () => {
     const res = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`),
-    ).send({ ownerId: null });
+    ).send({ ownerId: null, expectedVersion: await versionOf(t.ticketNumber) });
     expect(res.status).toBe(200);
     expect(res.body.owner).toBeNull();
     const row = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
@@ -214,7 +228,7 @@ describe('T-OWN-01 — claim, reassign, unassign (BR-12)', () => {
     const res = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`),
-    ).send({ ownerId: staff.userId });
+    ).send({ ownerId: staff.userId, expectedVersion: await versionOf(t.ticketNumber) });
     expect(res.status).toBe(200);
     expect(res.body.itPriorityCopied).toBe(true);
     expect(res.body.itPriority).toBe('HIGH');
@@ -226,7 +240,7 @@ describe('T-OWN-01 — claim, reassign, unassign (BR-12)', () => {
     const res = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`),
-    ).send({ ownerId: staffB.userId });
+    ).send({ ownerId: staffB.userId, expectedVersion: await versionOf(t.ticketNumber) });
     expect(res.status).toBe(200);
     expect(res.body.itPriorityCopied).toBe(false);
     expect(res.body.itPriority).toBe('LOW');
@@ -240,7 +254,7 @@ describe('T-OWN-02 — invalid owner rejection (BR-12)', () => {
     const res = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`),
-    ).send({ ownerId: requester.userId });
+    ).send({ ownerId: requester.userId, expectedVersion: await versionOf(t.ticketNumber) });
     expect(res.status).toBe(409);
     expect(res.body.error).toBe('Owner must be an active IT Staff or Administrator');
     const row = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
@@ -264,7 +278,7 @@ describe('T-OWN-02 — invalid owner rejection (BR-12)', () => {
       const res = await withWriteAuth(
         staff,
         request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`),
-      ).send({ ownerId: inactive.id });
+      ).send({ ownerId: inactive.id, expectedVersion: await versionOf(t.ticketNumber) });
       expect(res.status).toBe(409);
       expect(res.body.error).toBe('Owner must be an active IT Staff or Administrator');
       await deleteProbe(t.ticketNumber);
@@ -278,7 +292,7 @@ describe('T-OWN-02 — invalid owner rejection (BR-12)', () => {
     const res = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`),
-    ).send({ ownerId: 987654321 });
+    ).send({ ownerId: 987654321, expectedVersion: await versionOf(t.ticketNumber) });
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('User not found');
     await deleteProbe(t.ticketNumber);
@@ -289,34 +303,35 @@ describe('T-OWN-02 — invalid owner rejection (BR-12)', () => {
     const missing = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`),
-    ).send({});
+    ).send({ expectedVersion: await versionOf(t.ticketNumber) });
     expect(missing.status).toBe(400);
     expect(missing.body.details[0].field).toBe('ownerId');
 
     const bad = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`),
-    ).send({ ownerId: 1.5 });
+    ).send({ ownerId: 1.5, expectedVersion: await versionOf(t.ticketNumber) });
     expect(bad.status).toBe(400);
     await deleteProbe(t.ticketNumber);
   });
 
-  it('403 for ADMINISTRATOR (view-only per AD-02) and 403 for REQUESTER', async () => {
+  it('200 for ADMINISTRATOR owner write per Lab 4 D-01; 403 for REQUESTER', async () => {
     const t = await createProbeTicket();
     const adminRes = await withWriteAuth(
       admin,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`),
-    ).send({ ownerId: admin.userId });
-    expect(adminRes.status).toBe(403);
+    ).send({ ownerId: admin.userId, expectedVersion: await versionOf(t.ticketNumber) });
+    expect(adminRes.status).toBe(200);
+    expect(adminRes.body.owner).toMatchObject({ id: admin.userId });
 
     const reqRes = await withWriteAuth(
       requester,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`),
-    ).send({ ownerId: requester.userId });
+    ).send({ ownerId: requester.userId, expectedVersion: await versionOf(t.ticketNumber) });
     expect(reqRes.status).toBe(403);
     expect(reqRes.body.error).toBe('IT Staff access required');
     const row = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
-    expect(row.ownerId).toBeNull();
+    expect(row.ownerId).toBe(admin.userId);
     await deleteProbe(t.ticketNumber);
   });
 
@@ -324,7 +339,7 @@ describe('T-OWN-02 — invalid owner rejection (BR-12)', () => {
     const t = await createProbeTicket();
     const res = await request(app)
       .patch(`/api/staff/tickets/${t.ticketNumber}/owner`)
-      .send({ ownerId: staff.userId });
+      .send({ ownerId: staff.userId, expectedVersion: await versionOf(t.ticketNumber) });
     expect(res.status).toBe(401);
     await deleteProbe(t.ticketNumber);
   });
@@ -339,22 +354,23 @@ describe('T-PRIO-02 — IT Priority update permissions (BR-13, BR-20)', () => {
     const res = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/it-priority`),
-    ).send({ itPriority: 'CRITICAL' });
+    ).send({ itPriority: 'CRITICAL', expectedVersion: await versionOf(t.ticketNumber) });
     expect(res.status).toBe(200);
     expect(res.body.itPriority).toBe('CRITICAL');
     expect(res.body.priority).toBe('MEDIUM');
     await deleteProbe(t.ticketNumber);
   });
 
-  it('403 for ADMINISTRATOR (view-only per AD-02)', async () => {
+  it('200 for ADMINISTRATOR it-priority write per Lab 4 D-01', async () => {
     const t = await createProbeTicket({ itPriority: 'LOW' });
     const res = await withWriteAuth(
       admin,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/it-priority`),
-    ).send({ itPriority: 'CRITICAL' });
-    expect(res.status).toBe(403);
+    ).send({ itPriority: 'CRITICAL', expectedVersion: await versionOf(t.ticketNumber) });
+    expect(res.status).toBe(200);
+    expect(res.body.itPriority).toBe('CRITICAL');
     const row = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
-    expect(row.itPriority).toBe('LOW');
+    expect(row.itPriority).toBe('CRITICAL');
     await deleteProbe(t.ticketNumber);
   });
 
@@ -363,7 +379,7 @@ describe('T-PRIO-02 — IT Priority update permissions (BR-13, BR-20)', () => {
     const res = await withWriteAuth(
       requester,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/it-priority`),
-    ).send({ itPriority: 'CRITICAL' });
+    ).send({ itPriority: 'CRITICAL', expectedVersion: await versionOf(t.ticketNumber) });
     expect(res.status).toBe(403);
     const row = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
     expect(row.itPriority).toBe('LOW');
@@ -376,7 +392,7 @@ describe('T-PRIO-02 — IT Priority update permissions (BR-13, BR-20)', () => {
       const res = await withWriteAuth(
         staff,
         request(app).patch(`/api/staff/tickets/${t.ticketNumber}/it-priority`),
-      ).send({ itPriority: bad });
+      ).send({ itPriority: bad, expectedVersion: await versionOf(t.ticketNumber) });
       expect(res.status).toBe(400);
       expect(res.body.details[0].field).toBe('itPriority');
     }
@@ -392,24 +408,35 @@ describe('T-STAT-01 — permitted transitions with confirmations (BR-15)', () =>
   // created inside a for...of loop, so the closures would run after the loop
   // variable was consumed. Collecting the test objects first keeps each
   // `it()` registration synchronous and self-contained.
+  // Lab 4 D-06 — the matrix grew (NEW -> IN_PROGRESS, In Progress -> Open,
+  // Waiting for Requester -> Open, the Resolved targets on Open/In Progress/
+  // Waiting/Reopened) and Cancelled became terminal, so the Lab 3
+  // CANCELLED -> REOPENED row is gone; every Resolved target is additionally
+  // gated by BR-10 (an action must exist first).
   const cases = ([
     { from: 'NEW', to: 'OPEN' },
+    { from: 'NEW', to: 'IN_PROGRESS' },
     { from: 'NEW', to: 'CANCELLED', confirm: true },
     { from: 'OPEN', to: 'IN_PROGRESS' },
     { from: 'OPEN', to: 'WAITING_FOR_REQUESTER' },
+    { from: 'OPEN', to: 'RESOLVED', confirm: true },
     { from: 'OPEN', to: 'CANCELLED', confirm: true },
+    { from: 'IN_PROGRESS', to: 'OPEN' },
     { from: 'IN_PROGRESS', to: 'WAITING_FOR_REQUESTER' },
     { from: 'IN_PROGRESS', to: 'RESOLVED', confirm: true },
     { from: 'IN_PROGRESS', to: 'CANCELLED', confirm: true },
+    { from: 'WAITING_FOR_REQUESTER', to: 'OPEN' },
     { from: 'WAITING_FOR_REQUESTER', to: 'IN_PROGRESS' },
     { from: 'WAITING_FOR_REQUESTER', to: 'RESOLVED', confirm: true },
     { from: 'WAITING_FOR_REQUESTER', to: 'CANCELLED', confirm: true },
     { from: 'RESOLVED', to: 'CLOSED', confirm: true },
     { from: 'RESOLVED', to: 'REOPENED', confirm: true, reason: 'Issue came back after the fix.' },
     { from: 'CLOSED', to: 'REOPENED', confirm: true, reason: 'Regression reported by the requester.' },
-    { from: 'CANCELLED', to: 'REOPENED', confirm: true, reason: 'Cancellation was premature.' },
     { from: 'REOPENED', to: 'OPEN' },
     { from: 'REOPENED', to: 'IN_PROGRESS' },
+    { from: 'REOPENED', to: 'WAITING_FOR_REQUESTER' },
+    { from: 'REOPENED', to: 'RESOLVED', confirm: true },
+    { from: 'REOPENED', to: 'CANCELLED', confirm: true },
   ] as Array<{ from: string; to: string; confirm?: boolean; reason?: string }>).map(
     (c) =>
       it(`${c.from} -> ${c.to} succeeds for IT_STAFF`, async () => {
@@ -417,10 +444,28 @@ describe('T-STAT-01 — permitted transitions with confirmations (BR-15)', () =>
           status: c.from,
           ownerId: c.to === 'RESOLVED' || c.to === 'CLOSED' ? staff.userId : null,
         });
+        if (c.to === 'RESOLVED') {
+          // Lab 4 BR-10 — the resolution gate requires at least one recorded
+          // action before a ticket can be resolved.
+          await prisma.actionTaken.create({
+            data: {
+              ticketId: t.id,
+              performedById: staff.userId,
+              description: 'Bridge action recorded for the resolution gate.',
+              result: 'Gate precondition satisfied.',
+            },
+          });
+        }
         const res = await withWriteAuth(
           staff,
           request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`),
-        ).send({ status: c.to, confirm: c.confirm ?? false, reason: c.reason });
+        ).send({
+          status: c.to,
+          confirm: c.confirm ?? false,
+          reason: c.reason,
+          ...(c.to === 'RESOLVED' ? { resolutionSummary: 'Resolved under the Lab 4 gate.' } : {}),
+          expectedVersion: await versionOf(t.ticketNumber),
+        });
         expect(res.status).toBe(200);
         expect(res.body.status).toBe(c.to);
 
@@ -440,7 +485,7 @@ describe('T-STAT-01 — permitted transitions with confirmations (BR-15)', () =>
     const res = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`),
-    ).send({ status: 'REOPENED', confirm: true });
+    ).send({ status: 'REOPENED', confirm: true, expectedVersion: await versionOf(t.ticketNumber) });
     expect(res.status).toBe(400);
     expect(res.body.details[0].field).toBe('reason');
     await deleteProbe(t.ticketNumber);
@@ -452,7 +497,7 @@ describe('T-STAT-01 — permitted transitions with confirmations (BR-15)', () =>
     const res = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`),
-    ).send({ status: 'IN_PROGRESS' });
+    ).send({ status: 'IN_PROGRESS', expectedVersion: await versionOf(t.ticketNumber) });
     expect(res.status).toBe(200);
     const row = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
     expect(row.updatedAt.getTime()).toBeGreaterThanOrEqual(before.updatedAt.getTime());
@@ -475,7 +520,7 @@ describe('T-STAT-01 — permitted transitions with confirmations (BR-15)', () =>
     const res = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`),
-    ).send({ status: 'REOPENED', confirm: true, reason: 'Symptoms returned.' });
+    ).send({ status: 'REOPENED', confirm: true, reason: 'Symptoms returned.', expectedVersion: await versionOf(t.ticketNumber) });
     expect(res.status).toBe(200);
     const row = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
     expect(row.appearsResolvedAt).toBeNull();
@@ -489,10 +534,13 @@ describe('T-STAT-02 — illegal transitions and validation (BR-15, BR-16)', () =
     const res = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`),
-    ).send({ status: 'RESOLVED', confirm: true });
-    expect(res.status).toBe(409);
+    ).send({ status: 'RESOLVED', confirm: true, expectedVersion: await versionOf(t.ticketNumber) });
+    // Lab 4 D-06 — an illegal target is now a 422 INVALID_TRANSITION that names
+    // the permitted set (Lab 3 returned a bare 409).
+    expect(res.status).toBe(422);
+    expect(res.body.code).toBe('INVALID_TRANSITION');
     expect(res.body.error).toContain('Illegal status transition from NEW to RESOLVED');
-    expect(res.body.error).toContain('OPEN');
+    expect(res.body.details[0].message).toContain('OPEN');
     const row = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
     expect(row.status).toBe('NEW');
     await deleteProbe(t.ticketNumber);
@@ -503,8 +551,9 @@ describe('T-STAT-02 — illegal transitions and validation (BR-15, BR-16)', () =
     const res = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`),
-    ).send({ status: 'CLOSED', confirm: true });
-    expect(res.status).toBe(409);
+    ).send({ status: 'CLOSED', confirm: true, expectedVersion: await versionOf(t.ticketNumber) });
+    expect(res.status).toBe(422);
+    expect(res.body.code).toBe('INVALID_TRANSITION');
     await deleteProbe(t.ticketNumber);
   });
 
@@ -513,7 +562,7 @@ describe('T-STAT-02 — illegal transitions and validation (BR-15, BR-16)', () =
     const res = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`),
-    ).send({ status: 'OPEN' });
+    ).send({ status: 'OPEN', expectedVersion: await versionOf(t.ticketNumber) });
     expect(res.status).toBe(400);
     expect(res.body.error).toContain('already in status OPEN');
     await deleteProbe(t.ticketNumber);
@@ -524,7 +573,7 @@ describe('T-STAT-02 — illegal transitions and validation (BR-15, BR-16)', () =
     const res = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`),
-    ).send({ status: 'RESOLVED' });
+    ).send({ status: 'RESOLVED', expectedVersion: await versionOf(t.ticketNumber) });
     expect(res.status).toBe(400);
     expect(res.body.details[0].field).toBe('confirm');
     await deleteProbe(t.ticketNumber);
@@ -535,27 +584,31 @@ describe('T-STAT-02 — illegal transitions and validation (BR-15, BR-16)', () =
     const res = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`),
-    ).send({ status: 'FINISHED' });
-    expect(res.status).toBe(409); // not in the allowed list for OPEN -> treated as illegal
+    ).send({ status: 'FINISHED', expectedVersion: await versionOf(t.ticketNumber) });
+    // Lab 4 api-spec §3.2 — a value outside the eight statuses is body
+    // validation (400), no longer "not in the allowed list" (409/422).
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('VALIDATION');
     await deleteProbe(t.ticketNumber);
   });
 
-  it('403 for ADMINISTRATOR and REQUESTER on status writes', async () => {
+  it('200 for ADMINISTRATOR status write per Lab 4 D-01; 403 for REQUESTER', async () => {
     const t = await createProbeTicket({ status: 'OPEN' });
     const adminRes = await withWriteAuth(
       admin,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`),
-    ).send({ status: 'IN_PROGRESS' });
-    expect(adminRes.status).toBe(403);
+    ).send({ status: 'IN_PROGRESS', expectedVersion: await versionOf(t.ticketNumber) });
+    expect(adminRes.status).toBe(200);
+    expect(adminRes.body.status).toBe('IN_PROGRESS');
 
     const reqRes = await withWriteAuth(
       requester,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`),
-    ).send({ status: 'RESOLVED', confirm: true });
+    ).send({ status: 'RESOLVED', confirm: true, expectedVersion: await versionOf(t.ticketNumber) });
     expect(reqRes.status).toBe(403);
     expect(reqRes.body.error).toBe('IT Staff access required');
     const row = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
-    expect(row.status).toBe('OPEN');
+    expect(row.status).toBe('IN_PROGRESS');
     await deleteProbe(t.ticketNumber);
   });
 });
@@ -618,7 +671,7 @@ describe('Combined ops — owner and IT Priority changed in one pass (BR-12 + BR
     const claim = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`),
-    ).send({ ownerId: staff.userId });
+    ).send({ ownerId: staff.userId, expectedVersion: await versionOf(t.ticketNumber) });
     expect(claim.status).toBe(200);
     expect(claim.body.owner.id).toBe(staff.userId);
     expect(claim.body.itPriorityCopied).toBe(true);
@@ -628,7 +681,7 @@ describe('Combined ops — owner and IT Priority changed in one pass (BR-12 + BR
     const prio = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/it-priority`),
-    ).send({ itPriority: 'CRITICAL' });
+    ).send({ itPriority: 'CRITICAL', expectedVersion: await versionOf(t.ticketNumber) });
     expect(prio.status).toBe(200);
     expect(prio.body.itPriority).toBe('CRITICAL');
     // Requested Priority is immutable (BR-13).
@@ -643,7 +696,7 @@ describe('Combined ops — owner and IT Priority changed in one pass (BR-12 + BR
     const reassign = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`),
-    ).send({ ownerId: staffB.userId });
+    ).send({ ownerId: staffB.userId, expectedVersion: await versionOf(t.ticketNumber) });
     expect(reassign.status).toBe(200);
     expect(reassign.body.itPriorityCopied).toBe(false);
     expect(reassign.body.itPriority).toBe('CRITICAL');
@@ -655,7 +708,7 @@ describe('Combined ops — owner and IT Priority changed in one pass (BR-12 + BR
     const claim = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`),
-    ).send({ ownerId: staffB.userId });
+    ).send({ ownerId: staffB.userId, expectedVersion: await versionOf(t.ticketNumber) });
     expect(claim.status).toBe(200);
     expect(claim.body.itPriorityCopied).toBe(true);
 
@@ -664,14 +717,14 @@ describe('Combined ops — owner and IT Priority changed in one pass (BR-12 + BR
     const prio = await withWriteAuth(
       staffB,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/it-priority`),
-    ).send({ itPriority: 'LOW' });
+    ).send({ itPriority: 'LOW', expectedVersion: await versionOf(t.ticketNumber) });
     expect(prio.status).toBe(200);
     expect(prio.body.itPriority).toBe('LOW');
 
     const reqRes = await withWriteAuth(
       requester,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/it-priority`),
-    ).send({ itPriority: 'LOW' });
+    ).send({ itPriority: 'LOW', expectedVersion: await versionOf(t.ticketNumber) });
     expect(reqRes.status).toBe(403);
     const row = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
     expect(row.ownerId).toBe(staffB.userId);
@@ -684,17 +737,17 @@ describe('Combined ops — owner and IT Priority changed in one pass (BR-12 + BR
     const claim = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`),
-    ).send({ ownerId: staffB.userId });
+    ).send({ ownerId: staffB.userId, expectedVersion: await versionOf(t.ticketNumber) });
     expect(claim.status).toBe(200);
     const prio = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/it-priority`),
-    ).send({ itPriority: 'HIGH' });
+    ).send({ itPriority: 'HIGH', expectedVersion: await versionOf(t.ticketNumber) });
     expect(prio.status).toBe(200);
     const status = await withWriteAuth(
       staff,
       request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`),
-    ).send({ status: 'REOPENED', confirm: true, reason: 'Reopen after combined ops pass.' });
+    ).send({ status: 'REOPENED', confirm: true, reason: 'Reopen after combined ops pass.', expectedVersion: await versionOf(t.ticketNumber) });
     expect(status.status).toBe(200);
     expect(status.body.status).toBe('REOPENED');
 
@@ -708,11 +761,13 @@ describe('Combined ops — owner and IT Priority changed in one pass (BR-12 + BR
 
 // ---------------------------------------------------------------------------
 // Reopen reason enforcement across every reopen-capable source (reviewer ask
-// #2). REOPENED is reachable from RESOLVED, CLOSED and CANCELLED; each must
-// demand a non-empty reason and refuse the write without one.
+// #2). Lab 4 D-06 — REOPENED is reachable from RESOLVED and CLOSED only
+// (Cancelled is terminal); each source must demand a non-empty reason and
+// refuse the write without one.
 // ---------------------------------------------------------------------------
 describe('Reopen without a reason — every reopen-capable source refuses (BR-15)', () => {
-  const reopenSources = ['RESOLVED', 'CLOSED', 'CANCELLED'] as const;
+  // Lab 4 D-06 — Cancelled is terminal, so only these two sources can reopen.
+  const reopenSources = ['RESOLVED', 'CLOSED'] as const;
   const cases = reopenSources.map(
     (from) =>
       it(`REOPENED from ${from} requires a reason (400 without)`, async () => {
@@ -720,7 +775,7 @@ describe('Reopen without a reason — every reopen-capable source refuses (BR-15
         const res = await withWriteAuth(
           staff,
           request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`),
-        ).send({ status: 'REOPENED', confirm: true });
+        ).send({ status: 'REOPENED', confirm: true, expectedVersion: await versionOf(t.ticketNumber) });
         expect(res.status).toBe(400);
         expect(res.body.details[0].field).toBe('reason');
         expect(res.body.details[0].message).toContain(`reopen from ${from}`);
@@ -728,7 +783,7 @@ describe('Reopen without a reason — every reopen-capable source refuses (BR-15
         const ws = await withWriteAuth(
           staff,
           request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`),
-        ).send({ status: 'REOPENED', confirm: true, reason: '   ' });
+        ).send({ status: 'REOPENED', confirm: true, reason: '   ', expectedVersion: await versionOf(t.ticketNumber) });
         expect(ws.status).toBe(400);
         const row = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
         expect(row.status).toBe(from);
@@ -745,19 +800,38 @@ describe('Reopen without a reason — every reopen-capable source refuses (BR-15
       const ok = await withWriteAuth(
         staff,
         request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`),
-      ).send({ status: 'REOPENED', confirm: true, reason: `Legit reopen from ${from}.` });
+      ).send({ status: 'REOPENED', confirm: true, reason: `Legit reopen from ${from}.`, expectedVersion: await versionOf(t.ticketNumber) });
       expect(ok.status).toBe(200);
       expect(ok.body.status).toBe('REOPENED');
       await deleteProbe(t.ticketNumber);
     }
+  });
+
+  it('CANCELLED -> REOPENED is now an illegal transition (Lab 4 D-06: terminal)', async () => {
+    const t = await createProbeTicket({ status: 'CANCELLED' });
+    const res = await withWriteAuth(
+      staff,
+      request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`),
+    ).send({
+      status: 'REOPENED',
+      confirm: true,
+      reason: 'Cancellation was premature.',
+      expectedVersion: await versionOf(t.ticketNumber),
+    });
+    expect(res.status).toBe(422);
+    expect(res.body.code).toBe('INVALID_TRANSITION');
+    const row = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
+    expect(row.status).toBe('CANCELLED');
+    await deleteProbe(t.ticketNumber);
   });
 });
 
 // ---------------------------------------------------------------------------
 // Consolidated non-permitted API matrix (reviewer ask #3). Every /api/staff/*
 // route × every role that must not use it. Reads: REQUESTER 403 (masked
-// surface), ADMIN 200 view-only per AD-02, no-session 401. Writes: REQUESTER
-// 403, ADMIN 403 (service re-check), no-session 401. Internal notes are the
+// surface), ADMIN 200 staff-equivalent per Lab 4 D-01, no-session 401.
+// Writes: REQUESTER 403, ADMIN 200 (D-01 supersedes the Lab 3 AD-02
+// view-only rule), no-session 401. Internal notes are the
 // §1.5 exception: REQUESTER gets the masked 404 instead of 403.
 // ---------------------------------------------------------------------------
 describe('Non-permitted API matrix — every staff route × every disallowed caller (BR-20, §12)', () => {
@@ -800,20 +874,29 @@ describe('Non-permitted API matrix — every staff route × every disallowed cal
     await deleteProbe(t.ticketNumber);
   });
 
-  it('every staff write route refuses ADMINISTRATOR on owner/priority/status with 403 and changes nothing (AD-02 view-only; comments/notes stay allowed per BR-04)', async () => {
+  it('every staff write route accepts ADMINISTRATOR per Lab 4 D-01 on owner/priority/status (comments/notes stay allowed per BR-04)', async () => {
     const t = await createProbeTicket({ status: 'OPEN', ownerId: staff.userId, itPriority: 'LOW' });
-    const before = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
 
-    // AD-02 view-only writes: owner, IT Priority, status.
-    const attempts: Array<[string, request.Test]> = [
-      ['PATCH owner', withWriteAuth(admin, request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`)).send({ ownerId: admin.userId })],
-      ['PATCH it-priority', withWriteAuth(admin, request(app).patch(`/api/staff/tickets/${t.ticketNumber}/it-priority`)).send({ itPriority: 'CRITICAL' })],
-      ['PATCH status', withWriteAuth(admin, request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`)).send({ status: 'IN_PROGRESS' })],
-    ];
-    for (const [label, req] of attempts) {
-      const res = await req;
-      expect(res.status, label).toBe(403);
-    }
+    // D-01 staff-equivalent writes: owner, IT Priority, status. Each write is
+    // dispatched in turn and carries the version read at that moment (Lab 4
+    // D-04), so the three writes land in order instead of racing a stale copy.
+    const ownerWrite = await withWriteAuth(
+      admin,
+      request(app).patch(`/api/staff/tickets/${t.ticketNumber}/owner`),
+    ).send({ ownerId: admin.userId, expectedVersion: await versionOf(t.ticketNumber) });
+    expect(ownerWrite.status, 'PATCH owner').toBe(200);
+
+    const prioWrite = await withWriteAuth(
+      admin,
+      request(app).patch(`/api/staff/tickets/${t.ticketNumber}/it-priority`),
+    ).send({ itPriority: 'CRITICAL', expectedVersion: await versionOf(t.ticketNumber) });
+    expect(prioWrite.status, 'PATCH it-priority').toBe(200);
+
+    const statusWrite = await withWriteAuth(
+      admin,
+      request(app).patch(`/api/staff/tickets/${t.ticketNumber}/status`),
+    ).send({ status: 'IN_PROGRESS', expectedVersion: await versionOf(t.ticketNumber) });
+    expect(statusWrite.status, 'PATCH status').toBe(200);
 
     // BR-04: admin participation on the threads is allowed (not a staff-write surface).
     const adminComment = await withWriteAuth(
@@ -830,15 +913,19 @@ describe('Non-permitted API matrix — every staff route × every disallowed cal
     expect(adminNote.body.author.role).toBe('ADMINISTRATOR');
 
     const after = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: t.ticketNumber } });
-    expect(after.ownerId).toBe(before.ownerId);
-    expect(after.itPriority).toBe(before.itPriority);
-    expect(after.status).toBe(before.status);
+    // D-01: the three admin writes landed (owner reassigned to the admin,
+    // IT priority set, status advanced).
+    expect(after.ownerId).toBe(admin.userId);
+    expect(after.itPriority).toBe('CRITICAL');
+    expect(after.status).toBe('IN_PROGRESS');
 
-    // ADMIN reads still work (view-only) and the thread writes did land.
+    // ADMIN reads still work and the thread writes did land: the successful
+    // admin status write appended its system comment, so the thread holds
+    // the system comment plus the admin comment, and exactly one admin note.
     const detail = await withCookie(admin, request(app).get(`/api/staff/tickets/${t.ticketNumber}`));
     expect(detail.status).toBe(200);
     expect(detail.body.internalNoteCount).toBe(1);
-    expect(detail.body.commentCount).toBe(1);
+    expect(detail.body.commentCount).toBe(2);
     await deleteProbe(t.ticketNumber);
   });
 

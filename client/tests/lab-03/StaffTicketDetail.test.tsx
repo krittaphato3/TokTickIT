@@ -23,15 +23,35 @@ const OWNERS = [
 
 const TICKET_NUMBER = 'TTK-2026-901234';
 
+// Lab 4 (L4-3) — the status control is rendered from the detail response's
+// `allowedTransitions`, so the fixture supplies the server's list for the
+// ticket's status (docs/lab-04/specification.md BR-09).
+const TRANSITIONS_BY_STATUS: Record<string, string[]> = {
+  NEW: ['OPEN', 'IN_PROGRESS', 'CANCELLED'],
+  OPEN: ['IN_PROGRESS', 'WAITING_FOR_REQUESTER', 'RESOLVED', 'CANCELLED'],
+  IN_PROGRESS: ['OPEN', 'WAITING_FOR_REQUESTER', 'RESOLVED', 'CANCELLED'],
+  WAITING_FOR_REQUESTER: ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CANCELLED'],
+  RESOLVED: ['CLOSED', 'REOPENED'],
+  CLOSED: ['REOPENED'],
+  REOPENED: ['OPEN', 'IN_PROGRESS', 'WAITING_FOR_REQUESTER', 'RESOLVED', 'CANCELLED'],
+  CANCELLED: [],
+};
+
 function makeDetail(overrides: Record<string, unknown> = {}) {
+  const status = (overrides.status as string) ?? 'NEW';
   return {
     id: 501,
     ticketNumber: TICKET_NUMBER,
     title: 'Laptop will not boot after update',
     description: 'Screen stays black after the latest OS update.',
-    status: 'NEW',
+    status,
     priority: 'HIGH',
     itPriority: null,
+    // Lab 4 api-spec §3.1 fields the staff detail now carries.
+    version: 1,
+    allowedTransitions: TRANSITIONS_BY_STATUS[status] ?? [],
+    resolvedAt: null,
+    resolutionSummary: null,
     owner: null,
     requester: { id: 1, name: 'Dev User Alpha', email: 'alpha@toktickit.test' },
     category: { id: 2, name: 'Hardware' },
@@ -230,7 +250,9 @@ describe('T-DETAIL-01 — field grouping and read-only enforcement (ui-spec §7.
       (r) => r.url.includes(`/api/staff/tickets/${TICKET_NUMBER}/owner`) && r.init?.method === 'PATCH',
     );
     expect(ownerCall).toBeDefined();
-    expect(JSON.parse(String(ownerCall!.init?.body))).toEqual({ ownerId: 12 });
+    // Lab 4 D-04 — the write carries the loaded version, so a stale tab cannot
+    // overwrite a newer change.
+    expect(JSON.parse(String(ownerCall!.init?.body))).toEqual({ ownerId: 12, expectedVersion: 1 });
   });
 
   it('displays the BR-13 copy-on-claim caption for an unassigned ticket with unset IT Priority', async () => {
@@ -360,14 +382,18 @@ describe('T-DETAIL-01 — three-tab thread shell (ui-spec §7.3)', () => {
 });
 
 describe('T-DETAIL-01 — status transition controls (BR-15 UI half)', () => {
-  it('offers only permitted status targets (disallowed omitted)', async () => {
+  it('offers only the server-supplied permitted status targets (disallowed omitted)', async () => {
+    // Lab 4 L4-3 — the list comes from the response's `allowedTransitions`
+    // (NEW -> OPEN, IN_PROGRESS, CANCELLED); the UI no longer mirrors the
+    // matrix. The exhaustive server-driven property is asserted in
+    // client/tests/lab-04/TicketWorkflow.test.tsx (UI-05).
     const { fetchFn } = stubStaffDetailFetch(makeDetail({ status: 'NEW' }));
     renderAtHash(`#/staff/tickets/${TICKET_NUMBER}`, fetchFn);
     await waitFor(() => expect(screen.getByLabelText(/Status/)).toBeInTheDocument());
 
     const statusSelect = screen.getByLabelText(/Status/) as HTMLSelectElement;
     const options = Array.from(statusSelect.options).map((o) => o.value);
-    expect(options).toEqual(['', 'OPEN', 'CANCELLED']);
+    expect(options).toEqual(['', 'OPEN', 'IN_PROGRESS', 'CANCELLED']);
   });
 
   it('opens the confirm modal for confirm-required transitions and PATCHes confirm:true', async () => {
@@ -377,7 +403,10 @@ describe('T-DETAIL-01 — status transition controls (BR-15 UI half)', () => {
     renderAtHash(`#/staff/tickets/${TICKET_NUMBER}`, fetchFn);
     await waitFor(() => expect(screen.getByLabelText(/Status/)).toBeInTheDocument());
 
-    await userEvent.selectOptions(screen.getByLabelText(/Status/), 'RESOLVED');
+    // Lab 4 (L4-3): Resolved now opens the resolution dialog instead (covered by
+    // client/tests/lab-04/TicketWorkflow.test.tsx UI-06), so this Lab 3 case
+    // uses the other confirmation-required transition, Cancel.
+    await userEvent.selectOptions(screen.getByLabelText(/Status/), 'CANCELLED');
     const dialog = await screen.findByRole('dialog');
     expect(dialog).toBeInTheDocument();
 
@@ -388,7 +417,7 @@ describe('T-DETAIL-01 — status transition controls (BR-15 UI half)', () => {
       );
       expect(call).toBeDefined();
       const body = JSON.parse(String(call!.init?.body));
-      expect(body).toMatchObject({ status: 'RESOLVED', confirm: true });
+      expect(body).toMatchObject({ status: 'CANCELLED', confirm: true, expectedVersion: 1 });
     });
   });
 
@@ -414,7 +443,12 @@ describe('T-DETAIL-01 — status transition controls (BR-15 UI half)', () => {
       );
       expect(call).toBeDefined();
       const body = JSON.parse(String(call!.init?.body));
-      expect(body).toMatchObject({ status: 'REOPENED', confirm: true, reason: 'Issue returned.' });
+      expect(body).toMatchObject({
+        status: 'REOPENED',
+        confirm: true,
+        reason: 'Issue returned.',
+        expectedVersion: 1,
+      });
     });
   });
 });

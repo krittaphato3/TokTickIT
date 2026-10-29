@@ -65,7 +65,8 @@ ticketsRouter.get('/:ticketNumber/events', listAttachmentEventsHandler);
 ticketsRouter.get('/:ticketNumber/comments', listCommentsHandler);
 ticketsRouter.post('/:ticketNumber/comments', createCommentHandler);
 
-// Lab 3 §7.3 — requester-limited status change: REOPENED from RESOLVED/CLOSED
-// on the requester's own ticket only (BR-05 exception). Requester attempts to
-// set RESOLVED/CLOSED return 403 "Only IT Staff may resolve or close tickets".
+// Lab 4 (api-spec §3.5, D-06) — the Lab 3 requester REOPEN path is removed:
+// a Requester has no status change capability at all. The route stays
+// registered behind the session + CSRF gates so every Requester call is
+// rejected explicitly with 403 FORBIDDEN, whatever the target or ownership.
 ticketsRouter.patch('/:ticketNumber/status', requesterStatusChangeHandler);

@@ -4,6 +4,7 @@ export default defineConfig({
   testDir: './e2e',
   testMatch: '**/*.spec.ts',
   globalSetup: './e2e/global-setup.ts',
+  globalTeardown: './e2e/global-teardown.ts',
   timeout: 30_000,
   fullyParallel: false,
   // Single worker: the journeys mutate shared seeded accounts (mandatory
@@ -28,6 +29,9 @@ export default defineConfig({
       url: 'http://localhost:4000/api/health',
       reuseExistingServer: true,
       timeout: 60_000,
+      env: {
+        LOGIN_RATE_MAX: '200',
+      },
     },
     {
       command: 'npm --prefix client run dev',

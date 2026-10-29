@@ -4,11 +4,16 @@ import { Prisma } from '@prisma/client';
 // HTTP error carrying a status code, a safe message, and optional field-level
 // validation details. Thrown by route handlers/services and translated into a
 // JSON error envelope by the app-level error middleware (Issue 4).
+// Lab 4 (A-07): optional machine-readable `code` plus an `extra` bag for
+// additive top-level fields (e.g. `currentVersion` on 409). Both default to
+// undefined, so every pre-Lab-4 call site renders byte-identical bodies.
 export class HttpError extends Error {
   constructor(
     public status: number,
     message: string,
     public details?: { field: string; message: string }[],
+    public code?: string,
+    public extra?: Record<string, unknown>,
   ) {
     super(message);
   }
@@ -431,7 +436,15 @@ export function validateListParams(query: Record<string, unknown>) {
     throw new HttpError(400, 'sortDir must be asc or desc');
   }
 
-  return { page, pageSize, itPriority, status };
+  let active: boolean | undefined;
+  const rawActive = query.active as string | undefined;
+  if (rawActive !== undefined && rawActive !== '') {
+    if (rawActive === 'true') active = true;
+    else if (rawActive === 'false') active = false;
+    else throw new HttpError(400, 'active must be true or false');
+  }
+
+  return { page, pageSize, itPriority, status, active };
 }
 
 // GET /api/tickets (api-spec §3.2). The base query is always scoped to the
@@ -443,7 +456,7 @@ export async function listTickets(
   requesterId: number,
   query: Record<string, unknown>,
 ) {
-  const { page, pageSize, itPriority, status } = validateListParams(query);
+  const { page, pageSize, itPriority, status, active } = validateListParams(query);
 
   const categoryIdRaw = query.categoryId as string | undefined;
   let categoryIdFilter: number | null = null;
@@ -501,6 +514,13 @@ export async function listTickets(
       ? Prisma.empty
       : Prisma.sql` AND t."status"::text = ${status}`;
 
+  const activeCondition =
+    active === undefined
+      ? Prisma.empty
+      : active
+        ? Prisma.sql` AND t."status"::text IN ('NEW', 'OPEN', 'PENDING', 'IN_PROGRESS', 'WAITING_FOR_REQUESTER', 'REOPENED')`
+        : Prisma.sql` AND t."status"::text IN ('RESOLVED', 'CLOSED', 'CANCELLED')`;
+
   const sortBy = ((query.sortBy as SortField | undefined) ?? 'createdAt') as SortField;
   const directionSql = query.sortDir === 'asc' ? Prisma.sql`ASC` : Prisma.sql`DESC`;
 
@@ -534,7 +554,7 @@ export async function listTickets(
     prisma.$queryRaw<{ id: number }[]>`
       SELECT t.id
       FROM "Ticket" AS t
-      WHERE t."requesterId" = ${requesterId}${searchCondition}${categoryCondition}${priorityCondition}${itPriorityCondition}${statusCondition}
+      WHERE t."requesterId" = ${requesterId}${searchCondition}${categoryCondition}${priorityCondition}${itPriorityCondition}${statusCondition}${activeCondition}
       ORDER BY ${rankColumn} ${directionSql}, t."createdAt" DESC, t.id DESC
       LIMIT ${pageSize}
       OFFSET ${(page - 1) * pageSize}
@@ -542,7 +562,7 @@ export async function listTickets(
     prisma.$queryRaw<{ count: bigint }[]>`
       SELECT COUNT(*)::bigint AS count
       FROM "Ticket" AS t
-      WHERE t."requesterId" = ${requesterId}${searchCondition}${categoryCondition}${priorityCondition}${itPriorityCondition}${statusCondition}
+      WHERE t."requesterId" = ${requesterId}${searchCondition}${categoryCondition}${priorityCondition}${itPriorityCondition}${statusCondition}${activeCondition}
     `,
   ]).then(
     ([rows, counted]) =>
@@ -622,6 +642,9 @@ export async function getTicketDetail(
     status: ticket.status,
     priority: ticket.priority,
     itPriority: ticket.itPriority,
+    // Lab 4 (L4-2 foundation): optimistic-concurrency version for workflow
+    // writes (expectedVersion arrives with L4-3 per D-04).
+    version: ticket.version,
     ownerName: ticket.ownerName,
     owner: ticket.ownerName ? { name: ticket.ownerName } : null,
     category: { id: ticket.category.id, name: ticket.category.name },

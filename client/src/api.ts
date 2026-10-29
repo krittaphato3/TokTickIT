@@ -83,6 +83,9 @@ export class ApiError extends Error {
     error?: string;
     code?: string;
     details?: { field: string; message: string }[];
+    // Lab 4 §1.6 — the only additive top-level field: a 409 carries the stored
+    // version so the client can realign without parsing the message.
+    currentVersion?: number;
   };
 
   constructor(
@@ -91,6 +94,7 @@ export class ApiError extends Error {
       error?: string;
       code?: string;
       details?: { field: string; message: string }[];
+      currentVersion?: number;
     },
   ) {
     super(body.error ?? `Request failed with status ${status}`);
@@ -265,7 +269,7 @@ export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
   return body as Ticket;
 }
 
-// Issue #15/#16 — list the active Development Requester's tickets.
+// Issue #15/#16 — list the authenticated requester's tickets.
 // Search/filter params are appended only when set; sort is always sent
 // explicitly (the UI's default "newest first" maps to sortBy=createdAt
 // &sortDir=desc, matching the server default). Page/pageSize are always sent.
@@ -285,6 +289,7 @@ export interface TicketListParams {
   priority?: Priority;
   itPriority?: Priority;
   status?: TicketStatus;
+  active?: boolean;
   sortBy?: SortBy;
   sortDir?: SortDir;
 }
@@ -318,6 +323,7 @@ export async function getTickets(
   if (params.itPriority !== undefined)
     search.set('itPriority', params.itPriority);
   if (params.status !== undefined) search.set('status', params.status);
+  if (params.active !== undefined) search.set('active', String(params.active));
   if (params.sortBy !== undefined) search.set('sortBy', params.sortBy);
   if (params.sortDir !== undefined) search.set('sortDir', params.sortDir);
 
@@ -484,6 +490,7 @@ export interface StaffQueueParams {
   itPriority?: Priority;
   ownerId?: number;
   assigned?: boolean;
+  active?: boolean;
   sort?: StaffSortField;
   order?: SortDir;
 }
@@ -529,6 +536,7 @@ export async function getStaffTickets(
   if (params.itPriority !== undefined) search.set('itPriority', params.itPriority);
   if (params.ownerId !== undefined) search.set('ownerId', String(params.ownerId));
   if (params.assigned !== undefined) search.set('assigned', String(params.assigned));
+  if (params.active !== undefined) search.set('active', String(params.active));
   if (params.sort !== undefined) search.set('sort', params.sort);
   if (params.order !== undefined) search.set('order', params.order);
 
@@ -558,6 +566,12 @@ export interface StaffTicketDetail {
   status: StaffTicketStatus;
   priority: Priority;
   itPriority: Priority | null;
+  // Lab 4 api-spec §3.1 — optimistic-concurrency version, the server-computed
+  // transition list and the resolution lifecycle fields.
+  version: number;
+  allowedTransitions: StaffTicketStatus[];
+  resolvedAt: string | null;
+  resolutionSummary: string | null;
   owner: { id: number; name: string; email: string; role: string; isActive: boolean } | null;
   requester: { id: number; name: string; email: string };
   category: { id: number; name: string };
@@ -584,6 +598,7 @@ export interface OwnerChangeResult {
   owner: { id: number; name: string; email: string } | null;
   itPriority: Priority | null;
   itPriorityCopied: boolean;
+  version: number;
   updatedAt: string;
 }
 
@@ -597,15 +612,19 @@ export async function getStaffTicketDetail(ticketNumber: string): Promise<StaffT
   return body as StaffTicketDetail;
 }
 
+// Lab 4 D-04/BR-07 — every workflow write sends the version the screen loaded.
+// A stale value returns 409 CONFLICT (with `currentVersion`), so the caller can
+// realign instead of silently overwriting someone else's change.
 export async function changeTicketOwner(
   ticketNumber: string,
   ownerId: number | null,
+  expectedVersion: number,
 ): Promise<OwnerChangeResult> {
   const response = await fetch(`${API_URL}/api/staff/tickets/${ticketNumber}/owner`, {
     method: 'PATCH',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...authHeaders({}, true) },
-    body: JSON.stringify({ ownerId }),
+    body: JSON.stringify({ ownerId, expectedVersion }),
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new ApiError(response.status, body);
@@ -615,39 +634,51 @@ export async function changeTicketOwner(
 export async function setItPriority(
   ticketNumber: string,
   itPriority: Priority,
-): Promise<{ id: number; ticketNumber: string; priority: Priority; itPriority: Priority | null; updatedAt: string }> {
+  expectedVersion: number,
+): Promise<{ id: number; ticketNumber: string; priority: Priority; itPriority: Priority | null; version: number; updatedAt: string }> {
   const response = await fetch(`${API_URL}/api/staff/tickets/${ticketNumber}/it-priority`, {
     method: 'PATCH',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...authHeaders({}, true) },
-    body: JSON.stringify({ itPriority }),
+    body: JSON.stringify({ itPriority, expectedVersion }),
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new ApiError(response.status, body);
-  return body as { id: number; ticketNumber: string; priority: Priority; itPriority: Priority | null; updatedAt: string };
+  return body as { id: number; ticketNumber: string; priority: Priority; itPriority: Priority | null; version: number; updatedAt: string };
 }
 
 export interface StatusChangeResult {
   id: number;
   ticketNumber: string;
   status: StaffTicketStatus;
+  version: number;
+  resolvedAt: string | null;
   updatedAt: string;
   comment: { id: number; body: string } | null;
 }
 
-// BR-15: `confirm` is required for cancel/resolve/close transitions and
-// `reason` for reopening from RESOLVED/CLOSED/CANCELLED. The server is the
-// authority on both; the client only supplies what the UI collected.
+// BR-09/BR-10/D-04: the server owns the matrix, the resolution gate and the
+// version check. The client supplies exactly what the UI collected — the target
+// status, the loaded `expectedVersion`, the confirmation flag, the reopen reason
+// and (for Resolved) the resolution summary. A rejected transition comes back as
+// 422 INVALID_TRANSITION or 422 RESOLUTION_GATE with machine-readable details,
+// and a stale write as 409 CONFLICT.
 export async function changeTicketStatus(
   ticketNumber: string,
   status: StaffTicketStatus,
-  options?: { confirm?: boolean; reason?: string },
+  options: { expectedVersion: number; confirm?: boolean; reason?: string; resolutionSummary?: string },
 ): Promise<StatusChangeResult> {
   const response = await fetch(`${API_URL}/api/staff/tickets/${ticketNumber}/status`, {
     method: 'PATCH',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...authHeaders({}, true) },
-    body: JSON.stringify({ status, ...(options?.confirm ? { confirm: true } : {}), ...(options?.reason ? { reason: options.reason } : {}) }),
+    body: JSON.stringify({
+      status,
+      expectedVersion: options.expectedVersion,
+      ...(options.confirm ? { confirm: true } : {}),
+      ...(options.reason ? { reason: options.reason } : {}),
+      ...(options.resolutionSummary ? { resolutionSummary: options.resolutionSummary } : {}),
+    }),
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new ApiError(response.status, body);
@@ -944,6 +975,168 @@ export async function downloadAttachment(ticketNumber: string, attachmentId: num
     throw new Error(message);
   }
   return await response.blob();
+}
+
+// ---------------------------------------------------------------------------
+// Lab 4 — Actions Taken (api-spec §2, FR-01/FR-02/FR-03, BR-01..BR-06).
+// ---------------------------------------------------------------------------
+
+export interface ActionPerformer {
+  id: number;
+  name: string;
+  role: string;
+}
+
+export interface ActionTaken {
+  id: number;
+  ticketId: number;
+  actionAt: string;
+  description: string;
+  result: string;
+  followUpRequired: boolean;
+  followUpNote: string | null;
+  attachmentNotes: string | null;
+  performedBy: ActionPerformer;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateActionInput {
+  actionAt?: string;
+  description: string;
+  result: string;
+  followUpRequired?: boolean;
+  followUpNote?: string | null;
+  attachmentNotes?: string | null;
+  clientRequestId?: string;
+}
+
+export interface UpdateActionInput {
+  expectedVersion: number;
+  actionAt?: string;
+  description?: string;
+  result?: string;
+  followUpRequired?: boolean;
+  followUpNote?: string | null;
+  attachmentNotes?: string | null;
+}
+
+export async function getTicketActions(ticketNumber: string): Promise<ActionTaken[]> {
+  const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}/actions`, {
+    credentials: 'include',
+    headers: { ...authHeaders({}, true) },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return (body as { actions?: ActionTaken[] }).actions ?? [];
+}
+
+export async function createTicketAction(
+  ticketNumber: string,
+  input: CreateActionInput,
+): Promise<ActionTaken> {
+  const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}/actions`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...authHeaders({}, true) },
+    body: JSON.stringify(input),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as ActionTaken;
+}
+
+export async function updateTicketAction(
+  ticketNumber: string,
+  actionId: number,
+  input: UpdateActionInput,
+): Promise<ActionTaken> {
+  const response = await fetch(`${API_URL}/api/tickets/${ticketNumber}/actions/${actionId}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...authHeaders({}, true) },
+    body: JSON.stringify(input),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as ActionTaken;
+}
+
+// ---------------------------------------------------------------------------
+// Lab 4 — Role Dashboards (api-spec §4, FR-08/FR-09/FR-10).
+// ---------------------------------------------------------------------------
+
+export interface RequesterRecentTicket {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  status: TicketStatus | string;
+  updatedAt: string;
+}
+
+export interface RequesterDashboardData {
+  activeCount: number;
+  waitingForRequesterCount: number;
+  resolvedCount: number;
+  closedCount: number;
+  recentlyUpdated: RequesterRecentTicket[];
+  recentlyResolved: RequesterRecentTicket[];
+}
+
+export interface StaffRecentTicket {
+  id: number;
+  ticketNumber: string;
+  summary: string;
+  status: StaffTicketStatus | string;
+  owner: { id: number; name: string } | null;
+  updatedAt: string;
+}
+
+export interface StaffRecentAction {
+  id: number;
+  ticketId: number;
+  ticketNumber: string;
+  description: string;
+  actionAt: string;
+}
+
+export interface AdminUserCounts {
+  requester: number;
+  itStaff: number;
+  administrator: number;
+  active: number;
+  inactive: number;
+}
+
+export interface StaffDashboardData {
+  countsByStatus: Record<string, number>;
+  unassignedActiveCount: number;
+  myActiveOwnedCount: number;
+  countsByItPriority: Record<string, number>;
+  recentlyUpdated: StaffRecentTicket[];
+  myRecentActions: StaffRecentAction[];
+  userCounts?: AdminUserCounts;
+}
+
+export async function getRequesterDashboard(): Promise<RequesterDashboardData> {
+  const response = await fetch(`${API_URL}/api/dashboard/requester`, {
+    credentials: 'include',
+    headers: { ...authHeaders({}, true) },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as RequesterDashboardData;
+}
+
+export async function getStaffDashboard(): Promise<StaffDashboardData> {
+  const response = await fetch(`${API_URL}/api/dashboard/staff`, {
+    credentials: 'include',
+    headers: { ...authHeaders({}, true) },
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, body);
+  return body as StaffDashboardData;
 }
 
 export default API_URL;

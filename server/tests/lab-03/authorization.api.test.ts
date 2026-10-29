@@ -227,8 +227,12 @@ describe('T-STAT-04 — requester cannot formally resolve or close (BR-05, AC-14
     const res = await withWriteAuth(alpha, request(app).patch(`/api/tickets/${ticket.ticketNumber}/status`)).send({
       status: target,
     });
+    // Lab 4 D-06/BR-09 — a Requester has no status change capability at all
+    // (Lab 3 allowed RESOLVED/CLOSED -> REOPENED); every target now returns the
+    // one documented 403 with code FORBIDDEN.
     expect(res.status).toBe(403);
-    expect(res.body.error).toBe('Only IT Staff may resolve or close tickets');
+    expect(res.body.code).toBe('FORBIDDEN');
+    expect(res.body.error).toBe('Only IT Staff may change ticket status');
 
     const after = await prisma.ticket.findUniqueOrThrow({ where: { ticketNumber: ticket.ticketNumber } });
     expect(after.status).toBe('NEW');

@@ -2,6 +2,8 @@ import cors from 'cors';
 import express from 'express';
 import { getPrisma } from './prisma.js';
 import { ticketsRouter } from './routes/tickets.js';
+import { actionsRouter } from './routes/actions.js';
+import { dashboardRouter } from './routes/dashboard.js';
 import { staffRouter } from './routes/staff.js';
 import { authRouter } from './routes/auth.js';
 import { usersRouter } from './routes/users.js';
@@ -68,7 +70,9 @@ app.use(mustChangePasswordGate);
 // the login and /api/auth/* paths handled by their own guards.
 app.use(sessionWriteCsrf);
 
+app.use('/api/tickets', actionsRouter);
 app.use('/api/tickets', ticketsRouter);
+app.use('/api/dashboard', dashboardRouter);
 // Lab 3 §5 — staff surface (auth + role gated inside the router; registered
 // before the error middleware like every other router).
 app.use('/api/staff', staffRouter);
@@ -89,13 +93,14 @@ app.use(
     _next: express.NextFunction,
   ) => {
     if (err instanceof HttpError) {
-      const code = (err as unknown as { code?: string }).code;
+      const code = (err as unknown as { code?: string }).code ?? err.code;
       res
         .status(err.status)
         .json({
           error: err.message,
           ...(err.details ? { details: err.details } : {}),
           ...(code ? { code } : {}),
+          ...(err.extra ? { ...err.extra } : {}),
         });
       return;
     }

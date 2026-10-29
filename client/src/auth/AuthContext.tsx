@@ -98,8 +98,6 @@ export function useAuth(): AuthState {
   return ctx;
 }
 
-export function roleHome(role: AuthUser['role']): string {
-  if (role === 'IT_STAFF') return '#/staff/queue';
-  if (role === 'ADMIN' || role === 'ADMINISTRATOR') return '#/admin/users';
-  return '#/my';
+export function roleHome(_role: AuthUser['role']): string {
+  return '#/dashboard';
 }

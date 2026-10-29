@@ -20,6 +20,8 @@ import {
   type StaffTicketStatus,
 } from '../api';
 import { useAuth } from '../auth/AuthContext';
+import ResolveTicketDialog from './ResolveTicketDialog';
+import ActionsTaken from './ActionsTaken';
 import '../styles/staff-ticket-detail.css';
 
 // Lab 3 §7 — IT Staff Ticket Detail (ui-spec §7, api-spec §6). Read-only
@@ -49,23 +51,19 @@ const PRIORITY_TEXT: Record<Priority, string> = {
   CRITICAL: 'Critical',
 };
 
-// BR-15 matrix mirrored for the UI: Status select offers only permitted
-// targets (disallowed options omitted, not disabled — ui-spec §7.1).
-const NEXT_STATUS: Record<StaffTicketStatus, StaffTicketStatus[]> = {
-  NEW: ['OPEN', 'CANCELLED'],
-  OPEN: ['IN_PROGRESS', 'WAITING_FOR_REQUESTER', 'CANCELLED'],
-  IN_PROGRESS: ['WAITING_FOR_REQUESTER', 'RESOLVED', 'CANCELLED'],
-  WAITING_FOR_REQUESTER: ['IN_PROGRESS', 'RESOLVED', 'CANCELLED'],
-  RESOLVED: ['CLOSED', 'REOPENED'],
-  CLOSED: ['REOPENED'],
-  REOPENED: ['OPEN', 'IN_PROGRESS'],
-  CANCELLED: ['REOPENED'],
-};
-
-// Transitions that need `confirm: true` server-side (BR-15). Reopen also
-// needs a reason comment; the composer appears for those targets.
-const CONFIRM_TARGETS: StaffTicketStatus[] = ['RESOLVED', 'CLOSED', 'CANCELLED'];
+// Lab 4 (L4-3) — the UI no longer mirrors the transition matrix (BR-09): the
+// Status control renders exactly the server's `allowedTransitions`, so this
+// file cannot disagree with the backend about what is permitted. What stays
+// here is presentation metadata: which *targets* ask for confirmation before
+// submitting and which one collects a reopen reason. Resolved is not listed —
+// it opens the Resolve dialog instead.
+const CONFIRM_TARGETS: StaffTicketStatus[] = ['CLOSED', 'CANCELLED'];
 const REASON_TARGETS: StaffTicketStatus[] = ['REOPENED'];
+
+// ui-spec §5 — the copy used whenever a workflow write is refused because the
+// ticket moved on (AC-12).
+const CONFLICT_BANNER_TEXT =
+  'This ticket changed while you were working. Review the latest values, then try again.';
 
 type LoadState = 'loading' | 'ready' | 'forbidden' | 'notfound' | 'error';
 
@@ -124,6 +122,15 @@ export default function StaffTicketDetail({
   const [confirmReason, setConfirmReason] = useState('');
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [confirmError, setConfirmError] = useState('');
+
+  // FR-05/BR-10 — the Resolve dialog keeps its own state so a refused write can
+  // leave it open with the user's summary intact.
+  const [resolveOpen, setResolveOpen] = useState(false);
+  const [resolveSummary, setResolveSummary] = useState('');
+  const [resolveReasons, setResolveReasons] = useState<string[]>([]);
+  const [resolveError, setResolveError] = useState('');
+  const [resolveConflict, setResolveConflict] = useState(false);
+  const [resolveBusy, setResolveBusy] = useState(false);
 
   const [activeTab, setActiveTab] = useState<'public' | 'internal' | 'attachments'>('public');
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -234,8 +241,60 @@ export default function StaffTicketDetail({
     setSaveBanner(null);
   };
 
+  // The transition list is the SERVER's (BR-09/FR-04): the UI never hard-codes
+  // the matrix, it renders what the detail response advertised.
+  const statusTargets = ticket?.allowedTransitions ?? [];
+
+  // Re-read the ticket after every successful write so the header, the version
+  // and the permitted transitions come from the server rather than from a local
+  // guess (ui-spec §5: "after any success the header refreshes immediately").
+  const refreshDetail = useCallback(async () => {
+    try {
+      const data = await getStaffTicketDetail(ticketNumber);
+      setTicket(data);
+      setDraft((d) =>
+        d
+          ? {
+              ...d,
+              owner: data.owner ? String(data.owner.id) : 'unassigned',
+              itPriority: data.itPriority ?? '',
+            }
+          : d,
+      );
+      return data;
+    } catch {
+      return null;
+    }
+  }, [ticketNumber]);
+
+  const applyWriteFailure = (err: unknown) => {
+    if (err instanceof ApiError && err.status === 409) {
+      // AC-12 — the stale version is replaced with the server's current one, the
+      // conflict banner explains it and anything the user typed is kept.
+      setSaveBanner({ kind: 'conflict', text: CONFLICT_BANNER_TEXT });
+      return;
+    }
+    if (err instanceof ApiError && err.status === 422) {
+      setSaveBanner({ kind: 'error', text: err.body.error ?? 'The server rejected this change.' });
+      return;
+    }
+    if (err instanceof ApiError && err.status === 400) {
+      const map: Record<string, string> = {};
+      for (const d of err.body.details ?? []) map[d.field] = d.message;
+      setFieldErrors(map);
+      setSaveBanner({ kind: 'error', text: err.body.error ?? 'Validation failed.' });
+      return;
+    }
+    if (err instanceof ApiError && err.status === 403) {
+      setSaveBanner({ kind: 'error', text: 'You do not have permission to change this ticket.' });
+      return;
+    }
+    setSaveBanner({ kind: 'error', text: errMessage(err, 'We could not save the ticket. Try again.') });
+  };
+
   // BR-13 copy-on-claim: claiming an unassigned ticket copies the requested
   // priority into IT Priority when unset; the server response reports it.
+  // Every branch carries the loaded `expectedVersion` (D-04/BR-07).
   const saveOps = async (overrideStatus?: { status: StaffTicketStatus; confirm?: boolean; reason?: string }) => {
     if (!ticket || !draft) return;
     setSaving(true);
@@ -246,9 +305,7 @@ export default function StaffTicketDetail({
       const prioChanged = draft.itPriority !== (ticket.itPriority ?? '');
       if (ownerChanged) {
         const ownerId = draft.owner === 'unassigned' ? null : Number(draft.owner);
-        const res = await changeTicketOwner(ticket.ticketNumber, ownerId);
-        setTicket((t) => (t ? { ...t, owner: res.owner ? { ...res.owner, role: t.owner?.role ?? 'IT_STAFF', isActive: true } : null, itPriority: res.itPriority, updatedAt: res.updatedAt } : t));
-        setDraft((d) => (d ? { ...d, owner: res.owner ? String(res.owner.id) : 'unassigned' } : d));
+        const res = await changeTicketOwner(ticket.ticketNumber, ownerId, ticket.version);
         setSaveBanner({
           kind: 'success',
           text: res.owner
@@ -258,46 +315,38 @@ export default function StaffTicketDetail({
             : 'Ticket is now unassigned.',
         });
       } else if (prioChanged) {
-        const res = await setItPriority(ticket.ticketNumber, draft.itPriority as Priority);
-        setTicket((t) => (t ? { ...t, itPriority: res.itPriority, updatedAt: res.updatedAt } : t));
-        setDraft((d) => (d ? { ...d, itPriority: res.itPriority ?? '' } : d));
+        await setItPriority(ticket.ticketNumber, draft.itPriority as Priority, ticket.version);
         setSaveBanner({ kind: 'success', text: 'IT Priority updated.' });
       } else if (overrideStatus) {
         const res = await changeTicketStatus(ticket.ticketNumber, overrideStatus.status, {
+          expectedVersion: ticket.version,
           confirm: overrideStatus.confirm,
           reason: overrideStatus.reason,
         });
-        setTicket((t) => (t ? { ...t, status: res.status, updatedAt: res.updatedAt } : t));
-        setSaveBanner({ kind: 'success', text: `Status changed to ${STATUS_TEXT[res.status]}.` });
+        setSaveBanner({ kind: 'success', text: `Status updated to ${STATUS_TEXT[res.status]}.` });
       }
+      await refreshDetail();
       void loadComments();
     } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
-        setSaveBanner({ kind: 'conflict', text: errMessage(err, 'The ticket changed on the server. Reload and try again.') });
-      } else if (err instanceof ApiError && err.status === 400) {
-        const map: Record<string, string> = {};
-        for (const d of err.body.details ?? []) map[d.field] = d.message;
-        setFieldErrors(map);
-        setSaveBanner({ kind: 'error', text: err.body.error ?? 'Validation failed.' });
-      } else if (err instanceof ApiError && err.status === 403) {
-        setSaveBanner({ kind: 'error', text: 'You do not have permission to change this ticket.' });
-      } else {
-        setSaveBanner({ kind: 'error', text: errMessage(err, 'We could not save the ticket. Try again.') });
-      }
+      applyWriteFailure(err);
     } finally {
       setSaving(false);
     }
   };
 
+  // Choosing a target opens the flow that target needs: Resolved needs the
+  // summary dialog, confirmation-required targets ask first, and the plain
+  // progression transitions write straight away.
   const requestStatusChange = (target: StaffTicketStatus) => {
     if (!ticket) return;
-    if (REASON_TARGETS.includes(target)) {
-      setConfirmTarget(target);
-      setConfirmReason('');
-      setConfirmError('');
+    if (target === 'RESOLVED') {
+      setResolveReasons([]);
+      setResolveError('');
+      setResolveConflict(false);
+      setResolveOpen(true);
       return;
     }
-    if (CONFIRM_TARGETS.includes(target)) {
+    if (CONFIRM_TARGETS.includes(target) || REASON_TARGETS.includes(target)) {
       setConfirmTarget(target);
       setConfirmReason('');
       setConfirmError('');
@@ -317,21 +366,85 @@ export default function StaffTicketDetail({
         setConfirmBusy(false);
         return;
       }
-      const res = await changeTicketStatus(ticket.ticketNumber, confirmTarget, {
+      await changeTicketStatus(ticket.ticketNumber, confirmTarget, {
+        expectedVersion: ticket.version,
         confirm: true,
         reason: needsReason ? confirmReason.trim() : undefined,
       });
-      setTicket((t) => (t ? { ...t, status: res.status, updatedAt: res.updatedAt } : t));
-      setDraft((d) => (d ? { ...d, status: '' } : d));
+      const applied = confirmTarget;
       setConfirmTarget(null);
       setConfirmReason('');
-      setSaveBanner({ kind: 'success', text: `Status changed to ${STATUS_TEXT[res.status]}.` });
+      setSaveBanner({ kind: 'success', text: `Status updated to ${STATUS_TEXT[applied]}.` });
+      await refreshDetail();
       void loadComments();
     } catch (err) {
-      setConfirmError(errMessage(err, 'We could not update the status. Try again.'));
+      if (err instanceof ApiError && err.status === 409) {
+        setConfirmError(CONFLICT_BANNER_TEXT);
+        setSaveBanner({ kind: 'conflict', text: CONFLICT_BANNER_TEXT });
+      } else if (err instanceof ApiError && err.status === 422) {
+        setConfirmError(err.body.error ?? 'The server rejected this change.');
+      } else {
+        setConfirmError(errMessage(err, 'We could not update the status. Try again.'));
+      }
     } finally {
       setConfirmBusy(false);
     }
+  };
+
+  // FR-05/BR-10 — resolve through the gate. Gate reasons leave the dialog open
+  // with the typed summary; a 409 also keeps it open and raises the conflict
+  // banner so the user can reload and retry (AC-10/AC-12).
+  const submitResolution = async () => {
+    if (!ticket) return;
+    if (resolveSummary.trim().length === 0) {
+      setResolveReasons([]);
+      setResolveError('Add a resolution summary.');
+      return;
+    }
+    setResolveBusy(true);
+    setResolveError('');
+    setResolveReasons([]);
+    setResolveConflict(false);
+    try {
+      await changeTicketStatus(ticket.ticketNumber, 'RESOLVED', {
+        expectedVersion: ticket.version,
+        confirm: true,
+        resolutionSummary: resolveSummary.trim(),
+      });
+      setResolveOpen(false);
+      setResolveSummary('');
+      setSaveBanner({ kind: 'success', text: `Status updated to ${STATUS_TEXT.RESOLVED}.` });
+      await refreshDetail();
+      void loadComments();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 422 && err.body.code === 'RESOLUTION_GATE') {
+        setResolveReasons(
+          (err.body.details ?? []).filter((d) => d.field === 'reasons').map((d) => d.message),
+        );
+      } else if (err instanceof ApiError && err.status === 409) {
+        // The conflict notice and its Reload action live inside the dialog: the
+        // banner is behind the backdrop while this modal is open (AC-12).
+        setResolveError(CONFLICT_BANNER_TEXT);
+        setResolveConflict(true);
+      } else {
+        setResolveError(errMessage(err, 'We could not resolve this ticket. Try again.'));
+      }
+    } finally {
+      setResolveBusy(false);
+    }
+  };
+
+  // Conflict recovery: realign with the server, close the transient dialogs and
+  // keep the typed summary so the user can resubmit it once the version is fresh.
+  const reloadAfterConflict = async () => {
+    setSaveBanner(null);
+    setResolveError('');
+    setResolveConflict(false);
+    setResolveOpen(false);
+    setConfirmTarget(null);
+    setConfirmError('');
+    await refreshDetail();
+    void loadComments();
   };
 
   const postComment = async () => {
@@ -435,8 +548,6 @@ export default function StaffTicketDetail({
     );
   }
 
-  const statusTargets = NEXT_STATUS[ticket.status] ?? [];
-
   return (
     <main className="std-page">
       <div className="td-crumbrow">
@@ -460,10 +571,24 @@ export default function StaffTicketDetail({
             <span className={`td-badge ${ticket.priority === 'CRITICAL' ? 'td-b-critical' : ticket.priority === 'HIGH' ? 'td-b-high' : ticket.priority === 'MEDIUM' ? 'td-b-medium' : 'td-b-low'}`}>
               {PRIORITY_TEXT[ticket.priority]} (requested)
             </span>
-            <span className="td-badge td-b-status">{STATUS_TEXT[ticket.status]}</span>
+            <span className="td-badge td-b-status" data-testid="ticket-status-badge">
+              {STATUS_TEXT[ticket.status]}
+            </span>
+            <span className="td-ro std-version" data-testid="ticket-version">
+              Version {ticket.version}
+            </span>
           </h1>
           <span className="td-caption">{fmtDate(ticket.createdAt)}</span>
         </div>
+        {ticket.resolutionSummary ? (
+          <div className="std-resolution" data-testid="resolution-summary">
+            <b>Resolution summary</b>
+            <p>{ticket.resolutionSummary}</p>
+            {ticket.resolvedAt ? (
+              <span className="td-caption">Resolved {fmtDate(ticket.resolvedAt)}</span>
+            ) : null}
+          </div>
+        ) : null}
         {ticket.appearsResolvedAt ? (
           <div className="std-resolved-hint" role="status">
             ✓ The requester indicated this problem appears resolved
@@ -544,7 +669,7 @@ export default function StaffTicketDetail({
               id="std-status"
               className="tok-select std-editable"
               value=""
-              disabled={!isItStaff || saving}
+              disabled={!isItStaff || saving || resolveBusy || statusTargets.length === 0}
               onChange={(e) => {
                 const target = e.target.value as StaffTicketStatus;
                 if (e.target.value === '') return;
@@ -557,6 +682,9 @@ export default function StaffTicketDetail({
                 <option key={s} value={s}>{STATUS_TEXT[s]}</option>
               ))}
             </select>
+            {isItStaff && statusTargets.length === 0 ? (
+              <p className="td-caption" data-testid="no-transitions">No further status changes</p>
+            ) : null}
             {!isItStaff ? (
               <p className="td-caption">Administrators have view-only access to ticket operations.</p>
             ) : null}
@@ -588,7 +716,11 @@ export default function StaffTicketDetail({
           >
             <span>{saveBanner.text}</span>
             {saveBanner.kind === 'conflict' ? (
-              <button type="button" className="tok-btn secondary" onClick={() => { resetDraft(); void load(); }}>
+              <button
+                type="button"
+                className="tok-btn secondary"
+                onClick={() => void reloadAfterConflict()}
+              >
                 Reload
               </button>
             ) : null}
@@ -596,6 +728,13 @@ export default function StaffTicketDetail({
           </div>
         ) : null}
       </section>
+
+      <ActionsTaken
+        ticketNumber={ticket.ticketNumber}
+        ticketCreatedAt={ticket.createdAt}
+        isStaff={true}
+        onActionSaved={refreshDetail}
+      />
 
       <div className="td-tabs" role="tablist" onKeyDown={onTabKeyDown} aria-label="Ticket threads">
         <button
@@ -828,6 +967,30 @@ export default function StaffTicketDetail({
             </div>
           </div>
         </div>
+      ) : null}
+
+      {resolveOpen ? (
+        <ResolveTicketDialog
+          ticketNumber={ticket.ticketNumber}
+          requesterName={ticket.requester.name}
+          summary={resolveSummary}
+          reasons={resolveReasons}
+          error={resolveError}
+          busy={resolveBusy}
+          conflict={resolveConflict}
+          onSummaryChange={(value) => {
+            setResolveSummary(value);
+            setResolveConflict(false);
+          }}
+          onSubmit={() => void submitResolution()}
+          onReload={() => void reloadAfterConflict()}
+          onClose={() => {
+            setResolveOpen(false);
+            setResolveError('');
+            setResolveReasons([]);
+            setResolveConflict(false);
+          }}
+        />
       ) : null}
     </main>
   );

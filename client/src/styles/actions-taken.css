@@ -1,0 +1,364 @@
+/* Lab 4 (L4-4) — Actions Taken section (ui-spec §4).
+   Zen Green theme tokens only (STYLE-01).
+   Desktop table >=992px, tablet table 768-991px, mobile cards <768px.
+*/
+
+.at-section {
+  background: var(--tok-surface);
+  border: 1px solid var(--tok-border-soft);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(30, 42, 37, 0.08);
+  padding: 24px;
+  margin-bottom: 24px;
+  width: 100%;
+}
+
+.at-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.at-title-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.at-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--tok-text);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.at-count-badge {
+  background: var(--tok-primary-soft);
+  color: var(--tok-primary);
+  border: 1px solid #BFE0CE;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.at-order-caption {
+  font-size: 0.825rem;
+  color: var(--tok-text-muted);
+}
+
+/* Banner treatments */
+.at-banner {
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.at-banner-success {
+  background: var(--tok-success-soft);
+  color: var(--tok-success);
+  border: 1px solid #BFE0CE;
+}
+
+.at-banner-error {
+  background: var(--tok-error-soft);
+  color: var(--tok-error);
+  border: 1px solid #F3C6BD;
+}
+
+.at-banner-conflict {
+  background: var(--tok-warning-soft);
+  color: #9A5B00;
+  border: 1px solid #F0D9B5;
+}
+
+/* Form panel (create and edit modes) */
+.at-form-panel {
+  background: #F9FBFA;
+  border: 1px solid var(--tok-border-soft);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.at-mode-banner {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--tok-primary);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.at-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.at-form-full {
+  grid-column: 1 / -1;
+}
+
+.at-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.at-form-group label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--tok-text);
+}
+
+.at-req-star {
+  color: var(--tok-error);
+  font-weight: 700;
+}
+
+.at-form-control {
+  border: 1px solid var(--tok-border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  background-color: var(--tok-field-editable);
+  color: var(--tok-text);
+  min-height: 38px;
+}
+
+.at-form-control:focus-visible {
+  outline: none;
+  box-shadow: var(--tok-ring);
+  border-color: var(--tok-primary);
+}
+
+.at-form-control[aria-invalid="true"] {
+  border-color: var(--tok-error);
+}
+
+.at-form-control:disabled {
+  background-color: var(--tok-field-readonly);
+  color: var(--tok-text-muted);
+  cursor: not-allowed;
+}
+
+textarea.at-form-control {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.at-switch-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+}
+
+.at-switch-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.at-field-hint {
+  font-size: 0.8rem;
+  color: var(--tok-text-muted);
+}
+
+.at-field-error {
+  font-size: 0.8rem;
+  color: var(--tok-error);
+  font-weight: 500;
+}
+
+.at-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+/* Desktop & Tablet Table */
+.at-table-wrap {
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.at-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.at-table th {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 2px solid var(--tok-border-soft);
+  color: var(--tok-text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.at-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--tok-border-soft);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.at-ro-cell {
+  background-color: var(--tok-field-readonly);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.at-ro-warm {
+  background-color: var(--tok-field-readonly-warm);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 0.875rem;
+}
+
+.at-badge-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--tok-warning-soft);
+  color: var(--tok-warning);
+  border: 1px solid #F0D9B5;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.at-followup-note {
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: #7A4500;
+}
+
+.at-attachment-notes {
+  font-size: 0.825rem;
+  color: var(--tok-text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.at-empty-state {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--tok-text-muted);
+}
+
+.at-empty-hint {
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+
+/* Mobile cards */
+.at-cards-wrap {
+  display: none;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.action-card {
+  background: #FFFFFF;
+  border: 1px solid var(--tok-border-soft);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.action-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px solid var(--tok-border-soft);
+  padding-bottom: 8px;
+}
+
+.action-card-date {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--tok-text);
+}
+
+.action-card-performer {
+  font-size: 0.8rem;
+  color: var(--tok-text-muted);
+}
+
+.action-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.action-card-field label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: var(--tok-text-muted);
+  text-transform: uppercase;
+}
+
+.action-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.action-card-actions button {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Tablet responsiveness */
+@media (min-width: 768px) and (max-width: 991.98px) {
+  .at-table {
+    font-size: 0.75rem;
+  }
+  .at-table th, .at-table td {
+    padding: 8px;
+  }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 767.98px) {
+  .at-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .at-table-wrap {
+    display: none;
+  }
+  .at-cards-wrap {
+    display: flex;
+  }
+  .at-form-actions button {
+    min-height: 44px;
+    flex: 1;
+  }
+}

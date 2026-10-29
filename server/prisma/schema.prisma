@@ -67,6 +67,7 @@ model User {
   ownedTickets        Ticket[]  @relation("TicketOwner")
   publicComments      PublicComment[] @relation("PublicCommentAuthor")
   internalNotes       InternalNote[] @relation("InternalNoteAuthor")
+  actionsTaken        ActionTaken[]
 
   @@index([role, isActive])
   @@index([createdAt(sort: Desc)])
@@ -108,6 +109,12 @@ model Ticket {
   relatedSystemId Int
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  // Lab 4 (L4-2 foundation): optimistic-concurrency version plus the
+  // resolution lifecycle columns (resolvedAt/resolutionSummary are written by
+  // the L4-3 workflow; until then they stay null). Additive only.
+  version           Int       @default(1)
+  resolvedAt        DateTime?
+  resolutionSummary String?   @db.VarChar(2000)
 
   requester    Requester      @relation(fields: [requesterId], references: [id], onDelete: Restrict)
   owner        User?          @relation("TicketOwner", fields: [ownerId], references: [id], onDelete: SetNull)
@@ -117,6 +124,7 @@ model Ticket {
   attachmentEvents AttachmentEvent[]
   publicComments  PublicComment[]
   internalNotes   InternalNote[]
+  actions         ActionTaken[]
 
   @@index([requesterId, createdAt(sort: Desc)])
   @@index([categoryId])
@@ -125,6 +133,11 @@ model Ticket {
   @@index([ownerId])
   @@index([status, createdAt(sort: Desc)])
   @@index([updatedAt(sort: Desc)])
+  // Lab 4 (lab4_actions_taken): staff-dashboard and requester-dashboard
+  // predicates; the added itPriority index serves countsByItPriority.
+  @@index([ownerId, status])
+  @@index([requesterId, updatedAt(sort: Desc)])
+  @@index([itPriority])
 }
 
 // Lab 3 Public Comments (FR-08/BR-14). Append-only: no update/delete paths
@@ -207,4 +220,31 @@ model RelatedSystem {
   name      String   @unique
   createdAt DateTime @default(now())
   tickets   Ticket[]
+}
+
+// Lab 4 — Actions Taken (spec §7.1, FR-01/FR-02). One row belongs to exactly
+// one Ticket (Restrict: actions are never deleted or re-parented, BR-01);
+// performedById is always server-derived from the session (BR-04). No delete
+// endpoint exists (BR-19).
+model ActionTaken {
+  id              Int      @id @default(autoincrement())
+  ticketId        Int
+  performedById   Int
+  actionAt        DateTime @default(now())
+  description     String   @db.VarChar(2000)
+  result          String   @db.VarChar(2000)
+  followUpRequired Boolean @default(false)
+  followUpNote    String?  @db.VarChar(1000)
+  attachmentNotes String?  @db.VarChar(500)
+  clientRequestId String?  @db.VarChar(64)
+  version         Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  ticket      Ticket @relation(fields: [ticketId], references: [id], onDelete: Restrict)
+  performedBy User   @relation(fields: [performedById], references: [id], onDelete: Restrict)
+
+  @@index([ticketId, actionAt(sort: Desc), id(sort: Desc)])
+  @@index([performedById, createdAt(sort: Desc)])
+  @@unique([performedById, clientRequestId])
 }
