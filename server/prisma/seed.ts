@@ -527,6 +527,11 @@ async function main(): Promise<void> {
     });
   }
 
+  // Sync sequence immediately after explicit IDs 1..5 so L4_REQUESTERS auto-increment starts at 6
+  await prisma.$executeRawUnsafe(
+    `SELECT setval(pg_get_serial_sequence('"Requester"', 'id'), coalesce(max(id), 1)) FROM "Requester";`
+  );
+
   // Lab 4 (L4-2): eta/zeta Requester rows, upserted on email like the quota
   // list above so re-runs converge without touching Lab 3 rows.
   for (const requester of L4_REQUESTERS) {
