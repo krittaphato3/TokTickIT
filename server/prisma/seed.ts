@@ -73,9 +73,9 @@ const QUOTA_ADMINS: Array<{ name: string; email: string; isActive: boolean }> = 
 // Lab 4 (L4-2, spec §7.6/BR-17): eta owns every Lab 4 demo ticket, zeta owns
 // zero tickets (zero-state dashboards). Kept out of REQUESTERS/QUOTA_* so
 // Lab 3 quota assertions stay pristine.
-const L4_REQUESTERS: Array<{ id?: number; name: string; email: string; isActive: boolean }> = [
-  { id: 6, name: 'Eta Demo', email: 'eta@toktickit.test', isActive: true },
-  { id: 7, name: 'Zeta Demo', email: 'zeta@toktickit.test', isActive: true },
+const L4_REQUESTERS: Array<{ name: string; email: string; isActive: boolean }> = [
+  { name: 'Eta Demo', email: 'eta@toktickit.test', isActive: true },
+  { name: 'Zeta Demo', email: 'zeta@toktickit.test', isActive: true },
 ];
 
 const RELATED_SYSTEMS = [

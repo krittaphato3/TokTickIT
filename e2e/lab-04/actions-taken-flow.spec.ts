@@ -180,7 +180,7 @@ test.describe('E2E-01: Actions Taken flow across staff and requester', () => {
 
     // Verify both actions are visible
     await expect(reqSection.getByText('Staff A replaced the primary power adapter.').first()).toBeVisible();
-    await expect(reqSection.getByText('Staff B applied firmware update v2.4.').first()).toBeVisible();
+    await expect(reqSection.getByText(descB).first()).toBeVisible();
 
     // Verify read-only: no record action or edit buttons
     await expect(reqSection.getByRole('button', { name: /record action/i })).not.toBeVisible();
